@@ -1,0 +1,73 @@
+{
+  "input": "D:\\vcp_hunter\\基金持仓\\outputs\\holdings_stock_2026q1.csv",
+  "raw_rows": 170403,
+  "matched_raw_rows": 1670,
+  "matched_fund_security_rows": 1666,
+  "matched_funds": 1067,
+  "outputs": {
+    "ranking_csv": "D:\\vcp_hunter\\基金持仓\\outputs\\axti_storage_optical_chip_overseas_only_ranking_2026q1.csv",
+    "detail_csv": "D:\\vcp_hunter\\基金持仓\\outputs\\axti_storage_optical_chip_overseas_only_details_2026q1.csv",
+    "workbook": "D:\\vcp_hunter\\基金持仓\\outputs\\axti_storage_optical_chip_overseas_only_2026q1.xlsx"
+  },
+  "note": "overseas-only excludes mainland A-share codes; keeps US/HK/Taiwan/Korea/offshore holdings in the selected code dictionary",
+  "top_total": [
+    "018147",
+    "建信新兴市场混合(QDII)C",
+    "QDII-混合偏股",
+    0.0,
+    0.20320000000000002,
+    0.07869999999999999,
+    0.2892,
+    0.5711,
+    8,
+    "台积电(电芯片/核心半导体) 10.26%; 英伟达(电芯片/核心半导体) 10.14%; SK海力士(存储) 8.65%; 博通(电芯片/核心半导体) 8.52%; 三星电子(存储) 6.76%; 闪迪(存储) 4.91%; 康宁(光芯片/光通信) 4.29%; Lumentum Holdings Inc(光芯片/光通信) 3.58%"
+  ],
+  "top_axti": [
+    "012921",
+    "易方达全球成长精选混合(QDII)美元现汇A",
+    "QDII-混合偏股",
+    0.0467,
+    0.0,
+    0.1335,
+    0.0888,
+    0.269,
+    4,
+    "台积电(电芯片/核心半导体) 8.88%; Lumentum Holdings Inc(光芯片/光通信) 8.68%; 康宁(光芯片/光通信) 4.67%; AXT Inc(AXTI) 4.67%"
+  ],
+  "top_storage": [
+    "513310",
+    "中韩半导体ETF华泰柏瑞",
+    "指数型-海外股票",
+    0.0,
+    0.3437,
+    0.0,
+    0.0,
+    0.3437,
+    2,
+    "三星电子(存储) 18.84%; SK海力士(存储) 15.53%"
+  ],
+  "top_optical": [
+    "002892",
+    "华夏移动互联混合美元现汇",
+    "QDII-混合灵活",
+    0.0,
+    0.1371,
+    0.1845,
+    0.0756,
+    0.3972,
+    7,
+    "Coherent Corp(光芯片/光通信) 7.54%; 闪迪(存储) 7.13%; 美光科技(存储) 6.58%; Lumentum Holdings Inc(光芯片/光通信) 5.79%; 康宁(光芯片/光通信) 5.12%; 英伟达(电芯片/核心半导体) 4.11%; 英特尔(电芯片/核心半导体) 3.45%"
+  ],
+  "top_electrical_chip": [
+    "018036",
+    "长城全球新能源车股票发起式(QDII)C",
+    "QDII-普通股票",
+    0.0,
+    0.1015,
+    0.0,
+    0.3592,
+    0.4607,
+    8,
+    "台积电(电芯片/核心半导体) 7.44%; 阿斯麦(电芯片/核心半导体) 7.27%; 英伟达(电芯片/核心半导体) 6.99%; 美光科技(存储) 5.95%; 博通(电芯片/核心半导体) 5.45%; 科磊(电芯片/核心半导体) 4.54%; 拉姆研究(电芯片/核心半导体) 4.23%; 闪迪(存储) 4.20%"
+  ]
+}
