@@ -383,6 +383,38 @@ a:hover {
   font-weight: 500;
 }
 
+.market-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.market-shortcut {
+  min-height: 34px;
+  padding: 7px 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--muted);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  transition: all 0.18s ease;
+}
+
+.market-shortcut:hover {
+  border-color: var(--line-strong);
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.market-shortcut.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* Candidate lists */
 .candidate-list {
   display: grid;
@@ -448,16 +480,6 @@ a:hover {
 }
 
 .candidate:hover::before {
-  transform: translateY(-50%) scale(1);
-}
-
-.candidate.selected {
-  border-color: var(--accent);
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.04);
-}
-
-.candidate.selected::before {
   transform: translateY(-50%) scale(1);
 }
 
@@ -840,17 +862,21 @@ tbody tr td:last-child {
 }
 
 .fund-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  max-width: 330px;
   margin-top: 4px;
   color: var(--muted);
   font-size: 11px;
   font-family: "JetBrains Mono", monospace;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
-.fund-variant-note {
-  margin-left: 8px;
-  color: var(--accent);
-  font-family: Outfit, sans-serif;
-  font-size: 10px;
+.fund-code-list {
+  color: #475569;
   font-weight: 800;
 }
 
@@ -1286,6 +1312,12 @@ tbody tr td:last-child {
   color: #1e293b;
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+
+.hover-card-fund-codes {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .hover-card-summary {

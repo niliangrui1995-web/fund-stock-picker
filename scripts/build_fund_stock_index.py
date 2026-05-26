@@ -59,25 +59,43 @@ def rounded_optional(value: float | None, digits: int = 4) -> float | None:
     return None if value is None else round(value, digits)
 
 
-def is_overseas_stock_code(code: str) -> bool:
-    return re.fullmatch(r"\d{6}", code.strip()) is None
+JAPANESE_STOCK_NAME_RE = re.compile(
+    r"东京|丰田|索尼|日立|三菱|任天堂|软银|本田|东京电子|三井|住友|瑞穗|武田|迅销|基恩士|信越|村田|电装|佳能|尼康|日本"
+)
+KOREAN_STOCK_NAME_RE = re.compile(
+    r"三星电子|SK海力士|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华|韩国电力"
+)
 
 
-def stock_market_bucket(code: str) -> str:
+def stock_market_bucket(code: str, name: str = "") -> str:
     normalized = code.strip().upper()
     if re.fullmatch(r"\d{5}", normalized):
         return "hk"
-    if re.fullmatch(r"[A-Z][A-Z0-9._-]*", normalized):
+    if re.fullmatch(r"\d{4}\.(T|JP)", normalized):
+        return "jp"
+    if re.fullmatch(r"\d{6}\.(KS|KQ)", normalized):
+        return "kr"
+    if re.fullmatch(r"[A-Z]{1,5}([.-][A-Z]{1,2})?", normalized):
         return "us"
+    if re.fullmatch(r"\d{4}", normalized):
+        return "jp" if JAPANESE_STOCK_NAME_RE.search(name) else "other"
+    if re.fullmatch(r"\d{6}", normalized) and KOREAN_STOCK_NAME_RE.search(name):
+        return "kr"
+    if re.fullmatch(r"\d{6}", normalized) or re.fullmatch(r"A\d+", normalized):
+        return "a"
     return "other"
 
 
+def is_overseas_stock_code(code: str, name: str = "") -> bool:
+    return stock_market_bucket(code, name) != "a"
+
+
 def balanced_overseas_popular(stocks: list[dict[str, Any]], limit: int = 60) -> list[dict[str, Any]]:
-    quotas = {"us": 36, "hk": 18, "other": 6}
-    cycle = ("us", "us", "hk", "us", "other", "us", "hk", "us")
+    quotas = {"us": 30, "hk": 16, "jp": 4, "kr": 4, "other": 6}
+    cycle = ("us", "us", "hk", "us", "kr", "hk", "jp", "us", "other", "us")
     buckets = {bucket: [] for bucket in quotas}
     for item in stocks:
-        buckets[stock_market_bucket(item["code"])].append(item)
+        buckets[stock_market_bucket(item["code"], item["name"])].append(item)
 
     selected: list[dict[str, Any]] = []
     selected_codes: set[str] = set()
@@ -137,32 +155,10 @@ def load_purchase_limits() -> dict[str, dict[str, str]]:
             limits[code] = {
                 "purchaseStatus": row.get("申购状态", "").strip(),
                 "redemptionStatus": row.get("赎回状态", "").strip(),
-                "nextOpenDate": row.get("下一开放日", "").strip(),
                 "minPurchase": row.get("起购金额", "").strip(),
                 "dailyPurchaseLimit": row.get("日累计限购额度", "").strip(),
-                "purchaseFee": row.get("费率", "").strip(),
-                "navDate": row.get("净值日期", "").strip(),
             }
     return limits
-
-
-def trade_status_text(limit: dict[str, str] | None) -> str:
-    if not limit:
-        return ""
-    parts = []
-    purchase_status = limit.get("purchaseStatus", "")
-    redemption_status = limit.get("redemptionStatus", "")
-    min_purchase = limit.get("minPurchase", "")
-    daily_limit = limit.get("dailyPurchaseLimit", "")
-    if purchase_status:
-        parts.append(purchase_status)
-    if redemption_status:
-        parts.append(redemption_status)
-    if min_purchase:
-        parts.append(f"起购{min_purchase}")
-    if daily_limit:
-        parts.append(f"日限{daily_limit}")
-    return " · ".join(parts)
 
 
 def enrich_fund_record(
@@ -175,15 +171,29 @@ def enrich_fund_record(
         {
             "purchaseStatus": limit.get("purchaseStatus", ""),
             "redemptionStatus": limit.get("redemptionStatus", ""),
-            "nextOpenDate": limit.get("nextOpenDate", ""),
             "minPurchase": limit.get("minPurchase", ""),
             "dailyPurchaseLimit": limit.get("dailyPurchaseLimit", ""),
-            "purchaseFee": limit.get("purchaseFee", ""),
-            "navDate": limit.get("navDate", ""),
-            "tradeStatusText": trade_status_text(limit),
         }
     )
     return fund
+
+
+def public_fund_record(fund: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "fundCode": fund["fundCode"],
+        "fundName": fund["fundName"],
+        "fundType": fund["fundType"],
+        "ratioPercent": fund["ratioPercent"],
+        "marketValueWan": fund["marketValueWan"],
+        "sharesWan": fund["sharesWan"],
+        "purchaseStatus": fund.get("purchaseStatus", ""),
+        "redemptionStatus": fund.get("redemptionStatus", ""),
+        "minPurchase": fund.get("minPurchase", ""),
+        "dailyPurchaseLimit": fund.get("dailyPurchaseLimit", ""),
+        "fundVariantCount": fund.get("fundVariantCount", 1),
+        "fundVariantCodes": fund.get("fundVariantCodes", [fund["fundCode"]]),
+        "fundDisplayName": fund.get("fundDisplayName", fund["fundName"]),
+    }
 
 
 def strip_wrapped_share_markers(name: str) -> str:
@@ -197,6 +207,25 @@ def strip_wrapped_share_markers(name: str) -> str:
             any(marker.upper() in text for marker in CURRENCY_MARKERS)
             or any(marker in text for marker in SHARE_CLASS_SUFFIXES)
             or "QDII" in text
+            or "后端" in text
+            or "前端" in text
+        ):
+            name = name[: match.start()]
+            continue
+        return name
+
+
+def strip_wrapped_display_share_markers(name: str) -> str:
+    pattern = r"[（(]([^）)]*)[）)]$"
+    while True:
+        match = re.search(pattern, name)
+        if not match:
+            return name
+        text = match.group(1).upper()
+        share_class_pattern = "|".join(SHARE_CLASS_SUFFIXES)
+        if (
+            any(marker.upper() in text for marker in CURRENCY_MARKERS)
+            or re.fullmatch(rf"(?:{share_class_pattern})(?:/(?:{share_class_pattern}))*类?", text, flags=re.I)
             or "后端" in text
             or "前端" in text
         ):
@@ -221,6 +250,45 @@ def fund_family_key(fund: dict[str, Any]) -> str:
         if name != name_before:
             changed = True
     return name.upper()
+
+
+def fund_family_display_name(fund: dict[str, Any]) -> str:
+    name = fund["fundName"].strip()
+    name = re.sub(r"\s+", "", name)
+    name = strip_wrapped_display_share_markers(name)
+    changed = True
+    currency_markers = sorted(
+        ["人民币份额", "美元份额", *CURRENCY_MARKERS, "前端", "后端"],
+        key=len,
+        reverse=True,
+    )
+    share_class_pattern = "|".join(SHARE_CLASS_SUFFIXES)
+    while changed:
+        changed = False
+        for marker in currency_markers:
+            next_name = re.sub(
+                rf"{re.escape(marker)}(?:{share_class_pattern})?类?$",
+                "",
+                name,
+                flags=re.I,
+            )
+            if next_name != name:
+                name = next_name
+                changed = True
+                break
+        if changed:
+            continue
+        next_name = re.sub(rf"(?:{share_class_pattern})类?$", "", name, flags=re.I)
+        next_name = re.sub(
+            rf"(?:{share_class_pattern})(?:/(?:{share_class_pattern}))+$",
+            "",
+            next_name,
+            flags=re.I,
+        )
+        if next_name != name:
+            name = next_name
+            changed = True
+    return name or fund["fundName"].strip()
 
 
 def share_class_penalty(fund: dict[str, Any]) -> int:
@@ -251,7 +319,6 @@ def make_fund_record(row: dict[str, str]) -> dict[str, Any]:
         "fundCode": row.get("基金代码", "").strip(),
         "fundName": row.get("基金名称", "").strip(),
         "fundType": row.get("基金类型", "").strip(),
-        "reportPeriod": row.get("报告期", "").strip(),
         "cutoffDate": row.get("截止日期", "").strip(),
         "ratio": rounded(ratio, 6),
         "ratioPercent": rounded(ratio * 100, 2),
@@ -306,17 +373,21 @@ def ranking_key(fund: dict[str, Any], ranking: str) -> tuple[float, float, int, 
 
 def unique_fund_families(funds: list[dict[str, Any]], ranking: str, limit: int = 10) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
-    variant_counts: dict[str, int] = defaultdict(int)
+    variant_codes: dict[str, set[str]] = defaultdict(set)
     for fund in funds:
         key = fund_family_key(fund)
-        variant_counts[key] += 1
+        if fund["fundCode"]:
+            variant_codes[key].add(fund["fundCode"])
         current = grouped.get(key)
         if current is None or ranking_key(fund, ranking) > ranking_key(current, ranking):
             grouped[key] = fund
     ranked = sorted(grouped.values(), key=lambda item: ranking_key(item, ranking), reverse=True)
     for fund in ranked:
         fund["fundFamilyKey"] = fund_family_key(fund)
-        fund["fundVariantCount"] = variant_counts[fund["fundFamilyKey"]]
+        codes = sorted(variant_codes[fund["fundFamilyKey"]])
+        fund["fundVariantCount"] = len(codes)
+        fund["fundVariantCodes"] = codes
+        fund["fundDisplayName"] = fund_family_display_name(fund)
     return ranked[:limit]
 
 
@@ -395,12 +466,15 @@ def build_index() -> dict[str, Any]:
         )
 
     stocks.sort(key=lambda item: (-item["activeFundCount"], -item["fundCount"], item["code"]))
-    overseas_stocks = [item for item in stocks if is_overseas_stock_code(item["code"])]
+    overseas_stocks = [item for item in stocks if is_overseas_stock_code(item["code"], item["name"])]
+    export_stocks = overseas_stocks if overseas_stocks else stocks
     popular_source = balanced_overseas_popular(overseas_stocks) if overseas_stocks else stocks[:60]
     popular_market_mix = {
-        "hk": sum(1 for item in popular_source if stock_market_bucket(item["code"]) == "hk"),
-        "us": sum(1 for item in popular_source if stock_market_bucket(item["code"]) == "us"),
-        "other": sum(1 for item in popular_source if stock_market_bucket(item["code"]) == "other"),
+        "hk": sum(1 for item in popular_source if stock_market_bucket(item["code"], item["name"]) == "hk"),
+        "us": sum(1 for item in popular_source if stock_market_bucket(item["code"], item["name"]) == "us"),
+        "jp": sum(1 for item in popular_source if stock_market_bucket(item["code"], item["name"]) == "jp"),
+        "kr": sum(1 for item in popular_source if stock_market_bucket(item["code"], item["name"]) == "kr"),
+        "other": sum(1 for item in popular_source if stock_market_bucket(item["code"], item["name"]) == "other"),
     }
     popular = [
         {
@@ -419,7 +493,7 @@ def build_index() -> dict[str, Any]:
     report = summary.get("report", "2026Q1")
     visible_fund_codes = {
         fund["fundCode"]
-        for stock in stocks
+        for stock in export_stocks
         for fund in [*stock["topByRatio"], *stock["topByValue"]]
         if fund["fundCode"]
     }
@@ -439,13 +513,23 @@ def build_index() -> dict[str, Any]:
         )[:10]
         fund_top_holdings[fund_code] = sorted_holdings
 
+    public_stocks = [
+        {
+            **stock,
+            "topByRatio": [public_fund_record(fund) for fund in stock["topByRatio"]],
+            "topByValue": [public_fund_record(fund) for fund in stock["topByValue"]],
+        }
+        for stock in export_stocks
+    ]
+
     return {
         "meta": {
             "report": report,
             "sourceFile": SOURCE_CSV.name,
             "generatedAt": datetime.now().isoformat(timespec="seconds"),
             "sourceRows": row_count,
-            "stockCount": len(stocks),
+            "stockCount": len(public_stocks),
+            "totalStockCount": len(stocks),
             "defaultRanking": "ratio",
             "defaultRankingLabel": "占基金净值比例",
             "alternateRankingLabel": "持仓市值(万元)",
@@ -458,10 +542,12 @@ def build_index() -> dict[str, Any]:
             "popularScope": "overseas" if overseas_stocks else "all",
             "popularScopeLabel": "海外热门" if overseas_stocks else "高覆盖股票",
             "overseasStockCount": len(overseas_stocks),
+            "shippedStockScope": "overseas" if overseas_stocks else "all",
+            "shippedStockCount": len(public_stocks),
             "popularMarketMix": popular_market_mix,
         },
         "popularStocks": popular,
-        "stocks": stocks,
+        "stocks": public_stocks,
         "fundHoldings": fund_top_holdings,
     }
 

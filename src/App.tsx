@@ -16,9 +16,6 @@ type FundRecord = {
   fundCode: string;
   fundName: string;
   fundType: string;
-  reportPeriod: string;
-  cutoffDate: string;
-  ratio: number;
   ratioPercent: number;
   marketValueWan: number | null;
   sharesWan: number;
@@ -26,8 +23,9 @@ type FundRecord = {
   redemptionStatus?: string;
   minPurchase?: string;
   dailyPurchaseLimit?: string;
-  tradeStatusText?: string;
   fundVariantCount?: number;
+  fundVariantCodes?: string[];
+  fundDisplayName?: string;
 };
 
 type StockRecord = {
@@ -61,11 +59,30 @@ type FundStockIndex = {
     popularScope?: string;
     popularScopeLabel?: string;
     overseasStockCount?: number;
+    totalStockCount?: number;
+    shippedStockScope?: string;
+    shippedStockCount?: number;
   };
   popularStocks: PopularStock[];
   stocks: StockRecord[];
   fundHoldings?: Record<string, HoldingRecord[]>;
 };
+
+const popularMarketFilters = [
+  { key: "us", label: "美股" },
+  { key: "jp", label: "日股" },
+  { key: "kr", label: "韩股" },
+  { key: "hk", label: "香港" },
+  { key: "other", label: "其他" },
+] as const;
+
+type PopularMarketFilter = (typeof popularMarketFilters)[number]["key"];
+type MarketBucket = PopularMarketFilter | "a";
+
+const japaneseStockNamePattern =
+  /东京|丰田|索尼|日立|三菱|任天堂|软银|本田|东京电子|三井|住友|瑞穗|武田|迅销|基恩士|信越|村田|电装|佳能|尼康|日本/;
+const koreanStockNamePattern =
+  /三星电子|SK海力士|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华|韩国电力/;
 
 const numberFormatter = new Intl.NumberFormat("zh-CN");
 const valueFormatter = new Intl.NumberFormat("zh-CN", {
@@ -76,15 +93,30 @@ function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
 
-function isOverseasStockCode(code: string) {
-  return !/^\d{6}$/.test(code.trim());
+function stockMarketBucket(code: string, name = ""): MarketBucket {
+  const normalized = code.trim().toUpperCase();
+  if (/^\d{5}$/.test(normalized)) return "hk";
+  if (/^\d{4}\.(T|JP)$/.test(normalized)) return "jp";
+  if (/^\d{6}\.(KS|KQ)$/.test(normalized)) return "kr";
+  if (/^[A-Z]{1,5}([.-][A-Z]{1,2})?$/.test(normalized)) return "us";
+  if (/^\d{4}$/.test(normalized)) return japaneseStockNamePattern.test(name) ? "jp" : "other";
+  if (/^\d{6}$/.test(normalized) && koreanStockNamePattern.test(name)) return "kr";
+  if (/^A\d+$/.test(normalized)) return "a";
+  if (/^\d{6}$/.test(normalized)) return "a";
+  return "other";
 }
 
-function marketLabel(code: string) {
-  const normalized = code.trim().toUpperCase();
-  if (/^\d{5}$/.test(normalized)) return "港股";
-  if (/^[A-Z][A-Z0-9.-]*$/.test(normalized)) return "美股";
-  return isOverseasStockCode(normalized) ? "海外" : "A股";
+function isOverseasStockCode(code: string, name = "") {
+  return stockMarketBucket(code, name) !== "a";
+}
+
+function marketLabel(code: string, name = "") {
+  const bucket = stockMarketBucket(code, name);
+  if (bucket === "hk") return "港股";
+  if (bucket === "jp") return "日股";
+  if (bucket === "kr") return "韩股";
+  if (bucket === "us") return "美股";
+  return bucket === "other" ? "其他" : "A股";
 }
 
 function hasWanValue(value: number | null | undefined): value is number {
@@ -122,8 +154,19 @@ function normalizeStockCode(code: string) {
   return code.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
 }
 
+function uniqueFundCodes(fundCode: string, fundVariantCodes?: string[]) {
+  return Array.from(new Set([fundCode, ...(fundVariantCodes ?? [])].filter(Boolean)));
+}
+
+function displayFundName(fund: FundRecord) {
+  return fund.fundVariantCount && fund.fundVariantCount > 1 && fund.fundDisplayName
+    ? fund.fundDisplayName
+    : fund.fundName;
+}
+
 function FundHoldingsHoverCard({
   fundCode,
+  fundVariantCodes,
   fundName,
   holdings,
   currentSearchStockCode,
@@ -131,6 +174,7 @@ function FundHoldingsHoverCard({
   y,
 }: {
   fundCode: string;
+  fundVariantCodes?: string[];
   fundName: string;
   holdings: HoldingRecord[];
   currentSearchStockCode: string | null;
@@ -146,6 +190,10 @@ function FundHoldingsHoverCard({
     if (!currentStockCode) return null;
     return holdings.find((h) => normalizeStockCode(h.stockCode) === currentStockCode) ?? null;
   }, [currentStockCode, holdings]);
+  const fundCodes = useMemo(
+    () => uniqueFundCodes(fundCode, fundVariantCodes),
+    [fundCode, fundVariantCodes],
+  );
   const topHolding = holdings[0] ?? null;
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
@@ -174,7 +222,7 @@ function FundHoldingsHoverCard({
           </div>
           <div className="hover-card-meta-line">
             <span>基金代码</span>
-            <strong>{fundCode}</strong>
+            <strong className="hover-card-fund-codes">{fundCodes.join(" / ")}</strong>
           </div>
         </div>
       </div>
@@ -324,7 +372,9 @@ function ResultTable({
 }: {
   funds: FundRecord[];
   rankMode: RankMode;
-  onHoverFund: (fund: { fundCode: string; fundName: string; x: number; y: number } | null) => void;
+  onHoverFund: (
+    fund: { fundCode: string; fundVariantCodes?: string[]; fundName: string; x: number; y: number } | null,
+  ) => void;
 }) {
   const maxVal = useMemo(() => Math.max(...funds.map((f) => f.marketValueWan ?? 0), 1), [funds]);
   const maxRatio = useMemo(() => Math.max(...funds.map(f => f.ratioPercent), 1), [funds]);
@@ -350,6 +400,8 @@ function ResultTable({
               : 0;
             const activeWidth = rankMode === "ratio" ? ratioWidth : valueWidth;
             const passiveWidth = rankMode === "ratio" ? valueWidth : ratioWidth;
+            const fundCodes = uniqueFundCodes(fund.fundCode, fund.fundVariantCodes);
+            const fundName = displayFundName(fund);
 
             return (
               <tr key={`${fund.fundCode}-${fund.fundName}`}>
@@ -360,7 +412,8 @@ function ResultTable({
                   onMouseEnter={(e) => {
                     onHoverFund({
                       fundCode: fund.fundCode,
-                      fundName: fund.fundName,
+                      fundVariantCodes: fund.fundVariantCodes,
+                      fundName,
                       x: e.clientX,
                       y: e.clientY,
                     });
@@ -368,7 +421,8 @@ function ResultTable({
                   onMouseMove={(e) => {
                     onHoverFund({
                       fundCode: fund.fundCode,
-                      fundName: fund.fundName,
+                      fundVariantCodes: fund.fundVariantCodes,
+                      fundName,
                       x: e.clientX,
                       y: e.clientY,
                     });
@@ -378,12 +432,9 @@ function ResultTable({
                   }}
                   style={{ cursor: "help" }}
                 >
-                  <div className="fund-name" title={fund.fundName}>{fund.fundName}</div>
+                  <div className="fund-name" title={fund.fundName}>{fundName}</div>
                   <div className="fund-code">
-                    {fund.fundCode}
-                    {fund.fundVariantCount && fund.fundVariantCount > 1 ? (
-                      <span className="fund-variant-note">已合并 {fund.fundVariantCount} 类份额</span>
-                    ) : null}
+                    <span className="fund-code-list">{fundCodes.join(" / ")}</span>
                   </div>
                   <div className="fund-trade-row">
                     <span className={`trade-pill ${tradeStatusTone(fund.purchaseStatus)}`}>
@@ -519,19 +570,17 @@ function SkeletonResults() {
 
 function CandidateButton({
   stock,
-  selected,
   onSelect,
 }: {
   stock: PopularStock | StockRecord;
-  selected: boolean;
   onSelect: () => void;
 }) {
   return (
-    <button className={`candidate ${selected ? "selected" : ""}`} onClick={onSelect} type="button">
+    <button className="candidate" onClick={onSelect} type="button">
       <span className="candidate-main">
         <span className="candidate-title-row">
           <strong>{stock.name}</strong>
-          <span className="market-badge">{marketLabel(stock.code)}</span>
+          <span className="market-badge">{marketLabel(stock.code, stock.name)}</span>
         </span>
         <em>{stock.code}</em>
       </span>
@@ -578,12 +627,14 @@ export function App() {
   const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [rankMode, setRankMode] = useState<RankMode>("ratio");
+  const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Track hovered fund information for Hover Card portal display
   const [hoveredFund, setHoveredFund] = useState<{
     fundCode: string;
+    fundVariantCodes?: string[];
     fundName: string;
     x: number;
     y: number;
@@ -633,7 +684,11 @@ export function App() {
       : selectedStock.topByValue
     : [];
 
-  const suggestions = query.trim() ? matches : data?.popularStocks ?? [];
+  const popularSuggestions = useMemo(() => {
+    const source = data?.popularStocks ?? [];
+    if (!popularMarketFilter) return source;
+    return source.filter((stock) => stockMarketBucket(stock.code, stock.name) === popularMarketFilter);
+  }, [data, popularMarketFilter]);
 
   function chooseStock(stock: PopularStock | StockRecord) {
     setSelectedCode(stock.code);
@@ -650,8 +705,8 @@ export function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand-mark">
-          <span>FUNDTRACE</span>
-          持仓穿透
+          <span>出海钱眼</span>
+          基金持仓穿透
         </div>
         <div className="topbar-meta">
           <span>
@@ -710,23 +765,37 @@ export function App() {
       <section className={`workspace ${selectedStock ? "has-selection" : "no-selection"}`}>
         <aside className="left-panel" aria-label="股票候选">
           <div className="panel-heading">
-            <h2>{query.trim() ? "匹配股票" : data?.meta.popularScopeLabel ?? "海外热门"}</h2>
-            <span>{isAppLoading ? "载入中..." : `${suggestions.length} 项`}</span>
+            <h2>{data?.meta.popularScopeLabel ?? "海外热门"}</h2>
+            <span>{isAppLoading ? "载入中..." : `${popularSuggestions.length} 项`}</span>
+          </div>
+          <div className="market-shortcuts" aria-label="海外热门市场筛选">
+            {popularMarketFilters.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                className={`market-shortcut ${popularMarketFilter === filter.key ? "active" : ""}`}
+                aria-pressed={popularMarketFilter === filter.key}
+                onClick={() =>
+                  setPopularMarketFilter((current) => (current === filter.key ? null : filter.key))
+                }
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
           <div className="candidate-list">
             {isAppLoading ? (
               [1, 2, 3, 4, 5].map((i) => <SkeletonCandidate key={i} />)
-            ) : suggestions.length ? (
-              suggestions.map((stock) => (
+            ) : popularSuggestions.length ? (
+              popularSuggestions.map((stock) => (
                 <CandidateButton
                   key={stock.code}
                   stock={stock}
-                  selected={stock.code === selectedStock?.code}
                   onSelect={() => chooseStock(stock)}
                 />
               ))
             ) : (
-              <p className="no-match">未找到匹配标的，试试证券代码或简称。</p>
+              <p className="no-match">{popularMarketFilter ? "暂无该市场热门标的。" : "暂无热门标的。"}</p>
             )}
           </div>
         </aside>
@@ -738,7 +807,9 @@ export function App() {
             <>
               <div className="result-header">
                 <div>
-                  <p className="eyeline">{isOverseasStockCode(selectedStock.code) ? "当前海外标的" : "当前标的"}</p>
+                  <p className="eyeline">
+                    {isOverseasStockCode(selectedStock.code, selectedStock.name) ? "当前海外标的" : "当前标的"}
+                  </p>
                   <h2>
                     {selectedStock.name}
                     <span>{selectedStock.code}</span>
@@ -791,6 +862,7 @@ export function App() {
       {hoveredFund && (
         <FundHoldingsHoverCard
           fundCode={hoveredFund.fundCode}
+          fundVariantCodes={hoveredFund.fundVariantCodes}
           fundName={hoveredFund.fundName}
           holdings={fundHoldingsMap[hoveredFund.fundCode] || []}
           currentSearchStockCode={selectedStock?.code || null}
