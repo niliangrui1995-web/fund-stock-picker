@@ -1,4 +1,5 @@
 公开域名：https://fund.niliangrui.cloud/
+开源仓库：https://github.com/niliangrui1995-web/fund-stock-picker
 
 # 出海钱眼
 
@@ -175,7 +176,7 @@ rg -n -I "password|passwd|secret|token|api[_-]?key|auth[_-]?key|private[_-]?key|
 - 不提交 `data/eastmoney_cache/` 和 `outputs/`。
 - 不把个人域名、个人邮箱、API 密钥、SMTP 授权码、Cloudflare Token 写入 README、源码、提交信息或 Issues。
 - 如果旧 Git 历史曾经包含个人部署信息，公开发布时建议新建干净仓库或重写历史后再推送。
-- 添加合适的开源许可证文件，例如 MIT、Apache-2.0 或其他与你的发布目标一致的许可证。
+- 已添加 MIT 开源许可证文件，详见 `LICENSE`。
 
 ## 常见问题
 
@@ -219,6 +220,10 @@ npm run preview
 - 修改数据口径后，同步更新 README 的数据说明和常见问题。
 - 发布前跑构建、依赖审计和隐私关键词扫描。
 - 所有中文文件保持 UTF-8 编码。
+
+## 许可证
+
+本项目采用 MIT License，详见 `LICENSE`。
 
 ## 免责声明
 
