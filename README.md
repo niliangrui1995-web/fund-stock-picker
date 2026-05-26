@@ -1,20 +1,22 @@
+公开域名：https://fund.niliangrui.cloud/
+
 # 出海钱眼
 
-出海钱眼是一个静态基金持仓穿透网站，用来帮助大陆投资者从公开公募基金持仓里反查海外股票暴露。用户输入美股、港股或其他海外股票代码/名称后，页面会返回场外基金和场内 ETF / LOF 等基金的持仓榜。
+出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序。
 
-本项目当前聚焦 `2026Q1` 数据，适合做海外股票投资需求下的基金筛选、持仓穿透和基金集中度研究。页面仅做信息展示和研究辅助，不构成投资建议。
+项目当前内置 `2026Q1` 数据快照，主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
 
-## 核心能力
+## 功能
 
 - 按股票名称或代码搜索海外标的，例如 `NVDA`、`00700`、`TSM`、`英伟达`、`腾讯控股`。
-- 展示持仓该股票的前 10 只场外基金，场外口径沿用原有“剔除指数、ETF、ETF联接”逻辑。
-- 支持切换场内基金，包含 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
-- 首屏提供海外热门候选，并支持按美股、港股、日股、韩股和其他市场筛选。
-- 展示基金代码、合并份额代码、基金类型、净值占比、持仓市值、持股数、申购状态、赎回状态、起购金额和限购额度。
-- 悬停基金行可查看该基金前十大持仓，并高亮当前查询标的。
-- 纯静态前端，无后端服务，适合部署到静态托管平台。
+- 场外口径沿用原有逻辑，剔除基金类型或基金名称中包含“指数”“ETF”“ETF联接”的基金。
+- 场内口径覆盖 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
+- 首页展示海外热门标的，并支持按美股、港股、日股、韩股和其他市场筛选。
+- 结果展示基金代码、合并份额代码、基金类型、净值占比、持仓市值、持股数、申购状态、赎回状态、起购金额和限购额度。
+- 点击或悬停基金行可查看该基金前十大持仓，并高亮当前查询标的。
+- 页面内置意见反馈入口；反馈发送依赖部署环境变量，不在代码中保存邮箱密码或收件人地址。
 
-## 当前数据快照
+## 数据快照
 
 | 项目 | 当前值 |
 | --- | --- |
@@ -24,250 +26,185 @@
 | 源基金数 | `26,826` |
 | 源股票总数 | `4,624` |
 | 前端发布标的 | `742` 个海外标的 |
-| 申购限制记录 | `26,542` |
+| 热门候选 | `60` 个 |
+| 基金持仓卡片索引 | `1,679` 个基金代码 |
 | 前端数据文件 | `public/data/fund-stock-index-2026q1.json` |
-| 当前 JSON 体积 | 约 `5.12 MB`，gzip 后约 `0.61 MB` |
 
-前端发布数据只保留海外股票检索范围，完整源股票数量保存在 `meta.totalStockCount` 中。这样可以保留数据口径可追溯性，同时避免公开页面加载完整 A 股持仓索引。
+前端只发布海外股票检索范围，完整源股票数量保存在数据文件的 `meta.totalStockCount` 中。`data/eastmoney_cache/` 和 `outputs/` 是本地采集、缓存和中间产物目录，不应提交到公开仓库。
 
 ## 技术栈
 
 - React 19
 - TypeScript
 - Vite 6
-- lucide-react 图标
-- Python CSV/JSON 预处理脚本
+- lucide-react
+- Python 数据预处理脚本
 - 静态 JSON 数据文件
+- 可选 Cloudflare Pages Functions / Advanced Mode Worker 处理意见反馈
 
 ## 目录结构
 
 ```text
 .
-├── index.html
-├── package.json
-├── public/
-│   ├── _headers
-│   └── data/
-│       └── fund-stock-index-2026q1.json
-├── scripts/
-│   ├── build_fund_stock_index.py
-│   ├── fetch_2026q1_fund_holdings.py
-│   └── analyze_overseas_ai_exposure.py
-├── src/
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── styles.css
-├── outputs/
-│   ├── holdings_stock_2026q1.csv
-│   ├── fund_purchase_limit_snapshot.csv
-│   └── run_summary_2026q1.json
-└── vite.config.ts
+|-- index.html
+|-- package.json
+|-- public/
+|   |-- _headers
+|   |-- _worker.js
+|   `-- data/
+|       `-- fund-stock-index-2026q1.json
+|-- scripts/
+|   |-- analyze_overseas_ai_exposure.py
+|   |-- build_fund_stock_index.py
+|   `-- fetch_2026q1_fund_holdings.py
+|-- src/
+|   |-- App.tsx
+|   |-- main.tsx
+|   `-- styles.css
+|-- tsconfig.json
+`-- vite.config.ts
 ```
-
-## 数据流
-
-```text
-outputs/holdings_stock_2026q1.csv
-        +
-outputs/fund_purchase_limit_snapshot.csv
-        +
-outputs/run_summary_2026q1.json
-        |
-        v
-scripts/build_fund_stock_index.py
-        |
-        v
-public/data/fund-stock-index-2026q1.json
-        |
-        v
-React + Vite static website
-```
-
-生成脚本会完成以下处理：
-
-- 按股票代码聚合基金持仓。
-- 生成场外榜单时，剔除基金名称或类型中包含“指数”“ETF”“ETF联接”的基金。
-- 合并同一基金的不同份额、币种、前端/后端代码，只保留当前股票口径下最强的一类份额。
-- 为每只股票生成场外 `topByRatio` / `topByValue` 榜单，以及场内 `topOnExchangeByRatio` 榜单。
-- 为页面悬停卡片生成可展示基金的前十大持仓。
-- 只向前端发布海外股票检索范围，降低首屏数据负担。
 
 ## 本地运行
 
-### 1. 安装依赖
+安装依赖：
 
 ```powershell
 npm install
 ```
 
-### 2. 生成前端数据
-
-```powershell
-python scripts\build_fund_stock_index.py
-```
-
-成功后会写入：
-
-```text
-public/data/fund-stock-index-2026q1.json
-```
-
-### 3. 启动开发服务器
+启动开发服务：
 
 ```powershell
 npm run dev
 ```
 
-打开：
-
-```text
-http://127.0.0.1:5173/
-```
-
-## 生产构建与预览
+生产构建：
 
 ```powershell
 npm run build
+```
+
+本地预览生产构建：
+
+```powershell
 npm run preview
 ```
 
-生产预览默认打开：
+## 数据生成
+
+当前前端读取：
 
 ```text
-http://127.0.0.1:4173/
+public/data/fund-stock-index-2026q1.json
 ```
 
-`npm run build` 会先运行 TypeScript 类型检查，再执行 Vite 生产构建。
-
-## 线上地址
-
-- 正式域名：`https://fund.niliangrui.cloud/`
-- Cloudflare Pages 默认域名：`https://fund-stock-picker.pages.dev/`
-- Cloudflare Pages 项目：`fund-stock-picker`
-- 最近一次生产部署：`03fdef8e`，状态为 `success`
-- 大陆访问验证：2026-05-26 使用 Check-Host 中国浙江节点 `cn1.node.check-host.net` 测试，返回 HTTP `200`
-
-## 可用命令
-
-| 命令 | 作用 |
-| --- | --- |
-| `python scripts\build_fund_stock_index.py` | 从 `outputs` 数据生成前端 JSON |
-| `npm install` | 安装前端依赖 |
-| `npm run dev` | 启动本地开发服务器 |
-| `npm run build` | 类型检查并生成生产构建 |
-| `npm run preview` | 本地预览生产构建 |
-| `npm audit --audit-level=moderate` | 检查 npm 依赖风险 |
-
-## 发布前检查清单
-
-发布前至少执行：
+数据文件由脚本生成，不建议手工编辑。典型流程如下：
 
 ```powershell
+python scripts\fetch_2026q1_fund_holdings.py
+python scripts\analyze_overseas_ai_exposure.py
 python scripts\build_fund_stock_index.py
-npm run build
-npm audit --audit-level=moderate
-npm run preview
 ```
 
-人工验收重点：
+生成脚本会读取本地缓存和中间产物，输出浏览器可直接加载的紧凑 JSON：
 
-- 页面标题为“出海钱眼”，首屏不是空白页。
-- 浏览器控制台没有相关错误。
-- `NVDA`、`00700`、`TSM` 能命中结果。
-- “场外 / 场内”切换正常，场内榜单能展示 ETF 等品种。
-- 美股、港股、日股、韩股、其他市场筛选正常。
-- 桌面端表格不遮挡、不错位。
-- 移动端搜索框、指标卡、榜单行可读。
-- 悬停基金行时，前十大持仓卡能出现，并高亮当前查询标的。
-
-## 部署说明
-
-这是一个静态站点，生产构建输出在 `dist/`：
-
-```powershell
-npm run build
+```text
+data/eastmoney_cache/       # 本地缓存，不提交
+outputs/                    # 本地中间产物，不提交
+public/data/*.json          # 前端发布数据
 ```
 
-当前生产环境部署在 Cloudflare Pages。发布前先执行生产构建，再将 `dist/` 上传到 Pages 项目 `fund-stock-picker`。`public/_headers` 会被复制到 `dist/_headers`，并随部署提交到 Cloudflare Pages。
+## 意见反馈配置
 
-自有域名 `fund.niliangrui.cloud` 通过 Cloudflare DNS CNAME 指向 `fund-stock-picker.pages.dev`，并已在 Pages 自定义域名中验证为 `active`。如果后续更换域名，需要同时检查 Pages 自定义域名状态、DNS 记录和 HTTPS 证书状态。
+`public/_worker.js` 提供可选的反馈接口：
 
-当前响应头策略包括：
+```text
+POST /api/feedback
+```
 
-- 内容安全策略：只允许加载同源脚本、样式、字体和数据。
+接口通过部署平台的环境变量读取发件邮箱、授权密钥和收件邮箱，代码仓库中不保存真实邮箱密码或收件人地址。
+
+需要在部署平台配置：
+
+```text
+FEEDBACK_EMAIL_ADDRESS
+FEEDBACK_EMAIL_PASSWORD
+FEEDBACK_RECEIVER_EMAIL
+```
+
+反馈接口已包含基础保护：
+
+- 只接受同源请求。
+- 只接受 JSON 请求。
+- 限制联系方式和留言长度。
+- 限制请求体大小。
+- 内置隐藏字段拦截简单机器人提交。
+- 使用 Worker 内存做轻量频率限制。
+- 邮件正文做 HTML 转义和 SMTP 点转义。
+
+如果公开流量增大，建议继续在平台侧启用 Cloudflare Turnstile、WAF 或 Rate Limiting。Worker 内存限流只能作为基础保护，不能替代平台级反滥用策略。
+
+## 部署
+
+这是一个静态站点，`npm run build` 后会生成 `dist/`。可以部署到 Cloudflare Pages、GitHub Pages、Netlify、Vercel 或任意静态托管平台。
+
+如果使用反馈接口，需要选择支持 `public/_worker.js` 的部署方式，并在部署平台配置上面的环境变量。如果不需要反馈接口，可以移除反馈按钮和 `_worker.js`，仅按普通静态站点发布。
+
+`public/_headers` 包含基础安全响应头：
+
+- Content Security Policy 只允许同源脚本、样式、字体和数据请求。
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: DENY`
 - `Referrer-Policy: strict-origin-when-cross-origin`
-- 禁用摄像头、麦克风、地理位置、支付、USB 等浏览器权限。
-- 指纹静态资源长缓存。
-- 数据 JSON 设置 1 天缓存。
+- 禁用摄像头、麦克风、定位、支付、USB 等浏览器权限。
 
-如果部署平台不支持 `_headers`，需要在平台控制台或 CDN 层手动配置等价响应头。
+## 开源前安全检查
 
-## 重要文件说明
+发布到公开 GitHub 前建议至少执行：
 
-### `scripts/build_fund_stock_index.py`
+```powershell
+npm run build
+npm audit --audit-level=moderate
+rg -n -I "password|passwd|secret|token|api[_-]?key|auth[_-]?key|private[_-]?key|@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" -g "!node_modules/**" -g "!dist/**" -g "!data/eastmoney_cache/**" -g "!outputs/**" .
+```
 
-核心数据生成脚本。它读取 `outputs/holdings_stock_2026q1.csv`、`outputs/fund_purchase_limit_snapshot.csv` 和 `outputs/run_summary_2026q1.json`，生成浏览器使用的紧凑 JSON。
+同时确认：
 
-### `public/data/fund-stock-index-2026q1.json`
-
-前端实际加载的数据文件。它不是手工维护文件，应通过生成脚本重建。
-
-### `src/App.tsx`
-
-主要 React 应用逻辑，包括：
-
-- 数据加载
-- 股票搜索
-- 热门市场筛选
-- 排名口径切换
-- 基金榜单渲染
-- 悬停持仓卡
-- 错误与加载状态
-
-### `src/styles.css`
-
-页面样式、响应式布局、表格、指标卡、搜索区和悬停卡样式。
-
-### `public/_headers`
-
-静态部署响应头配置。发布前需要确认构建产物 `dist/_headers` 与该文件一致。
-
-## 数据口径
-
-- 股票范围：前端当前只发布海外股票。
-- 热门候选：按海外标的覆盖基金数量排序，并按市场做均衡展示。
-- 场外基金过滤：剔除基金名称或类型中包含“指数”“ETF”“ETF联接”的基金。
-- 场内基金过滤：基金名称或类型包含“ETF”“LOF”“封闭”“REIT”，且排除 ETF 联接基金。
-- 基金份额合并：同一基金不同份额、币种、前端/后端名称归并展示。
-- 场外默认榜单：按该股票占基金净值比例排序。
-- 场内默认榜单：按该股票占基金净值比例排序。
-- 申购/赎回状态：来自当前快照文件，可能滞后于销售平台实时状态。
+- 不提交 `.env`、`.env.*`、`.dev.vars`、`.wrangler/`。
+- 不提交 `data/eastmoney_cache/` 和 `outputs/`。
+- 不把个人域名、个人邮箱、API 密钥、SMTP 授权码、Cloudflare Token 写入 README、源码、提交信息或 Issues。
+- 如果旧 Git 历史曾经包含个人部署信息，公开发布时建议新建干净仓库或重写历史后再推送。
+- 添加合适的开源许可证文件，例如 MIT、Apache-2.0 或其他与你的发布目标一致的许可证。
 
 ## 常见问题
 
 ### 页面显示“数据载入失败”
 
-先确认数据文件存在：
+确认前端数据文件存在：
 
 ```powershell
 Test-Path public\data\fund-stock-index-2026q1.json
 ```
 
-如果不存在，重新生成：
+如果不存在，重新生成数据并构建：
 
 ```powershell
 python scripts\build_fund_stock_index.py
+npm run build
 ```
 
 ### 搜索某只股票没有结果
 
-当前前端只发布海外股票范围。如果目标是 A 股，可能存在于源数据中，但不会出现在前端检索文件里。
+当前前端只发布海外股票检索范围。如果目标是 A 股，可能存在于源数据中，但不会出现在前端搜索文件里。
+
+### 场内基金显示为空
+
+优先检查数据文件中该股票是否存在 `topOnExchangeByRatio`、`onExchangeFundCount` 和 `onExchangeMaxRatioPercent`。场内口径只包含 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
 
 ### 生产预览看到旧数据
 
-重新生成数据并重建：
+重新生成数据、重新构建并刷新预览：
 
 ```powershell
 python scripts\build_fund_stock_index.py
@@ -275,26 +212,14 @@ npm run build
 npm run preview
 ```
 
-### 数据文件变大
-
-检查是否误把全市场股票重新下发到 `public/data/fund-stock-index-2026q1.json`。当前发布目标是海外标的范围，正常体积约 `5.12 MB`。
-
 ## 维护约定
 
-- 不手改 `public/data/fund-stock-index-2026q1.json`，只通过脚本生成。
-- 不提交 `node_modules/`、`dist/`、`__pycache__/`、`*.pyc`、临时 pid 文件。
-- 修改数据口径后，需要同步更新 README 的“数据口径”和“当前数据快照”。
-- 发布前必须跑构建和依赖审计。
-- 涉及中文文本时保持 UTF-8 编码，避免乱码。
+- 不手工修改 `public/data/fund-stock-index-2026q1.json`，只通过脚本重建。
+- 不提交 `node_modules/`、`dist/`、缓存目录、输出目录、环境变量文件和本地平台配置。
+- 修改数据口径后，同步更新 README 的数据说明和常见问题。
+- 发布前跑构建、依赖审计和隐私关键词扫描。
+- 所有中文文件保持 UTF-8 编码。
 
 ## 免责声明
 
-本项目基于公开基金定期报告、基金持仓明细及申赎状态快照整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。
-
-## 后续增强
-
-- 增加近四季持仓变化，区分新进、增持、减持。
-- 接入基金规模、基金经理、费率和同类排名。
-- 支持自选股批量查询并导出基金持仓榜。
-- 增加基金详情页，展示该基金重仓股结构和单股集中度风险。
-- 增加数据生成校验脚本，自动检查排序、体积、字段和样本命中。
+本项目基于公开基金定期报告、基金持仓明细和申购状态快照整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。

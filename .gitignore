@@ -1,5 +1,11 @@
 node_modules/
 dist/
+data/eastmoney_cache/
+outputs/
+.env
+.env.*
+.dev.vars
+.wrangler/
 *.log
 *.tsbuildinfo
 __pycache__/

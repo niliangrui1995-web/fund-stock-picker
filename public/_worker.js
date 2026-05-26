@@ -2,9 +2,14 @@ import { connect } from "cloudflare:sockets";
 
 const MAX_CONTACT_LENGTH = 120;
 const MAX_MESSAGE_LENGTH = 1200;
+const MAX_REQUEST_BYTES = 4096;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
 const SMTP_HOST = "smtp.qq.com";
 const SMTP_PORT = 465;
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+const feedbackAttempts = new Map();
 
 function jsonResponse(payload, init = {}) {
   return new Response(JSON.stringify(payload), {
@@ -35,6 +40,84 @@ function splitReceivers(value) {
 
 function looksLikeContact(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || /^\+?[0-9][0-9\-\s()]{5,24}$/.test(value);
+}
+
+function isSameOriginRequest(request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+
+  try {
+    return new URL(origin).host === new URL(request.url).host;
+  } catch (originError) {
+    void originError;
+    return false;
+  }
+}
+
+function isRequestTooLarge(request) {
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  return Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES;
+}
+
+async function readJsonWithinLimit(request) {
+  const reader = request.body?.getReader();
+  if (!reader) return {};
+
+  const chunks = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_REQUEST_BYTES) {
+      await reader.cancel();
+      const error = new Error("Request body too large");
+      error.name = "RequestTooLargeError";
+      throw error;
+    }
+
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const text = decoder.decode(bytes);
+  return text ? JSON.parse(text) : {};
+}
+
+function clientKey(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return request.headers.get("cf-connecting-ip") || forwardedFor || "unknown";
+}
+
+function isRateLimited(request) {
+  const now = Date.now();
+  const key = clientKey(request);
+  const current = feedbackAttempts.get(key);
+
+  if (feedbackAttempts.size > 1000) {
+    for (const [storedKey, record] of feedbackAttempts) {
+      if (now - record.startedAt >= RATE_LIMIT_WINDOW_MS) {
+        feedbackAttempts.delete(storedKey);
+      }
+    }
+  }
+
+  if (!current || now - current.startedAt >= RATE_LIMIT_WINDOW_MS) {
+    feedbackAttempts.set(key, { startedAt: now, count: 1 });
+    return false;
+  }
+
+  current.count += 1;
+  return current.count > RATE_LIMIT_MAX_REQUESTS;
 }
 
 function base64Utf8(value) {
@@ -202,15 +285,30 @@ async function sendSmtpFeedback({ senderEmail, senderPassword, receivers, rawMes
 }
 
 async function handleFeedback(request, env) {
+  if (!isSameOriginRequest(request)) {
+    return jsonResponse({ ok: false, error: "请求来源不正确。" }, { status: 403 });
+  }
+  if (isRequestTooLarge(request)) {
+    return jsonResponse({ ok: false, error: "反馈内容过长。" }, { status: 413 });
+  }
+  if (isRateLimited(request)) {
+    return jsonResponse(
+      { ok: false, error: "提交过于频繁，请稍后再试。" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)) } },
+    );
+  }
+
   if (!request.headers.get("content-type")?.includes("application/json")) {
     return jsonResponse({ ok: false, error: "请求格式不正确。" }, { status: 415 });
   }
 
   let payload;
   try {
-    payload = await request.json();
+    payload = await readJsonWithinLimit(request);
   } catch (parseError) {
-    void parseError;
+    if (parseError instanceof Error && parseError.name === "RequestTooLargeError") {
+      return jsonResponse({ ok: false, error: "反馈内容过长。" }, { status: 413 });
+    }
     return jsonResponse({ ok: false, error: "请求内容无法解析。" }, { status: 400 });
   }
 

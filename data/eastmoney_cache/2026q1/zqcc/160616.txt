@@ -1,1 +1,0 @@
-var apidata={ content:"",arryear:[2016,2013,2012,2010],curyear:2026};
