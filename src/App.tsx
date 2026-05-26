@@ -97,6 +97,10 @@ type HoldingRecord = {
   sharesWan?: number;
 };
 
+function normalizeStockCode(code: string) {
+  return code.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+}
+
 function FundHoldingsHoverCard({
   fundCode,
   fundName,
@@ -113,11 +117,14 @@ function FundHoldingsHoverCard({
   y: number;
 }) {
   const maxRatio = useMemo(() => Math.max(...holdings.map((h) => h.ratioPercent), 1), [holdings]);
+  const currentStockCode = useMemo(
+    () => (currentSearchStockCode ? normalizeStockCode(currentSearchStockCode) : ""),
+    [currentSearchStockCode],
+  );
   const currentHolding = useMemo(() => {
-    if (!currentSearchStockCode) return null;
-    const currentCode = currentSearchStockCode.replace(/\D/g, "");
-    return holdings.find((h) => h.stockCode.replace(/\D/g, "") === currentCode) ?? null;
-  }, [currentSearchStockCode, holdings]);
+    if (!currentStockCode) return null;
+    return holdings.find((h) => normalizeStockCode(h.stockCode) === currentStockCode) ?? null;
+  }, [currentStockCode, holdings]);
   const topHolding = holdings[0] ?? null;
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
@@ -178,8 +185,8 @@ function FundHoldingsHoverCard({
         <div className="hover-card-holdings-list">
           {holdings && holdings.length > 0 ? (
             holdings.map((h, index) => {
-              const isCurrentTarget = currentSearchStockCode && 
-                h.stockCode.replace(/\D/g, "") === currentSearchStockCode.replace(/\D/g, "");
+              const isCurrentTarget =
+                !!currentStockCode && normalizeStockCode(h.stockCode) === currentStockCode;
               const widthPercent = Math.min((h.ratioPercent / maxRatio) * 100, 100);
               
               return (
