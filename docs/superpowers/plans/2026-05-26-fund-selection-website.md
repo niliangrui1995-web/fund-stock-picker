@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a local web app where a user searches a stock and sees the top 5 funds holding that stock.
+**Goal:** Build a local web app for mainland investors researching overseas stocks, with US-stock-first popular suggestions and top 10 non-index, non-ETF funds holding the selected stock.
 
 **Architecture:** Precompute a compact static JSON index from `outputs/holdings_stock_2026q1.csv`, then serve it from a React + Vite single-page app. The browser performs local stock search and ranking-mode switching without a backend.
 
@@ -26,15 +26,15 @@
 - [ ] Create `scripts/build_fund_stock_index.py` with UTF-8 CSV reading.
 - [ ] Parse stock holdings and group rows by `证券代码`.
 - [ ] For each stock, keep `topByRatio` sorted by `占净值比例数值` and `topByValue` sorted by `持仓市值(万元)`.
-- [ ] Write metadata, popular stock suggestions, and search records into `public/data/fund-stock-index-2026q1.json`.
+- [ ] Write metadata, US-stock-first overseas popular suggestions, and search records into `public/data/fund-stock-index-2026q1.json`.
 - [ ] Run `python scripts/build_fund_stock_index.py` and verify JSON stock count is non-zero.
 
 ### Task 2: Build React App
 
 - [ ] Create a React + Vite app shell.
 - [ ] Fetch `/data/fund-stock-index-2026q1.json` on load.
-- [ ] Implement stock search by code or name with popular suggestions.
-- [ ] Show top 5 fund results with fund code, fund type, ratio, market value, shares, and source link.
+- [ ] Implement stock search by code or name with overseas popular suggestions.
+- [ ] Show top 10 fund results with fund code, fund type, ratio, market value, shares, and source link.
 - [ ] Add ranking toggle for concentration ratio and market value.
 - [ ] Add concise data口径 and next-step plan in the UI.
 
@@ -43,5 +43,5 @@
 - [ ] Run `npm install`.
 - [ ] Run `npm run build`.
 - [ ] Start the dev server.
-- [ ] Open the app in a browser and test searching `宁德时代` / `300750`.
+- [ ] Open the app in a browser and test searching `英伟达` / `NVDA` and `腾讯控股` / `00700`.
 - [ ] Verify desktop and mobile layouts render without overlap.

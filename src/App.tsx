@@ -20,7 +20,7 @@ type FundRecord = {
   cutoffDate: string;
   ratio: number;
   ratioPercent: number;
-  marketValueWan: number;
+  marketValueWan: number | null;
   sharesWan: number;
   purchaseStatus?: string;
   redemptionStatus?: string;
@@ -36,7 +36,7 @@ type StockRecord = {
   fundCount: number;
   activeFundCount: number;
   excludedIndexFundCount: number;
-  totalMarketValueWan: number;
+  totalMarketValueWan: number | null;
   maxRatioPercent: number;
   topByRatio: FundRecord[];
   topByValue: FundRecord[];
@@ -58,6 +58,9 @@ type FundStockIndex = {
     cutoffDate: string;
     fundCount?: number;
     holdingRows?: number;
+    popularScope?: string;
+    popularScopeLabel?: string;
+    overseasStockCount?: number;
   };
   popularStocks: PopularStock[];
   stocks: StockRecord[];
@@ -73,7 +76,25 @@ function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
 
-function formatWan(value: number) {
+function isOverseasStockCode(code: string) {
+  return !/^\d{6}$/.test(code.trim());
+}
+
+function marketLabel(code: string) {
+  const normalized = code.trim().toUpperCase();
+  if (/^\d{5}$/.test(normalized)) return "港股";
+  if (/^[A-Z][A-Z0-9.-]*$/.test(normalized)) return "美股";
+  return isOverseasStockCode(normalized) ? "海外" : "A股";
+}
+
+function hasWanValue(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function formatWan(value: number | null | undefined) {
+  if (!hasWanValue(value)) {
+    return "未披露";
+  }
   if (value >= 10000) {
     return `${valueFormatter.format(value / 10000)} 亿`;
   }
@@ -93,7 +114,7 @@ type HoldingRecord = {
   stockCode: string;
   stockName: string;
   ratioPercent: number;
-  marketValueWan?: number;
+  marketValueWan?: number | null;
   sharesWan?: number;
 };
 
@@ -305,7 +326,7 @@ function ResultTable({
   rankMode: RankMode;
   onHoverFund: (fund: { fundCode: string; fundName: string; x: number; y: number } | null) => void;
 }) {
-  const maxVal = useMemo(() => Math.max(...funds.map(f => f.marketValueWan), 1), [funds]);
+  const maxVal = useMemo(() => Math.max(...funds.map((f) => f.marketValueWan ?? 0), 1), [funds]);
   const maxRatio = useMemo(() => Math.max(...funds.map(f => f.ratioPercent), 1), [funds]);
 
   return (
@@ -324,7 +345,9 @@ function ResultTable({
         <tbody>
           {funds.map((fund, index) => {
             const ratioWidth = Math.min((fund.ratioPercent / maxRatio) * 100, 100);
-            const valueWidth = Math.min((fund.marketValueWan / maxVal) * 100, 100);
+            const valueWidth = hasWanValue(fund.marketValueWan)
+              ? Math.min((fund.marketValueWan / maxVal) * 100, 100)
+              : 0;
             const activeWidth = rankMode === "ratio" ? ratioWidth : valueWidth;
             const passiveWidth = rankMode === "ratio" ? valueWidth : ratioWidth;
 
@@ -457,7 +480,7 @@ function SkeletonResults() {
       </div>
       
       <div className="section-title">
-        <h3>前 5 名筛后基金</h3>
+        <h3>前 10 名筛后基金</h3>
         <span>正在核算最新仓位明细...</span>
       </div>
       
@@ -505,8 +528,11 @@ function CandidateButton({
 }) {
   return (
     <button className={`candidate ${selected ? "selected" : ""}`} onClick={onSelect} type="button">
-      <span>
-        <strong>{stock.name}</strong>
+      <span className="candidate-main">
+        <span className="candidate-title-row">
+          <strong>{stock.name}</strong>
+          <span className="market-badge">{marketLabel(stock.code)}</span>
+        </span>
         <em>{stock.code}</em>
       </span>
       <span>
@@ -541,15 +567,15 @@ function EmptyState({ loading, error }: { loading: boolean; error: string | null
   return (
     <section className="empty-state">
       <Search size={28} />
-      <h2>输入股票名称或代码</h2>
-      <p>例如：宁德时代、300750、腾讯控股、00700。</p>
+      <h2>输入海外股票名称或代码</h2>
+      <p>例如：英伟达、NVDA、台积电、TSM、腾讯控股、00700。</p>
     </section>
   );
 }
 
 export function App() {
   const [data, setData] = useState<FundStockIndex | null>(null);
-  const [query, setQuery] = useState("宁德时代");
+  const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [rankMode, setRankMode] = useState<RankMode>("ratio");
   const [loading, setLoading] = useState(true);
@@ -577,8 +603,6 @@ export function App() {
       .then((payload) => {
         if (!mounted) return;
         setData(payload);
-        const first = findMatches(payload.stocks, query)[0] ?? payload.stocks[0];
-        setSelectedCode(first?.code ?? null);
       })
       .catch((fetchError: Error) => {
         if (!mounted) return;
@@ -636,7 +660,9 @@ export function App() {
           </span>
           <span>
             <Database size={16} />
-            {data ? `${numberFormatter.format(data.meta.stockCount)} 只股票` : "载入中"}
+            {data
+              ? `${numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount)} 海外标的`
+              : "载入中"}
           </span>
         </div>
       </header>
@@ -644,22 +670,22 @@ export function App() {
       <section className="search-zone">
         <div className="intro">
           <div className="terminal-kicker">POSITION INTELLIGENCE</div>
-          <h1>不听故事，看它买了谁</h1>
+          <h1>人出不去 就钱出去</h1>
           <p>
-            输入股票，剔除指数 and ETF，锁定真正重仓它的前 5 只基金。
+            输入美股或全球龙头，从大陆公募里剔除指数和 ETF，锁定真正重仓它的前 10 只基金。
           </p>
         </div>
 
         <div className="command-panel">
           <div className="panel-status">
-            <span>SCAN READY</span>
+            <span>GLOBAL SCAN READY</span>
             <i />
           </div>
           <form className="search-box" onSubmit={(event) => event.preventDefault()}>
             <Search size={22} />
             <input
               aria-label="搜索股票名称或代码"
-              placeholder="输入股票名称或代码，例如 宁德时代 / 300750"
+              placeholder="NVDA / 00700 / 腾讯"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -672,17 +698,19 @@ export function App() {
             </button>
           </form>
           <div className="data-strip" aria-label="数据概览">
-            <span>{data ? numberFormatter.format(data.meta.sourceRows) : "--"} 持仓明细</span>
-            <span>{data ? numberFormatter.format(data.meta.stockCount) : "--"} 股票样本</span>
-            <span>{data?.meta.cutoffDate ?? "载入中"}</span>
+            <span>{data ? numberFormatter.format(data.meta.sourceRows) : "--"} 大陆公募持仓</span>
+            <span>美股优先 · 港股兼容</span>
+            <span>
+              {data ? numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount) : "--"} 海外标的
+            </span>
           </div>
         </div>
       </section>
 
-      <section className="workspace">
+      <section className={`workspace ${selectedStock ? "has-selection" : "no-selection"}`}>
         <aside className="left-panel" aria-label="股票候选">
           <div className="panel-heading">
-            <h2>{query.trim() ? "匹配股票" : "高覆盖股票"}</h2>
+            <h2>{query.trim() ? "匹配股票" : data?.meta.popularScopeLabel ?? "海外热门"}</h2>
             <span>{isAppLoading ? "载入中..." : `${suggestions.length} 项`}</span>
           </div>
           <div className="candidate-list">
@@ -698,7 +726,7 @@ export function App() {
                 />
               ))
             ) : (
-              <p className="no-match">未找到匹配股票，试试证券代码或简称。</p>
+              <p className="no-match">未找到匹配标的，试试证券代码或简称。</p>
             )}
           </div>
         </aside>
@@ -710,7 +738,7 @@ export function App() {
             <>
               <div className="result-header">
                 <div>
-                  <p className="eyeline">当前股票</p>
+                  <p className="eyeline">{isOverseasStockCode(selectedStock.code) ? "当前海外标的" : "当前标的"}</p>
                   <h2>
                     {selectedStock.name}
                     <span>{selectedStock.code}</span>
@@ -722,7 +750,7 @@ export function App() {
               <div className="metrics-grid">
                 <MetricCard
                   icon={<ShieldCheck size={20} />}
-                  label="筛后基金覆盖"
+                  label="大陆基金覆盖"
                   value={`${numberFormatter.format(selectedStock.activeFundCount)} 只`}
                 />
                 <MetricCard
@@ -738,7 +766,7 @@ export function App() {
               </div>
 
               <div className="section-title">
-                <h3>前 5 名筛后基金</h3>
+                <h3>前 10 名筛后基金</h3>
                 <span>
                   <ArrowUpDown size={15} />
                   {rankMode === "ratio" ? "剔除指数和 ETF，按净值占比排序" : "剔除指数和 ETF，按持仓市值排序"}
@@ -752,6 +780,13 @@ export function App() {
           )}
         </section>
       </section>
+
+      <footer className="compliance-disclaimer">
+        <strong>免责声明</strong>
+        <p>
+          本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。
+        </p>
+      </footer>
 
       {hoveredFund && (
         <FundHoldingsHoverCard

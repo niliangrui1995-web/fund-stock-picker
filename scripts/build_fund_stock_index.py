@@ -39,8 +39,83 @@ def parse_float(value: str | None) -> float:
         return 0.0
 
 
+def parse_optional_float(value: str | None) -> float | None:
+    if value is None:
+        return None
+    value = value.strip().replace(",", "")
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 def rounded(value: float, digits: int = 4) -> float:
     return round(value, digits)
+
+
+def rounded_optional(value: float | None, digits: int = 4) -> float | None:
+    return None if value is None else round(value, digits)
+
+
+def is_overseas_stock_code(code: str) -> bool:
+    return re.fullmatch(r"\d{6}", code.strip()) is None
+
+
+def stock_market_bucket(code: str) -> str:
+    normalized = code.strip().upper()
+    if re.fullmatch(r"\d{5}", normalized):
+        return "hk"
+    if re.fullmatch(r"[A-Z][A-Z0-9._-]*", normalized):
+        return "us"
+    return "other"
+
+
+def balanced_overseas_popular(stocks: list[dict[str, Any]], limit: int = 60) -> list[dict[str, Any]]:
+    quotas = {"us": 36, "hk": 18, "other": 6}
+    cycle = ("us", "us", "hk", "us", "other", "us", "hk", "us")
+    buckets = {bucket: [] for bucket in quotas}
+    for item in stocks:
+        buckets[stock_market_bucket(item["code"])].append(item)
+
+    selected: list[dict[str, Any]] = []
+    selected_codes: set[str] = set()
+    bucket_positions = {bucket: 0 for bucket in quotas}
+    bucket_counts = {bucket: 0 for bucket in quotas}
+
+    while len(selected) < limit:
+        added = False
+        for bucket in cycle:
+            if len(selected) >= limit:
+                break
+            if bucket_counts[bucket] >= quotas[bucket]:
+                continue
+            bucket_items = buckets[bucket]
+            position = bucket_positions[bucket]
+            while position < len(bucket_items) and bucket_items[position]["code"] in selected_codes:
+                position += 1
+            bucket_positions[bucket] = position
+            if position >= len(bucket_items):
+                continue
+            item = bucket_items[position]
+            selected.append(item)
+            selected_codes.add(item["code"])
+            bucket_positions[bucket] += 1
+            bucket_counts[bucket] += 1
+            added = True
+        if not added:
+            break
+
+    for item in stocks:
+        if len(selected) >= limit:
+            break
+        if item["code"] in selected_codes:
+            continue
+        selected.append(item)
+        selected_codes.add(item["code"])
+
+    return selected
 
 
 def load_summary() -> dict[str, Any]:
@@ -170,7 +245,7 @@ def share_class_penalty(fund: dict[str, Any]) -> int:
 
 def make_fund_record(row: dict[str, str]) -> dict[str, Any]:
     ratio = parse_float(row.get("占净值比例数值"))
-    market_value = parse_float(row.get("持仓市值(万元)"))
+    market_value = parse_optional_float(row.get("持仓市值(万元)"))
     shares = parse_float(row.get("持股数(万股)"))
     return {
         "fundCode": row.get("基金代码", "").strip(),
@@ -180,14 +255,14 @@ def make_fund_record(row: dict[str, str]) -> dict[str, Any]:
         "cutoffDate": row.get("截止日期", "").strip(),
         "ratio": rounded(ratio, 6),
         "ratioPercent": rounded(ratio * 100, 2),
-        "marketValueWan": rounded(market_value, 2),
+        "marketValueWan": rounded_optional(market_value, 2),
         "sharesWan": rounded(shares, 2),
     }
 
 
 def make_holding_record(row: dict[str, str]) -> dict[str, Any]:
     ratio = parse_float(row.get("占净值比例数值"))
-    market_value = parse_float(row.get("持仓市值(万元)"))
+    market_value = parse_optional_float(row.get("持仓市值(万元)"))
     shares = parse_float(row.get("持股数(万股)"))
     return {
         "rank": int(parse_float(row.get("序号"))),
@@ -195,7 +270,7 @@ def make_holding_record(row: dict[str, str]) -> dict[str, Any]:
         "stockName": row.get("证券名称", "").strip(),
         "ratio": rounded(ratio, 6),
         "ratioPercent": rounded(ratio * 100, 2),
-        "marketValueWan": rounded(market_value, 2),
+        "marketValueWan": rounded_optional(market_value, 2),
         "sharesWan": rounded(shares, 2),
     }
 
@@ -208,28 +283,28 @@ def is_index_fund(fund: dict[str, Any]) -> bool:
 def better_record(current: dict[str, Any] | None, candidate: dict[str, Any]) -> dict[str, Any]:
     if current is None:
         return candidate
-    current_score = (current["ratio"], current["marketValueWan"])
-    candidate_score = (candidate["ratio"], candidate["marketValueWan"])
+    current_score = (current["ratio"], current["marketValueWan"] or -1)
+    candidate_score = (candidate["ratio"], candidate["marketValueWan"] or -1)
     return candidate if candidate_score > current_score else current
 
 
 def ranking_key(fund: dict[str, Any], ranking: str) -> tuple[float, float, int, str]:
     if ranking == "value":
         return (
-            fund["marketValueWan"],
+            fund["marketValueWan"] or -1,
             fund["ratio"],
             -share_class_penalty(fund),
             fund["fundCode"],
         )
     return (
         fund["ratio"],
-        fund["marketValueWan"],
+        fund["marketValueWan"] or -1,
         -share_class_penalty(fund),
         fund["fundCode"],
     )
 
 
-def unique_fund_families(funds: list[dict[str, Any]], ranking: str, limit: int = 5) -> list[dict[str, Any]]:
+def unique_fund_families(funds: list[dict[str, Any]], ranking: str, limit: int = 10) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
     variant_counts: dict[str, int] = defaultdict(int)
     for fund in funds:
@@ -248,8 +323,8 @@ def unique_fund_families(funds: list[dict[str, Any]], ranking: str, limit: int =
 def better_holding_record(current: dict[str, Any] | None, candidate: dict[str, Any]) -> dict[str, Any]:
     if current is None:
         return candidate
-    current_score = (current["ratio"], current["marketValueWan"])
-    candidate_score = (candidate["ratio"], candidate["marketValueWan"])
+    current_score = (current["ratio"], current["marketValueWan"] or -1)
+    candidate_score = (candidate["ratio"], candidate["marketValueWan"] or -1)
     return candidate if candidate_score > current_score else current
 
 
@@ -298,7 +373,10 @@ def build_index() -> dict[str, Any]:
         active_fund_family_count = len({fund_family_key(fund) for fund in active_funds})
         top_by_ratio = unique_fund_families(active_funds, "ratio")
         top_by_value = unique_fund_families(active_funds, "value")
-        total_market_value = sum(item["marketValueWan"] for item in active_funds)
+        disclosed_market_values = [
+            item["marketValueWan"] for item in active_funds if item["marketValueWan"] is not None
+        ]
+        total_market_value = sum(disclosed_market_values) if disclosed_market_values else None
         max_ratio = top_by_ratio[0]["ratioPercent"] if top_by_ratio else 0
         stocks.append(
             {
@@ -309,7 +387,7 @@ def build_index() -> dict[str, Any]:
                 "shareClassCount": len(funds),
                 "activeShareClassCount": len(active_funds),
                 "excludedIndexFundCount": len(funds) - len(active_funds),
-                "totalMarketValueWan": rounded(total_market_value, 2),
+                "totalMarketValueWan": rounded_optional(total_market_value, 2),
                 "maxRatioPercent": max_ratio,
                 "topByRatio": top_by_ratio,
                 "topByValue": top_by_value,
@@ -317,6 +395,13 @@ def build_index() -> dict[str, Any]:
         )
 
     stocks.sort(key=lambda item: (-item["activeFundCount"], -item["fundCount"], item["code"]))
+    overseas_stocks = [item for item in stocks if is_overseas_stock_code(item["code"])]
+    popular_source = balanced_overseas_popular(overseas_stocks) if overseas_stocks else stocks[:60]
+    popular_market_mix = {
+        "hk": sum(1 for item in popular_source if stock_market_bucket(item["code"]) == "hk"),
+        "us": sum(1 for item in popular_source if stock_market_bucket(item["code"]) == "us"),
+        "other": sum(1 for item in popular_source if stock_market_bucket(item["code"]) == "other"),
+    }
     popular = [
         {
             "code": item["code"],
@@ -325,7 +410,7 @@ def build_index() -> dict[str, Any]:
             "activeFundCount": item["activeFundCount"],
             "maxRatioPercent": item["maxRatioPercent"],
         }
-        for item in stocks[:60]
+        for item in popular_source
     ]
 
     cutoff_dates = sorted(
@@ -370,6 +455,10 @@ def build_index() -> dict[str, Any]:
             "holdingRows": summary.get("holding_rows", {}).get("stock"),
             "purchaseLimitCount": len(purchase_limits),
             "fundDedupe": "同一基金不同份额、币种、前后端名称归并后，只保留该股票口径下最强的一类份额",
+            "popularScope": "overseas" if overseas_stocks else "all",
+            "popularScopeLabel": "海外热门" if overseas_stocks else "高覆盖股票",
+            "overseasStockCount": len(overseas_stocks),
+            "popularMarketMix": popular_market_mix,
         },
         "popularStocks": popular,
         "stocks": stocks,
