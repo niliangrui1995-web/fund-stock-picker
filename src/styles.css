@@ -953,6 +953,18 @@ tbody tr td:last-child {
   color: var(--muted);
 }
 
+.table-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  border: 1px dashed var(--line-strong);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
 .empty-state svg {
   color: var(--muted);
 }
@@ -1051,16 +1063,35 @@ tbody tr td:last-child {
 
   .search-box {
     grid-template-columns: 1fr;
-    padding: 16px;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 18px;
+    background: #ffffff;
   }
 
   .search-box > svg {
     display: none;
   }
 
+  .search-box input {
+    min-height: 48px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    border-radius: 12px;
+    font-size: 16px;
+  }
+
+  .search-box input:focus {
+    border-color: var(--accent);
+    background: #ffffff;
+  }
+
   .search-box button {
     width: 100%;
-    margin-top: 8px;
+    height: 48px;
+    margin-top: 0;
+    border-radius: 12px;
   }
 
   .data-strip {
@@ -1271,6 +1302,16 @@ tbody tr td:last-child {
   animation: hover-card-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.fund-holdings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  border: 0;
+  padding: 0;
+  background: rgba(15, 23, 42, 0.26);
+  backdrop-filter: blur(2px);
+}
+
 @keyframes hover-card-pop {
   0% {
     opacity: 0;
@@ -1283,9 +1324,31 @@ tbody tr td:last-child {
 }
 
 .hover-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.95);
   padding-bottom: 10px;
   margin-bottom: 10px;
+}
+
+.hover-card-fund-info {
+  min-width: 0;
+}
+
+.hover-card-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
 .hover-card-fund-name {
@@ -1512,4 +1575,50 @@ tbody tr td:last-child {
   color: var(--muted);
   text-align: center;
   padding: 12px 0;
+}
+
+@media (max-width: 720px) {
+  .fund-holdings-hover-card.mobile-panel {
+    width: auto;
+    max-width: none;
+    max-height: min(72vh, 620px);
+    border-radius: 18px 18px 14px 14px;
+    box-shadow: 0 -12px 42px rgba(15, 23, 42, 0.2), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    animation: mobile-card-rise 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .hover-card-close {
+    display: inline-flex;
+  }
+
+  .hover-card-meta-line {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .hover-card-holdings-list {
+    gap: 6px;
+  }
+
+  .hover-card-holding-row {
+    grid-template-columns: 22px minmax(0, 1fr) 58px;
+    min-height: 38px;
+    padding: 7px;
+  }
+
+  .holding-stock-name {
+    font-size: 13px;
+  }
+}
+
+@keyframes mobile-card-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

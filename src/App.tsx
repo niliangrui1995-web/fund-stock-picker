@@ -6,11 +6,12 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-type RankMode = "ratio" | "value";
+type AccessMode = "offExchange" | "onExchange";
 
 type FundRecord = {
   fundCode: string;
@@ -33,11 +34,15 @@ type StockRecord = {
   name: string;
   fundCount: number;
   activeFundCount: number;
+  onExchangeFundCount?: number;
   excludedIndexFundCount: number;
   totalMarketValueWan: number | null;
+  onExchangeTotalMarketValueWan?: number | null;
   maxRatioPercent: number;
+  onExchangeMaxRatioPercent?: number;
   topByRatio: FundRecord[];
   topByValue: FundRecord[];
+  topOnExchangeByRatio?: FundRecord[];
 };
 
 type PopularStock = Pick<
@@ -164,6 +169,18 @@ function displayFundName(fund: FundRecord) {
     : fund.fundName;
 }
 
+function supportsHoverPointer() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return true;
+  }
+
+  if (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) {
+    return false;
+  }
+
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
 function FundHoldingsHoverCard({
   fundCode,
   fundVariantCodes,
@@ -172,6 +189,7 @@ function FundHoldingsHoverCard({
   currentSearchStockCode,
   x,
   y,
+  onClose,
 }: {
   fundCode: string;
   fundVariantCodes?: string[];
@@ -180,6 +198,7 @@ function FundHoldingsHoverCard({
   currentSearchStockCode: string | null;
   x: number;
   y: number;
+  onClose: () => void;
 }) {
   const maxRatio = useMemo(() => Math.max(...holdings.map((h) => h.ratioPercent), 1), [holdings]);
   const currentStockCode = useMemo(
@@ -197,24 +216,46 @@ function FundHoldingsHoverCard({
   const topHolding = holdings[0] ?? null;
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
+  const isMobilePanel = viewportWidth <= 720;
   const cardWidth = Math.min(368, viewportWidth - 24);
   const rowCount = Math.min(holdings.length, 10);
   const estimatedHeight = 226 + rowCount * 40 + (currentHolding ? 48 : 0);
   const visibleHeight = Math.min(estimatedHeight, viewportHeight - 24);
   const cardLeft = Math.max(12, Math.min(x + 18, viewportWidth - cardWidth - 12));
   const cardTop = Math.max(12, Math.min(y + 12, viewportHeight - visibleHeight - 12));
-  
-  return (
-    <div
-      className="fund-holdings-hover-card"
-      style={{
-        position: "fixed",
+  const cardStyle = isMobilePanel
+    ? {
+        position: "fixed" as const,
+        left: "12px",
+        right: "12px",
+        bottom: "12px",
+        zIndex: 10000,
+        pointerEvents: "auto" as const,
+      }
+    : {
+        position: "fixed" as const,
         left: `${cardLeft}px`,
         top: `${cardTop}px`,
         zIndex: 9999,
-        pointerEvents: "none",
-      }}
-    >
+        pointerEvents: "none" as const,
+      };
+
+  return (
+    <>
+      {isMobilePanel && (
+        <button
+          type="button"
+          className="fund-holdings-backdrop"
+          aria-label="关闭基金持仓卡片"
+          onClick={onClose}
+        />
+      )}
+      <div
+        className={`fund-holdings-hover-card ${isMobilePanel ? "mobile-panel" : ""}`}
+        role={isMobilePanel ? "dialog" : undefined}
+        aria-modal={isMobilePanel ? true : undefined}
+        style={cardStyle}
+      >
       <div className="hover-card-header">
         <div className="hover-card-fund-info">
           <div className="hover-card-fund-name" title={fundName}>
@@ -225,6 +266,14 @@ function FundHoldingsHoverCard({
             <strong className="hover-card-fund-codes">{fundCodes.join(" / ")}</strong>
           </div>
         </div>
+        <button
+          type="button"
+          className="hover-card-close"
+          aria-label="关闭基金持仓卡片"
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
       </div>
       
       <div className="hover-card-body">
@@ -288,7 +337,8 @@ function FundHoldingsHoverCard({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -336,30 +386,30 @@ function MetricCard({
   );
 }
 
-function RankingToggle({
-  rankMode,
+function AccessToggle({
+  accessMode,
   onChange,
 }: {
-  rankMode: RankMode;
-  onChange: (mode: RankMode) => void;
+  accessMode: AccessMode;
+  onChange: (mode: AccessMode) => void;
 }) {
   return (
-    <div className="segmented" aria-label="排名口径">
+    <div className="segmented" aria-label="基金交易场景">
       <button
-        className={rankMode === "ratio" ? "active" : ""}
-        onClick={() => onChange("ratio")}
+        className={accessMode === "offExchange" ? "active" : ""}
+        onClick={() => onChange("offExchange")}
         type="button"
       >
         <SlidersHorizontal size={16} />
-        净值占比
+        场外
       </button>
       <button
-        className={rankMode === "value" ? "active" : ""}
-        onClick={() => onChange("value")}
+        className={accessMode === "onExchange" ? "active" : ""}
+        onClick={() => onChange("onExchange")}
         type="button"
       >
         <BarChart3 size={16} />
-        持仓市值
+        场内
       </button>
     </div>
   );
@@ -367,17 +417,25 @@ function RankingToggle({
 
 function ResultTable({
   funds,
-  rankMode,
+  accessMode,
   onHoverFund,
 }: {
   funds: FundRecord[];
-  rankMode: RankMode;
+  accessMode: AccessMode;
   onHoverFund: (
     fund: { fundCode: string; fundVariantCodes?: string[]; fundName: string; x: number; y: number } | null,
   ) => void;
 }) {
   const maxVal = useMemo(() => Math.max(...funds.map((f) => f.marketValueWan ?? 0), 1), [funds]);
   const maxRatio = useMemo(() => Math.max(...funds.map(f => f.ratioPercent), 1), [funds]);
+
+  if (!funds.length) {
+    return (
+      <div className="table-empty">
+        暂无{accessMode === "onExchange" ? "场内" : "场外"}基金持仓记录
+      </div>
+    );
+  }
 
   return (
     <div className="table-wrap">
@@ -387,8 +445,8 @@ function ResultTable({
             <th>排名</th>
             <th>基金</th>
             <th>类型</th>
-            <th>{rankMode === "ratio" ? "净值占比" : "持仓市值"}</th>
-            <th>{rankMode === "ratio" ? "持仓市值" : "净值占比"}</th>
+            <th>净值占比</th>
+            <th>持仓市值</th>
             <th>持股数</th>
           </tr>
         </thead>
@@ -398,8 +456,6 @@ function ResultTable({
             const valueWidth = hasWanValue(fund.marketValueWan)
               ? Math.min((fund.marketValueWan / maxVal) * 100, 100)
               : 0;
-            const activeWidth = rankMode === "ratio" ? ratioWidth : valueWidth;
-            const passiveWidth = rankMode === "ratio" ? valueWidth : ratioWidth;
             const fundCodes = uniqueFundCodes(fund.fundCode, fund.fundVariantCodes);
             const fundName = displayFundName(fund);
 
@@ -410,6 +466,7 @@ function ResultTable({
                 </td>
                 <td
                   onMouseEnter={(e) => {
+                    if (!supportsHoverPointer()) return;
                     onHoverFund({
                       fundCode: fund.fundCode,
                       fundVariantCodes: fund.fundVariantCodes,
@@ -419,6 +476,7 @@ function ResultTable({
                     });
                   }}
                   onMouseMove={(e) => {
+                    if (!supportsHoverPointer()) return;
                     onHoverFund({
                       fundCode: fund.fundCode,
                       fundVariantCodes: fund.fundVariantCodes,
@@ -428,8 +486,31 @@ function ResultTable({
                     });
                   }}
                   onMouseLeave={() => {
+                    if (!supportsHoverPointer()) return;
                     onHoverFund(null);
                   }}
+                  onClick={(e) => {
+                    onHoverFund({
+                      fundCode: fund.fundCode,
+                      fundVariantCodes: fund.fundVariantCodes,
+                      fundName,
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return;
+                    e.preventDefault();
+                    onHoverFund({
+                      fundCode: fund.fundCode,
+                      fundVariantCodes: fund.fundVariantCodes,
+                      fundName,
+                      x: 24,
+                      y: 24,
+                    });
+                  }}
+                  tabIndex={0}
+                  aria-label={`查看 ${fundName} 前十大持仓`}
                   style={{ cursor: "help" }}
                 >
                   <div className="fund-name" title={fund.fundName}>{fundName}</div>
@@ -457,14 +538,12 @@ function ResultTable({
                 <td className="strong">
                   <div className="table-metric-cell">
                     <span className="metric-num">
-                      {rankMode === "ratio"
-                        ? `${valueFormatter.format(fund.ratioPercent)}%`
-                        : formatWan(fund.marketValueWan)}
+                      {valueFormatter.format(fund.ratioPercent)}%
                     </span>
                     <div className="table-progress-track">
                       <div
                         className="table-progress-fill"
-                        style={{ width: `${activeWidth}%` }}
+                        style={{ width: `${ratioWidth}%` }}
                       />
                     </div>
                   </div>
@@ -472,14 +551,12 @@ function ResultTable({
                 <td>
                   <div className="table-metric-cell cell-passive">
                     <span className="metric-num-passive">
-                      {rankMode === "ratio"
-                        ? formatWan(fund.marketValueWan)
-                        : `${valueFormatter.format(fund.ratioPercent)}%`}
+                      {formatWan(fund.marketValueWan)}
                     </span>
                     <div className="table-progress-track passive-track">
                       <div
                         className="table-progress-fill passive-fill"
-                        style={{ width: `${passiveWidth}%` }}
+                        style={{ width: `${valueWidth}%` }}
                       />
                     </div>
                   </div>
@@ -585,7 +662,7 @@ function CandidateButton({
         <em>{stock.code}</em>
       </span>
       <span>
-        {stock.activeFundCount} 只筛后基金
+        {stock.activeFundCount} 只场外基金
         <small>最高 {valueFormatter.format(stock.maxRatioPercent)}%</small>
       </span>
     </button>
@@ -626,7 +703,7 @@ export function App() {
   const [data, setData] = useState<FundStockIndex | null>(null);
   const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [rankMode, setRankMode] = useState<RankMode>("ratio");
+  const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -679,10 +756,26 @@ export function App() {
   }, [data, matches, selectedCode]);
 
   const resultFunds = selectedStock
-    ? rankMode === "ratio"
+    ? accessMode === "offExchange"
       ? selectedStock.topByRatio
-      : selectedStock.topByValue
+      : selectedStock.topOnExchangeByRatio ?? []
     : [];
+  const selectedFundCount = selectedStock
+    ? accessMode === "offExchange"
+      ? selectedStock.activeFundCount
+      : selectedStock.onExchangeFundCount ?? 0
+    : 0;
+  const selectedMaxRatio = selectedStock
+    ? accessMode === "offExchange"
+      ? selectedStock.maxRatioPercent
+      : selectedStock.onExchangeMaxRatioPercent ?? 0
+    : 0;
+  const selectedMarketValue = selectedStock
+    ? accessMode === "offExchange"
+      ? selectedStock.totalMarketValueWan
+      : selectedStock.onExchangeTotalMarketValueWan
+    : null;
+  const accessLabel = accessMode === "offExchange" ? "场外" : "场内";
 
   const popularSuggestions = useMemo(() => {
     const source = data?.popularStocks ?? [];
@@ -691,11 +784,25 @@ export function App() {
   }, [data, popularMarketFilter]);
 
   function chooseStock(stock: PopularStock | StockRecord) {
+    setHoveredFund(null);
     setSelectedCode(stock.code);
     setQuery(stock.name);
   }
 
   const fundHoldingsMap = data?.fundHoldings ?? {};
+
+  useEffect(() => {
+    if (!hoveredFund) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setHoveredFund(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hoveredFund]);
 
   // 修复 UI 锁定 Bug：只有在真正处于 loading 且没有发生加载错误时，才显示骨架屏。
   // 如果加载失败，解除 isAppLoading，进入 EmptyState 显示红色的错误载入面板，方便用户排查。
@@ -727,7 +834,7 @@ export function App() {
           <div className="terminal-kicker">POSITION INTELLIGENCE</div>
           <h1>人出不去 就钱出去</h1>
           <p>
-            输入美股或全球龙头，从大陆公募里剔除指数和 ETF，锁定真正重仓它的前 10 只基金。
+            输入美股或全球龙头，先看场外基金真重仓，也能切到场内 ETF / LOF。
           </p>
         </div>
 
@@ -745,6 +852,7 @@ export function App() {
               onChange={(event) => {
                 setQuery(event.target.value);
                 setSelectedCode(null);
+                setHoveredFund(null);
               }}
             />
             <button type="button" onClick={() => matches[0] && chooseStock(matches[0])}>
@@ -815,36 +923,38 @@ export function App() {
                     <span>{selectedStock.code}</span>
                   </h2>
                 </div>
-                <RankingToggle rankMode={rankMode} onChange={setRankMode} />
+                <AccessToggle accessMode={accessMode} onChange={setAccessMode} />
               </div>
 
               <div className="metrics-grid">
                 <MetricCard
                   icon={<ShieldCheck size={20} />}
-                  label="大陆基金覆盖"
-                  value={`${numberFormatter.format(selectedStock.activeFundCount)} 只`}
+                  label={`${accessLabel}基金覆盖`}
+                  value={`${numberFormatter.format(selectedFundCount)} 只`}
                 />
                 <MetricCard
                   icon={<SlidersHorizontal size={20} />}
                   label="最高净值占比"
-                  value={`${valueFormatter.format(selectedStock.maxRatioPercent)}%`}
+                  value={`${valueFormatter.format(selectedMaxRatio)}%`}
                 />
                 <MetricCard
                   icon={<BarChart3 size={20} />}
-                  label="筛后持仓市值"
-                  value={formatWan(selectedStock.totalMarketValueWan)}
+                  label={`${accessLabel}持仓市值`}
+                  value={formatWan(selectedMarketValue)}
                 />
               </div>
 
               <div className="section-title">
-                <h3>前 10 名筛后基金</h3>
+                <h3>前 10 名{accessLabel}基金</h3>
                 <span>
                   <ArrowUpDown size={15} />
-                  {rankMode === "ratio" ? "剔除指数和 ETF，按净值占比排序" : "剔除指数和 ETF，按持仓市值排序"}
+                  {accessMode === "offExchange"
+                    ? "剔除指数和 ETF，按净值占比排序"
+                    : "ETF / LOF 等场内品种，按净值占比排序"}
                 </span>
               </div>
 
-              <ResultTable funds={resultFunds} rankMode={rankMode} onHoverFund={setHoveredFund} />
+              <ResultTable funds={resultFunds} accessMode={accessMode} onHoverFund={setHoveredFund} />
             </>
           ) : (
             <EmptyState loading={false} error={error} />
@@ -868,6 +978,7 @@ export function App() {
           currentSearchStockCode={selectedStock?.code || null}
           x={hoveredFund.x}
           y={hoveredFund.y}
+          onClose={() => setHoveredFund(null)}
         />
       )}
     </main>

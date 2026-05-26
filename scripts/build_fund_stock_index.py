@@ -15,6 +15,7 @@ SUMMARY_JSON = ROOT / "outputs" / "run_summary_2026q1.json"
 PURCHASE_LIMIT_CSV = ROOT / "outputs" / "fund_purchase_limit_snapshot.csv"
 TARGET_JSON = ROOT / "public" / "data" / "fund-stock-index-2026q1.json"
 INDEX_FUND_MARKERS = ("指数", "ETF", "ETF联接")
+ON_EXCHANGE_FUND_MARKERS = ("ETF", "LOF", "封闭", "REIT")
 SHARE_CLASS_SUFFIXES = ("A", "B", "C", "D", "E", "F", "H", "I", "Y")
 CURRENCY_MARKERS = (
     "人民币",
@@ -347,6 +348,18 @@ def is_index_fund(fund: dict[str, Any]) -> bool:
     return any(marker.upper() in text for marker in INDEX_FUND_MARKERS)
 
 
+def is_etf_feeder_fund(fund: dict[str, Any]) -> bool:
+    text = f"{fund['fundName']} {fund['fundType']}".upper()
+    return "ETF" in text and "联接" in text
+
+
+def is_on_exchange_fund(fund: dict[str, Any]) -> bool:
+    text = f"{fund['fundName']} {fund['fundType']}".upper()
+    if is_etf_feeder_fund(fund):
+        return False
+    return any(marker.upper() in text for marker in ON_EXCHANGE_FUND_MARKERS)
+
+
 def better_record(current: dict[str, Any] | None, candidate: dict[str, Any]) -> dict[str, Any]:
     if current is None:
         return candidate
@@ -440,15 +453,27 @@ def build_index() -> dict[str, Any]:
     for code, base in stock_rows.items():
         funds = list(stock_funds[code].values())
         active_funds = [fund for fund in funds if not is_index_fund(fund)]
+        on_exchange_funds = [fund for fund in funds if is_on_exchange_fund(fund)]
         fund_family_count = len({fund_family_key(fund) for fund in funds})
         active_fund_family_count = len({fund_family_key(fund) for fund in active_funds})
+        on_exchange_fund_family_count = len({fund_family_key(fund) for fund in on_exchange_funds})
         top_by_ratio = unique_fund_families(active_funds, "ratio")
         top_by_value = unique_fund_families(active_funds, "value")
+        top_on_exchange_by_ratio = unique_fund_families(on_exchange_funds, "ratio")
         disclosed_market_values = [
             item["marketValueWan"] for item in active_funds if item["marketValueWan"] is not None
         ]
+        on_exchange_market_values = [
+            item["marketValueWan"] for item in on_exchange_funds if item["marketValueWan"] is not None
+        ]
         total_market_value = sum(disclosed_market_values) if disclosed_market_values else None
+        on_exchange_total_market_value = (
+            sum(on_exchange_market_values) if on_exchange_market_values else None
+        )
         max_ratio = top_by_ratio[0]["ratioPercent"] if top_by_ratio else 0
+        on_exchange_max_ratio = (
+            top_on_exchange_by_ratio[0]["ratioPercent"] if top_on_exchange_by_ratio else 0
+        )
         stocks.append(
             {
                 "code": base["code"],
@@ -457,11 +482,16 @@ def build_index() -> dict[str, Any]:
                 "activeFundCount": active_fund_family_count,
                 "shareClassCount": len(funds),
                 "activeShareClassCount": len(active_funds),
+                "onExchangeFundCount": on_exchange_fund_family_count,
+                "onExchangeShareClassCount": len(on_exchange_funds),
                 "excludedIndexFundCount": len(funds) - len(active_funds),
                 "totalMarketValueWan": rounded_optional(total_market_value, 2),
+                "onExchangeTotalMarketValueWan": rounded_optional(on_exchange_total_market_value, 2),
                 "maxRatioPercent": max_ratio,
+                "onExchangeMaxRatioPercent": on_exchange_max_ratio,
                 "topByRatio": top_by_ratio,
                 "topByValue": top_by_value,
+                "topOnExchangeByRatio": top_on_exchange_by_ratio,
             }
         )
 
@@ -488,21 +518,23 @@ def build_index() -> dict[str, Any]:
     ]
 
     cutoff_dates = sorted(
-        {fund["cutoffDate"] for stock in stocks for fund in stock["topByRatio"] if fund["cutoffDate"]}
+        {
+            fund["cutoffDate"]
+            for stock in stocks
+            for fund in [*stock["topByRatio"], *stock["topOnExchangeByRatio"]]
+            if fund["cutoffDate"]
+        }
     )
     report = summary.get("report", "2026Q1")
     visible_fund_codes = {
         fund["fundCode"]
         for stock in export_stocks
-        for fund in [*stock["topByRatio"], *stock["topByValue"]]
+        for fund in [*stock["topByRatio"], *stock["topByValue"], *stock["topOnExchangeByRatio"]]
         if fund["fundCode"]
     }
     fund_top_holdings: dict[str, list[dict[str, Any]]] = {}
     for fund_code in sorted(visible_fund_codes):
         holdings_by_stock = fund_holdings.get(fund_code, {})
-        fund = fund_profiles.get(fund_code)
-        if fund and is_index_fund(fund):
-            continue
         sorted_holdings = sorted(
             holdings_by_stock.values(),
             key=lambda item: (
@@ -518,6 +550,9 @@ def build_index() -> dict[str, Any]:
             **stock,
             "topByRatio": [public_fund_record(fund) for fund in stock["topByRatio"]],
             "topByValue": [public_fund_record(fund) for fund in stock["topByValue"]],
+            "topOnExchangeByRatio": [
+                public_fund_record(fund) for fund in stock["topOnExchangeByRatio"]
+            ],
         }
         for stock in export_stocks
     ]
@@ -534,6 +569,7 @@ def build_index() -> dict[str, Any]:
             "defaultRankingLabel": "占基金净值比例",
             "alternateRankingLabel": "持仓市值(万元)",
             "fundFilter": "剔除基金类型或基金名称包含 指数、ETF、ETF联接 的基金",
+            "onExchangeFundFilter": "基金名称或类型包含 ETF、LOF、封闭、REIT，且排除 ETF 联接基金",
             "cutoffDate": cutoff_dates[-1] if cutoff_dates else "",
             "fundCount": summary.get("fund_count"),
             "holdingRows": summary.get("holding_rows", {}).get("stock"),
