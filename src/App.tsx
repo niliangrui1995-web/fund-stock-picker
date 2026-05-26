@@ -961,9 +961,6 @@ export function App() {
         <div className="intro">
           <div className="terminal-kicker">POSITION INTELLIGENCE</div>
           <h1>人出不去 就钱出去</h1>
-          <p>
-            输入美股或全球龙头，先看场外基金真重仓，也能切到场内 ETF / LOF。
-          </p>
         </div>
 
         <div className="command-panel">
