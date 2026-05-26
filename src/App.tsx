@@ -3,12 +3,15 @@ import {
   BarChart3,
   CalendarDays,
   Database,
+  Loader2,
+  MessageSquareText,
   Search,
+  Send,
   ShieldCheck,
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 type AccessMode = "offExchange" | "onExchange";
@@ -93,6 +96,7 @@ const numberFormatter = new Intl.NumberFormat("zh-CN");
 const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
+const FUND_STOCK_DATA_URL = "data/fund-stock-index-2026q1.json?v=20260527-cache-refresh";
 
 function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
@@ -699,12 +703,136 @@ function EmptyState({ loading, error }: { loading: boolean; error: string | null
   );
 }
 
+function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [contact, setContact] = useState("");
+  const [message, setMessage] = useState("");
+  const [website, setWebsite] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorText, setErrorText] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && status !== "submitting") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose, status]);
+
+  if (!open) return null;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("submitting");
+    setErrorText("");
+
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact,
+          message,
+          website,
+          page: window.location.href,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "反馈发送失败，请稍后再试。");
+      }
+
+      setStatus("success");
+      setContact("");
+      setMessage("");
+      setWebsite("");
+    } catch (submitError) {
+      setStatus("error");
+      setErrorText(submitError instanceof Error ? submitError.message : "反馈发送失败，请稍后再试。");
+    }
+  }
+
+  return (
+    <div className="feedback-layer" role="presentation">
+      <button
+        type="button"
+        className="feedback-backdrop"
+        aria-label="关闭意见反馈"
+        onClick={() => status !== "submitting" && onClose()}
+      />
+      <section className="feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+        <div className="feedback-dialog-header">
+          <div>
+            <p className="eyeline">FEEDBACK</p>
+            <h2 id="feedback-title">意见反馈</h2>
+          </div>
+          <button type="button" className="feedback-close" aria-label="关闭意见反馈" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {status === "success" ? (
+          <div className="feedback-success">
+            <MessageSquareText size={26} />
+            <strong>已收到</strong>
+            <p>我会在邮箱里查看你的反馈。</p>
+            <button type="button" onClick={onClose}>完成</button>
+          </div>
+        ) : (
+          <form className="feedback-form" onSubmit={handleSubmit}>
+            <label>
+              联系方式
+              <input
+                value={contact}
+                onChange={(event) => setContact(event.target.value)}
+                maxLength={120}
+                placeholder="手机或邮箱"
+                required
+              />
+            </label>
+            <label>
+              留言或意见建议
+              <textarea
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                maxLength={1200}
+                placeholder="哪里不好用、数据哪里不对、想加什么功能，都可以写在这里。"
+                required
+              />
+            </label>
+            <label className="feedback-honeypot" aria-hidden="true">
+              Website
+              <input
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={(event) => setWebsite(event.target.value)}
+              />
+            </label>
+            {status === "error" && <p className="feedback-error">{errorText}</p>}
+            <button type="submit" className="feedback-submit" disabled={status === "submitting"}>
+              {status === "submitting" ? <Loader2 size={17} className="spin" /> : <Send size={17} />}
+              {status === "submitting" ? "发送中" : "发送反馈"}
+            </button>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function App() {
   const [data, setData] = useState<FundStockIndex | null>(null);
   const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -721,7 +849,7 @@ export function App() {
     let mounted = true;
 
     // 使用相对路径，防止部署在子目录时请求到根目录的 404 错误
-    fetch("data/fund-stock-index-2026q1.json")
+    fetch(FUND_STOCK_DATA_URL, { cache: "no-cache" })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`数据文件请求失败 (HTTP ${response.status})。请检查服务器是否正常运行。`);
@@ -981,6 +1109,17 @@ export function App() {
           onClose={() => setHoveredFund(null)}
         />
       )}
+
+      <button
+        type="button"
+        className="feedback-trigger"
+        aria-label="打开意见反馈"
+        onClick={() => setFeedbackOpen(true)}
+      >
+        <MessageSquareText size={17} />
+        意见反馈
+      </button>
+      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </main>
   );
 }
