@@ -16,22 +16,27 @@
   
   --ink: #1a1e23;             /* Deep Charcoal Ink */
   --muted: #6a737d;           /* Slate Grey Secondary */
-  --line: #e3e8ee;            /* Fine Light Grey Borders */
+  --line: #e2e8f0;            /* Fine Light Slate Borders */
   --line-strong: #cbd5e1;
   
   --accent: #ff3b30;          /* The Brilliant Success Accent: Crimson Red */
   --accent-strong: #ff4d4d;
-  --accent-soft: rgba(255, 59, 48, 0.07);
-  --accent-gradient: linear-gradient(90deg, #ff3b30 0%, #ff5f52 100%);
+  --accent-soft: rgba(255, 59, 48, 0.06);
+  --accent-gradient: linear-gradient(135deg, #ff3b30 0%, #ff6b5c 100%);
   
   /* Neutral coordinates for light layouts */
   --gold: #1a1e23;            
   --danger: #ff3b30;
-  --success: #ff3b30;
+  --success: #16a34a;         /* 引入薄荷翠绿防止色彩红绿冲突 */
   
   /* Soft cloudy dropshadows mimicking modern Stripe/Apple SaaS products */
-  --shadow: 0 12px 32px rgba(31, 45, 61, 0.05), 0 2px 4px rgba(31, 45, 61, 0.02);
-  --glass-shadow: 0 20px 48px rgba(0, 0, 0, 0.04), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 10px 15px -3px rgba(31, 41, 55, 0.04), 0 16px 24px -4px rgba(31, 41, 55, 0.02);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.02), 0 8px 32px rgba(15, 23, 42, 0.04), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  --hover-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.08), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+  /* 引入顶级缓动曲线与全局过渡 (Top Easing Transitions) */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -212,14 +217,16 @@ a:hover {
   position: relative;
   padding: 22px;
   border: 1px solid var(--line);
-  background: var(--surface);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
   border-radius: 16px;
   box-shadow: var(--glass-shadow);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: var(--transition-smooth);
 }
 
 .command-panel:hover {
   border-color: var(--line-strong);
+  box-shadow: var(--hover-shadow);
+  transform: translateY(-2px);
 }
 
 .command-panel::before {
@@ -227,9 +234,10 @@ a:hover {
   top: -1px;
   left: 28px;
   width: 60px;
-  height: 1px;
+  height: 2px; /* 略微加粗，让边框流光更有分量 */
   content: "";
-  background: var(--accent);
+  background: var(--accent-gradient);
+  border-radius: 99px;
 }
 
 .panel-status {
@@ -241,14 +249,37 @@ a:hover {
   color: var(--ink);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 }
 
 .panel-status i {
+  position: relative;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+/* 状态绿点自带平滑呼吸灯效果，呈现系统高度响应状态 */
+.panel-status i::after {
+  position: absolute;
+  inset: -3px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  content: "";
+  animation: status-pulsing 2s infinite ease-out;
+  opacity: 0;
+}
+
+@keyframes status-pulsing {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 
 /* Apple Capsule Search Box */
@@ -260,18 +291,24 @@ a:hover {
   min-height: 56px;
   padding: 5px 5px 5px 24px;
   border: 1px solid var(--line-strong);
-  background: #fcfdfe;
+  background: #ffffff;
   border-radius: 9999px; /* Capsule rounded */
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--transition-smooth);
 }
 
 .search-box:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 16px rgba(255, 59, 48, 0.06);
+  box-shadow: 0 10px 30px rgba(255, 59, 48, 0.08), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  transform: scale(1.01); /* 产生解压的微幅向外膨胀感 */
 }
 
 .search-box svg {
   color: #8c95a5;
+  transition: var(--transition-smooth);
+}
+
+.search-box:focus-within svg {
+  color: var(--accent); /* 聚焦时放大镜高亮猩红色 */
 }
 
 .search-box input {
@@ -295,23 +332,25 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 50px;
+  height: 48px;
   padding: 0 26px;
   border: 0;
-  background: var(--accent);
+  background: var(--accent-gradient); /* 换用流光渐变背景 */
   color: #ffffff;
   font-size: 14px;
   font-weight: 800;
   border-radius: 9999px; /* Capsule rounded */
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.16);
+  transition: var(--transition-smooth);
 }
 
 .search-box button:hover {
-  opacity: 0.92;
+  opacity: 0.95;
+  box-shadow: 0 8px 20px rgba(255, 59, 48, 0.28);
 }
 
 .search-box button:active {
-  transform: translateY(1px);
+  transform: scale(0.96) translateY(0.5px); /* 仿iOS触觉的物理回弹效果 */
 }
 
 .data-strip {
@@ -727,31 +766,37 @@ td {
 }
 
 /* Each row floats as a neat Pure White card on Ivory background */
+tbody {
+  perspective: 1200px; /* 创建3D空间感，为子元素tr的3D倾斜提供透视基准 */
+}
+
+/* Each row floats as a neat Pure White card on Ivory background */
 tbody tr {
   background: #ffffff;
-  box-shadow: 0 2px 6px rgba(31, 45, 61, 0.03);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(31, 45, 61, 0.02);
+  transition: var(--transition-smooth);
 }
 
 tbody tr:hover {
   background: var(--surface-soft);
-  transform: translateY(-1.5px);
-  box-shadow: 0 8px 18px rgba(31, 45, 61, 0.07);
+  /* 运用3D rotateX 呈现扑克牌般的立体微倾斜，scale产生边缘被微弱拉近的视觉高级感 */
+  transform: translateY(-3.5px) rotateX(1.5deg) scale(1.004);
+  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
 }
 
 tbody tr td {
-  border-top: 1px solid #e3e8ee;
-  border-bottom: 1px solid #e3e8ee;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 tbody tr td:first-child {
-  border-left: 1px solid #e3e8ee;
+  border-left: 1px solid #e2e8f0;
   border-top-left-radius: 12px;
   border-bottom-left-radius: 12px;
 }
 
 tbody tr td:last-child {
-  border-right: 1px solid #e3e8ee;
+  border-right: 1px solid #e2e8f0;
   border-top-right-radius: 12px;
   border-bottom-right-radius: 12px;
 }
@@ -766,6 +811,7 @@ tbody tr td:last-child {
 
 .metric-num {
   font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums; /* 强行对齐小数点与千分位，确保专业投资数据的垂直可读性 */
   font-weight: 800;
   color: var(--accent); /* Controlled vibrant red indicator */
   font-size: 14px;
@@ -781,12 +827,14 @@ tbody tr td:last-child {
 
 .table-progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--accent-gradient);
   border-radius: 9999px;
+  transition: width 0.8s var(--ease-out-expo); /* 极度丝滑的数据条拉伸动效 */
 }
 
 .cell-passive .metric-num-passive {
   font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums; /* 对齐 passive 数字 */
   font-weight: 600;
   color: var(--muted);
 }
@@ -797,10 +845,12 @@ tbody tr td:last-child {
 
 .passive-fill {
   background: #cbd5e1; /* Monochromatic silver grey */
+  transition: width 0.8s var(--ease-out-expo);
 }
 
 .shares-cell {
   font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums; /* 对齐股数 */
   font-weight: 500;
   color: var(--ink);
   white-space: nowrap;
@@ -889,7 +939,19 @@ tbody tr td:last-child {
   margin-top: 8px;
 }
 
-.trade-pill,
+.trade-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px; /* 留出空间给精细的指示灯圆点 */
+  min-height: 20px;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  transition: var(--transition-smooth);
+}
+
 .trade-limit {
   display: inline-flex;
   align-items: center;
@@ -902,21 +964,60 @@ tbody tr td:last-child {
 }
 
 .trade-pill.open {
-  border: 1px solid rgba(22, 163, 74, 0.2);
-  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  background: rgba(22, 163, 74, 0.05);
   color: #15803d;
 }
 
+.trade-pill.open::before {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #16a34a;
+  content: "";
+}
+
 .trade-pill.limited {
-  border: 1px solid rgba(234, 88, 12, 0.22);
-  background: rgba(234, 88, 12, 0.08);
-  color: #c2410c;
+  border: 1px solid rgba(217, 119, 6, 0.22); /* 换用高级琥珀金，提升对比度与专业感 */
+  background: rgba(217, 119, 6, 0.05);
+  color: #b45309;
+}
+
+/* 琥珀金呼吸灯，表示限额申购，展示系统的动态感知 */
+.trade-pill.limited::before {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #d97706;
+  content: "";
+  animation: trade-pill-breath 2s infinite ease-in-out;
 }
 
 .trade-pill.blocked {
-  border: 1px solid rgba(255, 59, 48, 0.24);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.05);
+  color: #ef4444;
+}
+
+/* 猩红色呼吸灯，警示当前属于“暂停/不可申购状态” */
+.trade-pill.blocked::before {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ef4444;
+  content: "";
+  animation: trade-pill-breath 2s infinite ease-in-out;
+}
+
+@keyframes trade-pill-breath {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 .trade-pill.neutral,
@@ -1401,7 +1502,8 @@ tbody tr td:last-child {
     90deg,
     transparent 0%,
     rgba(255, 255, 255, 0.6) 30%,
-    rgba(255, 255, 255, 0.9) 60%,
+    rgba(255, 59, 48, 0.04) 50%, /* 优雅柔美地融合品牌猩红极光微弱扫光 */
+    rgba(255, 255, 255, 0.8) 70%,
     transparent 100%
   );
   animation: skeleton-sweep 1.5s infinite ease-in-out;
@@ -1715,6 +1817,7 @@ tbody tr td:last-child {
   border-radius: 8px;
   padding: 5px 7px;
   background: rgba(255, 255, 255, 0.52);
+  transition: var(--transition-smooth); /* 平滑过渡效果 */
 }
 
 .holding-rank {
@@ -1767,6 +1870,7 @@ tbody tr td:last-child {
   height: 100%;
   background: linear-gradient(90deg, #94a3b8, #cbd5e1);
   border-radius: 999px;
+  transition: width 0.8s var(--ease-out-expo); /* 极度优雅的数据展示条拉伸 */
 }
 
 .holding-stock-ratio {
@@ -1775,13 +1879,15 @@ tbody tr td:last-child {
   color: var(--muted);
   text-align: right;
   font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums; /* 对齐悬浮持仓占比数值 */
   align-self: center;
 }
 
 /* Outstanding highlight layout for searched stock row */
 .hover-card-holding-row.row-highlight {
   border-color: rgba(255, 59, 48, 0.24);
-  background: rgba(255, 59, 48, 0.06);
+  background: linear-gradient(90deg, rgba(255, 59, 48, 0.08) 0%, rgba(255, 255, 255, 0.72) 100%);
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.04);
 }
 
 .hover-card-holding-row.row-highlight .holding-rank {
