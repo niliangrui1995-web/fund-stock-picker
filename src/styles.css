@@ -803,6 +803,7 @@ tbody tr td:last-child {
   font-family: "JetBrains Mono", monospace;
   font-weight: 500;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .fund-type-badge {
@@ -1348,10 +1349,12 @@ tbody tr td:last-child {
   }
 
   .feedback-trigger {
-    right: 14px;
-    bottom: 14px;
+    position: static;
+    width: 100%;
+    margin-top: 16px;
     min-height: 40px;
     padding: 0 13px;
+    border-radius: 12px;
     font-size: 12px;
   }
 

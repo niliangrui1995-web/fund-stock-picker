@@ -917,6 +917,11 @@ export function App() {
     setQuery(stock.name);
   }
 
+  function changeAccessMode(mode: AccessMode) {
+    setHoveredFund(null);
+    setAccessMode(mode);
+  }
+
   const fundHoldingsMap = data?.fundHoldings ?? {};
 
   useEffect(() => {
@@ -1048,7 +1053,7 @@ export function App() {
                     <span>{selectedStock.code}</span>
                   </h2>
                 </div>
-                <AccessToggle accessMode={accessMode} onChange={setAccessMode} />
+                <AccessToggle accessMode={accessMode} onChange={changeAccessMode} />
               </div>
 
               <div className="metrics-grid">
