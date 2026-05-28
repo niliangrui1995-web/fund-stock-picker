@@ -98,6 +98,14 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
 });
 const FUND_STOCK_DATA_URL = "data/fund-stock-index-2026q1.json?v=20260527-cache-refresh";
 
+function getInitialQuery() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+}
+
 function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
@@ -828,7 +836,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
 export function App() {
   const [data, setData] = useState<FundStockIndex | null>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(getInitialQuery);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
