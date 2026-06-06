@@ -961,6 +961,7 @@ export function App() {
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"research" | "methodology">("research");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -1051,6 +1052,11 @@ export function App() {
     setAccessMode(mode);
   }
 
+  function scrollToPageSection(sectionId: "research" | "methodology") {
+    setActiveSection(sectionId);
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const fundHoldingsMap = data?.fundHoldings ?? {};
 
   useEffect(() => {
@@ -1078,8 +1084,22 @@ export function App() {
           基金持仓穿透
         </div>
         <nav className="topbar-nav" aria-label="当前功能区">
-          <span className="active">研究</span>
-          <span>方法论</span>
+          <button
+            type="button"
+            className={activeSection === "research" ? "active" : ""}
+            aria-current={activeSection === "research" ? "page" : undefined}
+            onClick={() => scrollToPageSection("research")}
+          >
+            研究
+          </button>
+          <button
+            type="button"
+            className={activeSection === "methodology" ? "active" : ""}
+            aria-current={activeSection === "methodology" ? "page" : undefined}
+            onClick={() => scrollToPageSection("methodology")}
+          >
+            方法论
+          </button>
         </nav>
         <div className="topbar-meta">
           <span>
@@ -1095,7 +1115,7 @@ export function App() {
         </div>
       </header>
 
-      <section className="search-zone">
+      <section id="research" className="search-zone">
         <div className="command-panel">
           <div className="panel-status">
             <span>全球股票 / 指数 / ETF</span>
@@ -1265,6 +1285,34 @@ export function App() {
             <EmptyState loading={false} error={error} />
           )}
         </section>
+      </section>
+
+      <section id="methodology" className="methodology-section" aria-labelledby="methodology-title">
+        <div className="methodology-head">
+          <span>方法论</span>
+          <h2 id="methodology-title">基金持仓穿透口径</h2>
+          <p>
+            数据期为 {data?.meta.report ?? "2026Q1"}，截至 {data?.meta.cutoffDate ?? "2026-03-31"}。页面优先展示海外标的在公募基金披露持仓中的覆盖、权重和可交易状态。
+          </p>
+        </div>
+        <div className="methodology-grid">
+          <article>
+            <strong>场外样本</strong>
+            <p>剔除指数、ETF、ETF 联接等被动跟踪基金，保留主动基金里对单只股票的高权重表达。</p>
+          </article>
+          <article>
+            <strong>场内样本</strong>
+            <p>ETF、LOF、封闭式基金和 REIT 单独归入场内视图，便于和场外主动配置分开判断。</p>
+          </article>
+          <article>
+            <strong>排序规则</strong>
+            <p>默认按个股占基金净值比例排序；持仓市值缺失时保留披露状态，不用估算值替代。</p>
+          </article>
+          <article>
+            <strong>份额合并</strong>
+            <p>同一基金的 A/C、币种、前后端份额合并展示，同时保留全部基金代码供回查。</p>
+          </article>
+        </div>
       </section>
 
       <footer className="compliance-disclaimer">
