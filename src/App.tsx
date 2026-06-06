@@ -110,6 +110,74 @@ function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
 
+function financialLogoSymbol(code: string, name = "") {
+  const normalized = code.trim().toUpperCase();
+
+  if (/^\d{5}$/.test(normalized)) {
+    return `${normalized.replace(/^0(?=\d{4}$)/, "")}.HK`;
+  }
+  if (/^\d{4}\.(T|JP)$/.test(normalized)) {
+    return normalized.replace(/\.JP$/, ".T");
+  }
+  if (/^\d{6}\.(KS|KQ)$/.test(normalized)) {
+    return normalized;
+  }
+  if (/^\d{4}$/.test(normalized)) {
+    if (/台积电|台積電|台湾|臺灣/.test(name)) return `${normalized}.TW`;
+    return `${normalized}.T`;
+  }
+  if (/^\d{6}$/.test(normalized) && koreanStockNamePattern.test(name)) {
+    return `${normalized}.KS`;
+  }
+  return normalized;
+}
+
+function remoteStockLogoUrl(code: string, name = "") {
+  return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(financialLogoSymbol(code, name))}.png`;
+}
+
+function eodLogoPath(code: string, name = "") {
+  const normalized = code.trim().toUpperCase();
+
+  if (/^\d{5}$/.test(normalized)) {
+    return `HK/${normalized.replace(/^0(?=\d{4}$)/, "")}.png`;
+  }
+  if (/^\d{4}\.(T|JP)$/.test(normalized)) {
+    return `TSE/${normalized.slice(0, 4)}.png`;
+  }
+  if (/^\d{6}\.(KS|KQ)$/.test(normalized)) {
+    return `KO/${normalized.slice(0, 6)}.png`;
+  }
+  if (/^\d{4}$/.test(normalized)) {
+    if (/台积电|台積電|台湾|臺灣/.test(name)) return `TW/${normalized}.png`;
+    return `TSE/${normalized}.png`;
+  }
+  if (/^\d{6}$/.test(normalized) && koreanStockNamePattern.test(name)) {
+    return `KO/${normalized}.png`;
+  }
+  if (/^[A-Z]{1,5}([.-][A-Z]{1,2})?$/.test(normalized)) {
+    return `US/${normalized}.png`;
+  }
+  return "";
+}
+
+function eodStockLogoUrl(code: string, name = "") {
+  const logoPath = eodLogoPath(code, name);
+  return logoPath ? `https://eodhd.com/img/logos/${logoPath}` : "";
+}
+
+function localStockLogoUrl(code: string) {
+  return `stock-logos/${normalizeStockCode(code).toLowerCase()}.png`;
+}
+
+function stockLogoSources(code: string, name = "") {
+  return Array.from(
+    new Set(
+      [localStockLogoUrl(code), remoteStockLogoUrl(code, name), eodStockLogoUrl(code, name)].filter(Boolean),
+    ),
+  );
+}
+
 function stockMarketBucket(code: string, name = ""): MarketBucket {
   const normalized = code.trim().toUpperCase();
   if (/^\d{5}$/.test(normalized)) return "hk";
@@ -191,6 +259,46 @@ function supportsHoverPointer() {
   }
 
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function StockLogo({
+  code,
+  name,
+  size = "sm",
+}: {
+  code: string;
+  name: string;
+  size?: "sm" | "lg";
+}) {
+  const sources = useMemo(() => stockLogoSources(code, name), [code, name]);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const src = sources[sourceIndex];
+
+  useEffect(() => {
+    setSourceIndex(0);
+    setFailed(false);
+  }, [sources]);
+
+  if (failed || !src) return null;
+
+  return (
+    <span className={`stock-logo ${size === "lg" ? "large" : ""}`}>
+      <img
+        alt={`${name} 品牌图标`}
+        src={src}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => {
+          if (sourceIndex < sources.length - 1) {
+            setSourceIndex((current) => current + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
+      />
+    </span>
+  );
 }
 
 function FundHoldingsHoverCard({
@@ -460,6 +568,7 @@ function ResultTable({
             <th>净值占比</th>
             <th>持仓市值</th>
             <th>持股数</th>
+            <th>交易状态</th>
           </tr>
         </thead>
         <tbody>
@@ -530,12 +639,6 @@ function ResultTable({
                     <span className="fund-code-list">{fundCodes.join(" / ")}</span>
                   </div>
                   <div className="fund-trade-row">
-                    <span className={`trade-pill ${tradeStatusTone(fund.purchaseStatus)}`}>
-                      {fund.purchaseStatus || "申购 --"}
-                    </span>
-                    <span className={`trade-pill ${tradeStatusTone(fund.redemptionStatus)}`}>
-                      {fund.redemptionStatus || "赎回 --"}
-                    </span>
                     {fund.dailyPurchaseLimit ? (
                       <span className="trade-limit">日限 {fund.dailyPurchaseLimit}</span>
                     ) : null}
@@ -574,6 +677,16 @@ function ResultTable({
                   </div>
                 </td>
                 <td className="shares-cell">{valueFormatter.format(fund.sharesWan)} 万股</td>
+                <td>
+                  <div className="status-stack">
+                    <span className={`trade-pill ${tradeStatusTone(fund.purchaseStatus)}`}>
+                      {fund.purchaseStatus || "申购 --"}
+                    </span>
+                    <span className={`trade-pill ${tradeStatusTone(fund.redemptionStatus)}`}>
+                      {fund.redemptionStatus || "赎回 --"}
+                    </span>
+                  </div>
+                </td>
               </tr>
             );
           })}
@@ -634,6 +747,7 @@ function SkeletonResults() {
               <th>净值占比</th>
               <th>持仓市值</th>
               <th>持股数</th>
+              <th>交易状态</th>
             </tr>
           </thead>
           <tbody>
@@ -648,6 +762,7 @@ function SkeletonResults() {
                 <td><div className="skeleton-line skeleton-bar" /></td>
                 <td><div className="skeleton-line skeleton-bar-short" /></td>
                 <td><div className="skeleton-line skeleton-bar-short" /></td>
+                <td><div className="skeleton-line skeleton-badge" /></td>
               </tr>
             ))}
           </tbody>
@@ -660,18 +775,23 @@ function SkeletonResults() {
 function CandidateButton({
   stock,
   onSelect,
+  selected = false,
 }: {
   stock: PopularStock | StockRecord;
   onSelect: () => void;
+  selected?: boolean;
 }) {
   return (
-    <button className="candidate" onClick={onSelect} type="button">
-      <span className="candidate-main">
-        <span className="candidate-title-row">
-          <strong>{stock.name}</strong>
-          <span className="market-badge">{marketLabel(stock.code, stock.name)}</span>
+    <button className={`candidate ${selected ? "selected" : ""}`} onClick={onSelect} type="button">
+      <span className="candidate-identity">
+        <StockLogo code={stock.code} name={stock.name} />
+        <span className="candidate-main">
+          <span className="candidate-title-row">
+            <strong>{stock.name}</strong>
+            <span className="market-badge">{marketLabel(stock.code, stock.name)}</span>
+          </span>
+          <em>{stock.code}</em>
         </span>
-        <em>{stock.code}</em>
       </span>
       <span>
         {stock.activeFundCount} 只场外基金
@@ -918,6 +1038,7 @@ export function App() {
     if (!popularMarketFilter) return source;
     return source.filter((stock) => stockMarketBucket(stock.code, stock.name) === popularMarketFilter);
   }, [data, popularMarketFilter]);
+  const quickStocks = useMemo(() => (data?.popularStocks ?? []).slice(0, 5), [data]);
 
   function chooseStock(stock: PopularStock | StockRecord) {
     setHoveredFund(null);
@@ -956,6 +1077,10 @@ export function App() {
           <span>出海钱眼</span>
           基金持仓穿透
         </div>
+        <nav className="topbar-nav" aria-label="当前功能区">
+          <span className="active">研究</span>
+          <span>方法论</span>
+        </nav>
         <div className="topbar-meta">
           <span>
             <CalendarDays size={16} />
@@ -971,15 +1096,9 @@ export function App() {
       </header>
 
       <section className="search-zone">
-        <div className="intro">
-          <div className="terminal-kicker">POSITION INTELLIGENCE</div>
-          <h1>人出不去 就钱出去</h1>
-        </div>
-
         <div className="command-panel">
           <div className="panel-status">
-            <span>GLOBAL SCAN READY</span>
-            <i />
+            <span>全球股票 / 指数 / ETF</span>
           </div>
           <form className="search-box" onSubmit={(event) => event.preventDefault()}>
             <Search size={22} />
@@ -998,36 +1117,75 @@ export function App() {
               查询
             </button>
           </form>
-          <div className="data-strip" aria-label="数据概览">
-            <span>{data ? numberFormatter.format(data.meta.sourceRows) : "--"} 大陆公募持仓</span>
-            <span>美股优先 · 港股兼容</span>
-            <span>
-              {data ? numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount) : "--"} 海外标的
-            </span>
+        </div>
+
+        <div className="recent-panel" aria-label="快速查询">
+          <div className="panel-status">
+            <span>最近查询</span>
           </div>
+          <div className="recent-chips">
+            {quickStocks.length ? (
+              quickStocks.map((stock) => (
+                <button key={stock.code} type="button" onClick={() => chooseStock(stock)}>
+                  {stock.code}
+                </button>
+              ))
+            ) : (
+              <span>数据载入中</span>
+            )}
+          </div>
+        </div>
+
+        <div className="summary-card" aria-label="基金数据总览">
+          <span>全市场基金总数</span>
+          <strong>{data ? numberFormatter.format(data.meta.fundCount ?? data.meta.sourceRows) : "--"} 只</strong>
+          <small>覆盖中外市场</small>
+        </div>
+      </section>
+
+      <section className="selected-context" aria-label="当前研究上下文">
+        <div>
+          <span>数据期</span>
+          <strong>{data?.meta.report ?? "2026Q1"}</strong>
+        </div>
+        <div>
+          <span>数据截至</span>
+          <strong>{data?.meta.cutoffDate ?? "载入中"}</strong>
+        </div>
+        <div>
+          <span>海外标的</span>
+          <strong>
+            {data ? numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount) : "--"} 只
+          </strong>
+        </div>
+        <div>
+          <span>持仓明细</span>
+          <strong>{data ? numberFormatter.format(data.meta.holdingRows ?? data.meta.sourceRows) : "--"} 条</strong>
         </div>
       </section>
 
       <section className={`workspace ${selectedStock ? "has-selection" : "no-selection"}`}>
         <aside className="left-panel" aria-label="股票候选">
-          <div className="panel-heading">
-            <h2>{data?.meta.popularScopeLabel ?? "海外热门"}</h2>
-            <span>{isAppLoading ? "载入中..." : `${popularSuggestions.length} 项`}</span>
-          </div>
-          <div className="market-shortcuts" aria-label="海外热门市场筛选">
-            {popularMarketFilters.map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                className={`market-shortcut ${popularMarketFilter === filter.key ? "active" : ""}`}
-                aria-pressed={popularMarketFilter === filter.key}
-                onClick={() =>
-                  setPopularMarketFilter((current) => (current === filter.key ? null : filter.key))
-                }
-              >
-                {filter.label}
-              </button>
-            ))}
+          <div className="left-panel-top">
+            <div className="panel-heading">
+              <h2>{data?.meta.popularScopeLabel ?? "海外热门"}</h2>
+              <span>{isAppLoading ? "载入中..." : `${popularSuggestions.length} 项`}</span>
+            </div>
+            <div className="market-shortcuts" aria-label="海外热门市场筛选">
+              {popularMarketFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  className={`market-shortcut ${popularMarketFilter === filter.key ? "active" : ""}`}
+                  aria-pressed={popularMarketFilter === filter.key}
+                  onClick={() =>
+                    setPopularMarketFilter((current) => (current === filter.key ? null : filter.key))
+                  }
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="candidate-list">
             {isAppLoading ? (
@@ -1038,6 +1196,7 @@ export function App() {
                   key={stock.code}
                   stock={stock}
                   onSelect={() => chooseStock(stock)}
+                  selected={selectedStock?.code === stock.code}
                 />
               ))
             ) : (
@@ -1056,10 +1215,18 @@ export function App() {
                   <p className="eyeline">
                     {isOverseasStockCode(selectedStock.code, selectedStock.name) ? "当前海外标的" : "当前标的"}
                   </p>
-                  <h2>
-                    {selectedStock.name}
-                    <span>{selectedStock.code}</span>
-                  </h2>
+                  <div className="result-title-row">
+                    <StockLogo code={selectedStock.code} name={selectedStock.name} size="lg" />
+                    <h2>
+                      {selectedStock.name}
+                      <span>{selectedStock.code}</span>
+                    </h2>
+                  </div>
+                  <div className="result-tags">
+                    <span>{marketLabel(selectedStock.code, selectedStock.name)}</span>
+                    <span>{data?.meta.report ?? "2026Q1"}</span>
+                    <span>{accessLabel}持仓</span>
+                  </div>
                 </div>
                 <AccessToggle accessMode={accessMode} onChange={changeAccessMode} />
               </div>
@@ -1083,7 +1250,7 @@ export function App() {
               </div>
 
               <div className="section-title">
-                <h3>前 10 名{accessLabel}基金</h3>
+                <h3>前 10 名{accessLabel}基金持仓明细</h3>
                 <span>
                   <ArrowUpDown size={15} />
                   {accessMode === "offExchange"
