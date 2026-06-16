@@ -228,6 +228,7 @@ npm run preview
 ## 维护约定
 
 - 不手工修改 `public/data/fund-stock-index-2026q1.json`，只通过脚本重建。
+- 不手工维护 SEO 股票代码清单；`npm run seo` 会从当前基金持仓数据中自动选择高优先级海外股票，默认生成 120 个股票静态页，可用 `SEO_PAGE_LIMIT` 调整数量。
 - 不提交 `node_modules/`、`dist/`、缓存目录、输出目录、环境变量文件和本地平台配置。
 - 修改数据口径后，同步更新 README 的数据说明和常见问题。
 - 发布前跑构建、依赖审计和隐私关键词扫描。

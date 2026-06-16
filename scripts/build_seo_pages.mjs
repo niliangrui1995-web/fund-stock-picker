@@ -6,23 +6,8 @@ const DATA_PATH = path.join("public", "data", "fund-stock-index-2026q1.json");
 const STOCKS_DIR = path.join("public", "stocks");
 const SEO_DIR = path.join("public", "seo");
 const LASTMOD = process.env.SEO_LASTMOD || new Date().toISOString().slice(0, 10);
-
-const targetCodes = [
-  "NVDA",
-  "TSM",
-  "00700",
-  "09988",
-  "GOOGL",
-  "AVGO",
-  "ASML",
-  "MSFT",
-  "AAPL",
-  "AMZN",
-  "TSLA",
-  "005930",
-  "META",
-  "AMD",
-];
+const DEFAULT_SEO_PAGE_LIMIT = 120;
+const POPULAR_STOCK_SCORE_BOOST = 1_000_000_000;
 
 const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
@@ -49,7 +34,101 @@ function formatWan(value) {
 }
 
 function slugFor(code) {
-  return String(code).trim().toLowerCase().replace(/[^0-9a-z]+/g, "-");
+  return String(code).trim().toLowerCase().replace(/[^0-9a-z]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function normalizedStockCode(stock) {
+  return String(stock?.code ?? "").trim().toUpperCase();
+}
+
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function seoPageLimit(stockCount) {
+  const configuredLimit = Number.parseInt(process.env.SEO_PAGE_LIMIT ?? "", 10);
+  if (!Number.isFinite(configuredLimit) || configuredLimit <= 0) {
+    return Math.min(DEFAULT_SEO_PAGE_LIMIT, stockCount);
+  }
+  return Math.min(configuredLimit, stockCount);
+}
+
+function buildPopularRanks(popularStocks) {
+  const ranks = new Map();
+  for (const [index, stock] of (popularStocks ?? []).entries()) {
+    const code = normalizedStockCode(stock);
+    if (code && !ranks.has(code)) {
+      ranks.set(code, index);
+    }
+  }
+  return ranks;
+}
+
+function stockPriorityScore(stock, popularRank) {
+  const popularBoost = popularRank === undefined ? 0 : POPULAR_STOCK_SCORE_BOOST - popularRank;
+  return (
+    popularBoost +
+    finiteNumber(stock.activeFundCount) * 10_000 +
+    finiteNumber(stock.fundCount) * 1_000 +
+    finiteNumber(stock.onExchangeFundCount) * 250 +
+    Math.log10(finiteNumber(stock.totalMarketValueWan) + 1) * 100 +
+    finiteNumber(stock.maxRatioPercent)
+  );
+}
+
+function isSeoStockCandidate(stock) {
+  return Boolean(
+    normalizedStockCode(stock) &&
+      stock?.name &&
+      (finiteNumber(stock.activeFundCount) > 0 || finiteNumber(stock.onExchangeFundCount) > 0),
+  );
+}
+
+function selectSeoStocks(payload) {
+  if (!Array.isArray(payload.stocks)) {
+    throw new Error("Invalid fund stock payload: missing stocks array");
+  }
+
+  const popularRanks = buildPopularRanks(payload.popularStocks);
+  const rankedStocks = payload.stocks
+    .filter(isSeoStockCandidate)
+    .map((stock) => {
+      const code = normalizedStockCode(stock);
+      return {
+        stock,
+        code,
+        slug: slugFor(code),
+        score: stockPriorityScore(stock, popularRanks.get(code)),
+      };
+    })
+    .filter((item) => item.slug)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        finiteNumber(right.stock.activeFundCount) - finiteNumber(left.stock.activeFundCount) ||
+        finiteNumber(right.stock.fundCount) - finiteNumber(left.stock.fundCount) ||
+        left.code.localeCompare(right.code, "en"),
+    );
+
+  const selectedStocks = [];
+  const selectedSlugs = new Set();
+  const limit = seoPageLimit(rankedStocks.length);
+  for (const item of rankedStocks) {
+    if (selectedSlugs.has(item.slug)) {
+      continue;
+    }
+    selectedStocks.push(item.stock);
+    selectedSlugs.add(item.slug);
+    if (selectedStocks.length >= limit) {
+      break;
+    }
+  }
+
+  if (!selectedStocks.length) {
+    throw new Error("No SEO stock records selected from current fund data");
+  }
+
+  return selectedStocks;
 }
 
 function fundDisplayName(fund) {
@@ -561,13 +640,7 @@ ${urls
 
 async function main() {
   const payload = JSON.parse(await readFile(DATA_PATH, "utf8"));
-  const stocksByCode = new Map(payload.stocks.map((stock) => [stock.code.toUpperCase(), stock]));
-  const selectedStocks = targetCodes.map((code) => stocksByCode.get(code)).filter(Boolean);
-
-  if (selectedStocks.length !== targetCodes.length) {
-    const missing = targetCodes.filter((code) => !stocksByCode.has(code));
-    throw new Error(`Missing SEO stock records: ${missing.join(", ")}`);
-  }
+  const selectedStocks = selectSeoStocks(payload);
 
   await rm(STOCKS_DIR, { recursive: true, force: true });
   await mkdir(STOCKS_DIR, { recursive: true });
