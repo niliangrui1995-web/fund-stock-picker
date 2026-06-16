@@ -31,7 +31,7 @@
 - Implementation screenshot path: `D:\vcp_hunter\基金持仓\design-qa-assets\decision-sheet-desktop.png`
 - Mobile screenshot path: `D:\vcp_hunter\基金持仓\design-qa-assets\decision-sheet-mobile.png`
 - Viewport: desktop `1440x1024`; mobile `390x844`
-- State: `?q=NVDA`, 2026Q1 fund holdings data loaded
+- State: `?q=NVDA`, configured-quarter fund holdings data loaded
 - Full-view comparison evidence: `D:\vcp_hunter\基金持仓\design-qa-assets\decision-sheet-comparison.png`
 - Focused region comparison evidence: `D:\vcp_hunter\基金持仓\design-qa-assets\decision-sheet-logo-focus.png`
 

@@ -8,12 +8,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from quarter_config import load_quarter_config
+
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_CSV = ROOT / "outputs" / "holdings_stock_2026q1.csv"
-SUMMARY_JSON = ROOT / "outputs" / "run_summary_2026q1.json"
+QUARTER = load_quarter_config()
+SOURCE_CSV = QUARTER.source_stock_csv
+SUMMARY_JSON = QUARTER.run_summary_json
 PURCHASE_LIMIT_CSV = ROOT / "outputs" / "fund_purchase_limit_snapshot.csv"
-TARGET_JSON = ROOT / "public" / "data" / "fund-stock-index-2026q1.json"
+TARGET_JSON = QUARTER.fund_stock_index_json
 INDEX_FUND_MARKERS = ("指数", "ETF", "ETF联接")
 ON_EXCHANGE_FUND_MARKERS = ("ETF", "LOF", "封闭", "REIT")
 SHARE_CLASS_SUFFIXES = ("A", "B", "C", "D", "E", "F", "H", "I", "Y")
@@ -525,7 +528,7 @@ def build_index() -> dict[str, Any]:
             if fund["cutoffDate"]
         }
     )
-    report = summary.get("report", "2026Q1")
+    report = summary.get("report", QUARTER.report)
     visible_fund_codes = {
         fund["fundCode"]
         for stock in export_stocks

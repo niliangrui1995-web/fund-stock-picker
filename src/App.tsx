@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { fundQuarter } from "./fundQuarter";
 
 type AccessMode = "offExchange" | "onExchange";
 
@@ -96,7 +97,7 @@ const numberFormatter = new Intl.NumberFormat("zh-CN");
 const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
-const FUND_STOCK_DATA_URL = "data/fund-stock-index-2026q1.json?v=20260527-cache-refresh";
+const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
 
 function getInitialQuery() {
   if (typeof window === "undefined") {
@@ -807,7 +808,7 @@ function EmptyState({ loading, error }: { loading: boolean; error: string | null
       <section className="empty-state">
         <Database size={28} />
         <h2>正在载入持仓索引</h2>
-        <p>读取本地 2026Q1 基金股票持仓数据。</p>
+        <p>读取本地 {fundQuarter.report} 基金股票持仓数据。</p>
       </section>
     );
   }
@@ -1104,7 +1105,7 @@ export function App() {
         <div className="topbar-meta">
           <span>
             <CalendarDays size={16} />
-            {data?.meta.report ?? "2026Q1"}
+            {data?.meta.report ?? fundQuarter.report}
           </span>
           <span>
             <Database size={16} />
@@ -1166,7 +1167,7 @@ export function App() {
       <section className="selected-context" aria-label="当前研究上下文">
         <div>
           <span>数据期</span>
-          <strong>{data?.meta.report ?? "2026Q1"}</strong>
+          <strong>{data?.meta.report ?? fundQuarter.report}</strong>
         </div>
         <div>
           <span>数据截至</span>
@@ -1244,7 +1245,7 @@ export function App() {
                   </div>
                   <div className="result-tags">
                     <span>{marketLabel(selectedStock.code, selectedStock.name)}</span>
-                    <span>{data?.meta.report ?? "2026Q1"}</span>
+                    <span>{data?.meta.report ?? fundQuarter.report}</span>
                     <span>{accessLabel}持仓</span>
                   </div>
                 </div>
@@ -1292,7 +1293,7 @@ export function App() {
           <span>方法论</span>
           <h2 id="methodology-title">基金持仓穿透口径</h2>
           <p>
-            数据期为 {data?.meta.report ?? "2026Q1"}，截至 {data?.meta.cutoffDate ?? "2026-03-31"}。页面优先展示海外标的在公募基金披露持仓中的覆盖、权重和可交易状态。
+            数据期为 {data?.meta.report ?? fundQuarter.report}，截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。页面优先展示海外标的在公募基金披露持仓中的覆盖、权重和可交易状态。
           </p>
         </div>
         <div className="methodology-grid">

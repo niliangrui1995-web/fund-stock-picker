@@ -13,13 +13,16 @@ import requests
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from quarter_config import load_quarter_config
 
-INPUT = Path("outputs/holdings_stock_2026q1.csv")
-OUTPUT_XLSX = Path("outputs/overseas_ai_exposure_2026q1.xlsx")
-OUTPUT_RANKING_CSV = Path("outputs/overseas_ai_fund_ranking_2026q1.csv")
-OUTPUT_DETAIL_CSV = Path("outputs/overseas_ai_position_details_2026q1.csv")
+
+QUARTER = load_quarter_config()
+INPUT = QUARTER.source_stock_csv
+OUTPUT_XLSX = QUARTER.overseas_ai_workbook
+OUTPUT_RANKING_CSV = QUARTER.overseas_ai_ranking_csv
+OUTPUT_DETAIL_CSV = QUARTER.overseas_ai_detail_csv
 OUTPUT_PURCHASE_LIMIT_CSV = Path("outputs/fund_purchase_limit_snapshot.csv")
-OUTPUT_SUMMARY_JSON = Path("outputs/overseas_ai_exposure_summary_2026q1.json")
+OUTPUT_SUMMARY_JSON = QUARTER.overseas_ai_summary_json
 PURCHASE_LIMIT_URL = "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx"
 
 STRICT_OVERSEAS_AI = {
@@ -459,7 +462,7 @@ def write_workbook(ranking_rows: list[list[Any]], detail_rows: list[list[Any]], 
     ws.title = "方法说明"
     ws.append(["项目", "内容"])
     notes = [
-        ["分析口径", "基于 outputs/holdings_stock_2026q1.csv；同一基金同一证券代码重复出现时取最大占净值比例。"],
+        ["分析口径", f"基于 {QUARTER.source_stock_csv_relative.as_posix()}；同一基金同一证券代码重复出现时取最大占净值比例。"],
         ["狭义海外AI占比", "只统计美股/台股/韩股/欧洲等海外AI核心算力、AI云、大模型平台、核心半导体和数据中心基础设施。"],
         ["扩展海外AI占比", "狭义海外AI + 海外AI相关但纯度较低的服务器、光通信、边缘芯片、存储等标的。"],
         ["广义离岸AI占比", "扩展海外AI + 港股/离岸中国AI平台、云、半导体、AI软件、AI终端等标的。"],

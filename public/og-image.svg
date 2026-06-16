@@ -1,16 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f8fafc"/>
-      <stop offset="1" stop-color="#eef2f7"/>
+      <stop offset="0" stop-color="#eef3f8"/>
+      <stop offset="1" stop-color="#f8fbff"/>
+    </linearGradient>
+    <linearGradient id="nav" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#0c1a2d"/>
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <circle cx="115" cy="105" r="170" fill="#ff3b30" opacity="0.08"/>
-  <rect x="72" y="72" width="1056" height="486" rx="28" fill="#ffffff" stroke="#dde4ee"/>
-  <text x="112" y="158" fill="#ff3b30" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="28" font-weight="800" letter-spacing="5">POSITION INTELLIGENCE</text>
-  <text x="112" y="265" fill="#171b20" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="78" font-weight="900">出海钱眼</text>
-  <text x="112" y="352" fill="#171b20" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="48" font-weight="800">海外股票基金持仓穿透查询</text>
-  <text x="112" y="432" fill="#637083" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="30">输入海外股票，反查国内基金重仓持有情况</text>
-  <text x="112" y="506" fill="#637083" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="24">fund.niliangrui.cloud</text>
+  <rect x="72" y="72" width="1056" height="72" rx="10" fill="url(#nav)"/>
+  <rect x="104" y="93" width="116" height="30" rx="7" fill="#f01824"/>
+  <text x="124" y="115" fill="#ffffff" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="900">出海钱眼</text>
+  <text x="244" y="116" fill="#ffffff" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="24" font-weight="900">基金持仓穿透</text>
+  <rect x="72" y="166" width="680" height="94" rx="10" fill="#ffffff" stroke="#dce5ef"/>
+  <rect x="776" y="166" width="352" height="94" rx="10" fill="#ffffff" stroke="#dce5ef"/>
+  <text x="112" y="204" fill="#64748b" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="20" font-weight="700">全球股票 / 指数 / ETF</text>
+  <text x="112" y="239" fill="#0d1524" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="34" font-weight="900">公募基金持仓穿透查询</text>
+  <text x="808" y="205" fill="#64748b" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="20" font-weight="700">数据期</text>
+  <text x="808" y="239" fill="#0d1524" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="34" font-weight="900">2026Q1</text>
+  <rect x="72" y="292" width="320" height="222" rx="10" fill="#ffffff" stroke="#dce5ef"/>
+  <rect x="408" y="292" width="720" height="222" rx="10" fill="#ffffff" stroke="#dce5ef"/>
+  <rect x="72" y="292" width="320" height="64" rx="10" fill="#101d31"/>
+  <text x="104" y="333" fill="#ffffff" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="24" font-weight="900">海外热门</text>
+  <circle cx="122" cy="408" r="24" fill="#eef5ff" stroke="#d9e4ef"/>
+  <text x="166" y="401" fill="#0d1524" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="24" font-weight="900">股票品牌图标</text>
+  <text x="166" y="436" fill="#64748b" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="19">基金覆盖、权重、交易状态</text>
+  <text x="448" y="352" fill="#1769e8" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="20" font-weight="800">当前海外标的</text>
+  <text x="448" y="407" fill="#0d1524" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="48" font-weight="900">谁在重仓这只股票？</text>
+  <rect x="448" y="442" width="168" height="42" rx="21" fill="#fff0f1"/>
+  <text x="484" y="470" fill="#f01824" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="20" font-weight="900">场外样本</text>
+  <rect x="634" y="442" width="168" height="42" rx="21" fill="#eef5ff"/>
+  <text x="670" y="470" fill="#1769e8" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="20" font-weight="900">场内样本</text>
+  <text x="72" y="570" fill="#64748b" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="24">fund.niliangrui.cloud</text>
 </svg>

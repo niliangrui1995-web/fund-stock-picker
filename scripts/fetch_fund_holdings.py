@@ -20,6 +20,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from quarter_config import cutoff_date_for_quarter, load_quarter_config, month_for_quarter, report_label
+
 
 FUND_LIST_URL = "https://fund.eastmoney.com/js/fundcode_search.js"
 HOLDING_URL = (
@@ -75,11 +77,12 @@ THREAD_LOCAL = threading.local()
 
 
 def parse_args() -> argparse.Namespace:
+    quarter_config = load_quarter_config()
     parser = argparse.ArgumentParser(
-        description="Fetch Eastmoney/Tiantian fund holdings and build a 2026 Q1 workbook."
+        description=f"Fetch Eastmoney/Tiantian fund holdings and build the configured {quarter_config.report} workbook."
     )
-    parser.add_argument("--year", type=int, default=2026)
-    parser.add_argument("--quarter", type=int, default=1, choices=[1, 2, 3, 4])
+    parser.add_argument("--year", type=int, default=quarter_config.year)
+    parser.add_argument("--quarter", type=int, default=quarter_config.quarter, choices=[1, 2, 3, 4])
     parser.add_argument(
         "--types",
         default="stock,bond",
@@ -93,23 +96,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default="outputs")
     parser.add_argument("--cache-dir", default="data/eastmoney_cache")
     return parser.parse_args()
-
-
-def month_for_quarter(quarter: int) -> int:
-    return {1: 3, 2: 6, 3: 9, 4: 12}[quarter]
-
-
-def cutoff_date_for_quarter(year: int, quarter: int) -> str:
-    return {
-        1: f"{year}-03-31",
-        2: f"{year}-06-30",
-        3: f"{year}-09-30",
-        4: f"{year}-12-31",
-    }[quarter]
-
-
-def report_label(year: int, quarter: int) -> str:
-    return f"{year}Q{quarter}"
 
 
 def get_session() -> requests.Session:

@@ -1,3 +1,9 @@
+document.querySelectorAll(".stock-logo img").forEach((image) => {
+  image.addEventListener("error", () => {
+    image.remove();
+  });
+});
+
 const buttons = document.querySelectorAll(".share-action");
 
 for (const button of buttons) {

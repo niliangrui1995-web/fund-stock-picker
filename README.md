@@ -5,7 +5,7 @@
 
 出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序。
 
-项目当前内置 `2026Q1` 数据快照，主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
+项目的季度发布入口是 `config/fund-quarter.json`。采集脚本、前端数据加载和 SEO 页面生成都会从这里读取 `year` / `quarter`，当前快照主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
 
 ## 在线体验
 
@@ -33,15 +33,15 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 数据周期 | `2026Q1` |
-| 截止日期 | `2026-03-31` |
+| 数据周期 | 由 `config/fund-quarter.json` 的 `year` / `quarter` 生成 |
+| 截止日期 | 按季度自动派生 |
 | 源持仓行数 | `170,403` |
 | 源基金数 | `26,826` |
 | 源股票总数 | `4,624` |
 | 前端发布标的 | `742` 个海外标的 |
 | 热门候选 | `60` 个 |
 | 基金持仓卡片索引 | `1,679` 个基金代码 |
-| 前端数据文件 | `public/data/fund-stock-index-2026q1.json` |
+| 前端数据文件 | `public/data/fund-stock-index-<year>q<quarter>.json` |
 
 前端只发布海外股票检索范围，完整源股票数量保存在数据文件的 `meta.totalStockCount` 中。`data/eastmoney_cache/` 和 `outputs/` 是本地采集、缓存和中间产物目录，不应提交到公开仓库。
 
@@ -60,18 +60,23 @@
 ```text
 .
 |-- index.html
+|-- config/
+|   `-- fund-quarter.json
 |-- package.json
 |-- public/
 |   |-- _headers
 |   |-- _worker.js
 |   `-- data/
-|       `-- fund-stock-index-2026q1.json
+|       `-- fund-stock-index-<year>q<quarter>.json
 |-- scripts/
 |   |-- analyze_overseas_ai_exposure.py
 |   |-- build_fund_stock_index.py
-|   `-- fetch_2026q1_fund_holdings.py
+|   |-- fetch_fund_holdings.py
+|   |-- quarter-config.mjs
+|   `-- quarter_config.py
 |-- src/
 |   |-- App.tsx
+|   |-- fundQuarter.ts
 |   |-- main.tsx
 |   `-- styles.css
 |-- tsconfig.json
@@ -106,27 +111,41 @@ npm run preview
 
 ## 数据生成
 
-当前前端读取：
+当前前端读取路径由季度配置派生：
 
 ```text
-public/data/fund-stock-index-2026q1.json
+public/data/fund-stock-index-<year>q<quarter>.json
 ```
 
 数据文件由脚本生成，不建议手工编辑。典型流程如下：
 
 ```powershell
-python scripts\fetch_2026q1_fund_holdings.py
+python scripts\fetch_fund_holdings.py
 python scripts\analyze_overseas_ai_exposure.py
 python scripts\build_fund_stock_index.py
+npm run build
 ```
 
-生成脚本会读取本地缓存和中间产物，输出浏览器可直接加载的紧凑 JSON：
+生成脚本会读取 `config/fund-quarter.json`，并按 `<year>q<quarter>` 自动命名缓存、输出和前端 JSON：
 
 ```text
 data/eastmoney_cache/       # 本地缓存，不提交
 outputs/                    # 本地中间产物，不提交
 public/data/*.json          # 前端发布数据
 ```
+
+## 切换季度发布
+
+下一次切到 Q2，只改一个入口：
+
+```json
+{
+  "year": 2026,
+  "quarter": 2
+}
+```
+
+保存 `config/fund-quarter.json` 后重新运行“数据生成”流程。脚本会自动使用 `2026Q2`、`2026q2`、`2026-06-30` 和对应的输入输出文件名。跨年时再同时改 `year`。
 
 ## 意见反馈配置
 
@@ -197,7 +216,9 @@ rg -n -I "password|passwd|secret|token|api[_-]?key|auth[_-]?key|private[_-]?key|
 确认前端数据文件存在：
 
 ```powershell
-Test-Path public\data\fund-stock-index-2026q1.json
+$config = Get-Content config\fund-quarter.json | ConvertFrom-Json
+$label = "$($config.year)q$($config.quarter)"
+Test-Path "public\data\fund-stock-index-$label.json"
 ```
 
 如果不存在，重新生成数据并构建：
@@ -227,7 +248,7 @@ npm run preview
 
 ## 维护约定
 
-- 不手工修改 `public/data/fund-stock-index-2026q1.json`，只通过脚本重建。
+- 不手工修改 `public/data/fund-stock-index-<year>q<quarter>.json`，只通过脚本重建。
 - 不手工维护 SEO 股票代码清单；`npm run seo` 会从当前基金持仓数据中自动选择高优先级海外股票，默认生成 120 个股票静态页，可用 `SEO_PAGE_LIMIT` 调整数量。
 - 不提交 `node_modules/`、`dist/`、缓存目录、输出目录、环境变量文件和本地平台配置。
 - 修改数据口径后，同步更新 README 的数据说明和常见问题。
