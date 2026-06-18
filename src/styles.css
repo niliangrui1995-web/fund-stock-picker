@@ -1188,6 +1188,25 @@ a {
   padding-top: 4px;
 }
 
+.section-title-spaced {
+  margin-top: 26px;
+}
+
+.indirect-exposure-panel {
+  margin-top: 22px;
+}
+
+.indirect-note {
+  margin: 8px 0 0;
+  color: #5b708a;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.indirect-table-wrap {
+  margin-top: 10px;
+}
+
 .table-wrap {
   margin-top: 12px;
   overflow-x: auto;
@@ -1302,6 +1321,42 @@ td:nth-child(5) {
   font-weight: 800;
 }
 
+.indirect-product-name {
+  max-width: 300px;
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indirect-product-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #667b96;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.leverage-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid rgba(240, 24, 36, 0.16);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
 .fund-trade-row {
   display: flex;
   flex-wrap: wrap;
@@ -1409,6 +1464,14 @@ td:nth-child(5) {
 
 .passive-fill {
   background: #ccd7e6;
+}
+
+.estimated-num {
+  color: #9a3412;
+}
+
+.estimated-fill {
+  background: #f97316;
 }
 
 .shares-cell {

@@ -3,7 +3,7 @@
 
 # 出海钱眼
 
-出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序；首页也提供 AI 战报热点入口，便于从 AMD、LITE、COHR、SK海力士等高频标的直接跳到持仓穿透结果。
+出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序；若底层明细披露了海外个股杠杆 ETF / ETP / ETN，也会单独归入“间接 / 杠杆 ETF 暴露”。首页也提供 AI 战报热点入口，便于从 AMD、LITE、COHR、SK海力士等高频标的直接跳到持仓穿透结果。
 
 项目的季度发布入口是 `config/fund-quarter.json`。采集脚本、前端数据加载和 SEO 页面生成都会从这里读取 `year` / `quarter`，当前快照主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
 
@@ -25,6 +25,7 @@
 - 按股票名称或代码搜索海外标的，例如 `NVDA`、`00700`、`TSM`、`英伟达`、`腾讯控股`。
 - 场外口径沿用原有逻辑，剔除基金类型或基金名称中包含“指数”“ETF”“ETF联接”的基金。
 - 场内口径覆盖 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
+- 对海外个股杠杆 ETF / ETP / ETN 做单独的间接暴露识别，展示原始占净值比例和按杠杆倍数折算的估算经济暴露，不并入正股直接持仓口径。
 - 首页展示海外热门标的，并支持按美股、港股、日股、韩股和其他市场筛选。
 - 首页内置“AI 战报热点”专题区，把最近高频 AI 产业链标的做成快捷卡片，点击后直接进入对应穿透结果。
 - 结果展示基金代码、合并份额代码、基金类型、净值占比、持仓市值、持股数、申购状态、赎回状态、起购金额和限购额度。
@@ -38,14 +39,17 @@
 | --- | --- |
 | 数据周期 | 由 `config/fund-quarter.json` 的 `year` / `quarter` 生成 |
 | 截止日期 | 按季度自动派生 |
-| 源持仓行数 | `170,403` |
-| 源基金数 | `26,826` |
-| 源股票总数 | `4,624` |
-| 前端发布标的 | `742` 个海外标的 |
+| 源持仓行数 | `170,017` |
+| 源基金数 | `27,023` |
+| 源股票总数 | `4,617` |
+| 定期报告基金投资明细 | `6` 行 |
+| 海外个股杠杆间接暴露 | `4` 行 |
+| 前端发布标的 | `741` 个海外标的 |
 | 热门候选 | `60` 个 |
-| 基金持仓卡片索引 | `1,679` 个基金代码 |
+| 基金持仓卡片索引 | `1,674` 个基金代码 |
 | 前端数据文件 | `public/data/fund-stock-index-<year>q<quarter>.json` |
 | AI 战报热点配置 | `config/ai-battle-hotspots.json` |
+| 海外个股杠杆映射配置 | `config/stock-exposure-aliases.json` |
 | 季度发布自检清单 | `public/seo/quarter-release-check.json` |
 
 前端只发布海外股票检索范围，完整源股票数量保存在数据文件的 `meta.totalStockCount` 中。`data/eastmoney_cache/` 和 `outputs/` 是本地采集、缓存和中间产物目录，不应提交到公开仓库。
@@ -67,6 +71,7 @@
 |-- index.html
 |-- config/
 |   |-- ai-battle-hotspots.json
+|   |-- stock-exposure-aliases.json
 |   `-- fund-quarter.json
 |-- package.json
 |-- public/
@@ -80,6 +85,7 @@
 |   |-- analyze_overseas_ai_exposure.py
 |   |-- build_seo_pages.mjs
 |   |-- build_fund_stock_index.py
+|   |-- fetch_fund_report_holdings.py
 |   |-- fetch_fund_holdings.py
 |   |-- quarter-config.mjs
 |   `-- quarter_config.py
@@ -130,10 +136,13 @@ public/data/fund-stock-index-<year>q<quarter>.json
 
 ```powershell
 python scripts\fetch_fund_holdings.py
+python scripts\fetch_fund_report_holdings.py
 python scripts\analyze_overseas_ai_exposure.py
 python scripts\build_fund_stock_index.py
 npm run build
 ```
+
+其中 `scripts\analyze_overseas_ai_exposure.py` 会同步刷新 `outputs/fund_purchase_limit_snapshot.csv`，`scripts\build_fund_stock_index.py` 会把该快照写入前端基金卡片，并在数据文件 `meta` 中记录 `purchaseLimitFetchedAt`、`purchaseLimitNetValueDates` 和 `purchaseLimitSource`，便于核对限额新鲜度。
 
 生成脚本会读取 `config/fund-quarter.json`，并按 `<year>q<quarter>` 自动命名缓存、输出和前端 JSON：
 
@@ -144,6 +153,27 @@ public/data/*.json          # 前端发布数据
 ```
 
 `npm run build` 会先执行 `npm run seo`。SEO 生成步骤会读取当前季度的前端 JSON，生成股票静态页、`sitemap.xml`、`og-image.svg`，并同步写出 `public/seo/quarter-release-check.json`。如果配置的 `report` 或季度截止日和数据文件 `meta` 不一致，SEO 构建会直接失败。
+
+## 海外个股杠杆间接暴露
+
+间接暴露入口用于处理基金持有海外单股杠杆产品的情况，例如 2X / 3X 做多某只海外股票的 ETF、ETP 或 ETN。它不会把这类产品混入正股直接持仓表，而是在对应正股结果页下方单独展示。
+
+这类产品不一定出现在东财 / 天天基金的 `FundArchivesDatas.aspx?type=jjcc` 股票持仓明细里，因此补充了定期报告 PDF 解析流程：
+
+- `scripts\fetch_fund_report_holdings.py` 先从现有股票持仓 CSV 中定位已经持有海外公司的基金。
+- 默认继续筛选其中的 LOF 基金，避免无差别下载所有基金报告。
+- 脚本下载对应季度的定期报告，解析“基金投资明细”表，输出 `outputs/holdings_fund_investment_<year>q<quarter>.csv`。
+- `scripts/build_fund_stock_index.py` 会把股票持仓明细和定期报告基金投资明细一起用于间接暴露识别，但正股直接持仓口径仍只来自股票持仓明细。
+
+识别规则由 `scripts/build_fund_stock_index.py`、`scripts\fetch_fund_report_holdings.py` 和 `config/stock-exposure-aliases.json` 共同完成：
+
+- 自动扫描持仓证券代码和名称中包含 `2X`、`3X`、`杠杆`、`Leveraged`、`Ultra`、`Long`、`Bull` 等特征的海外单股产品。
+- 使用股票代码、股票名称和 `stockAliases` 把产品映射回对应正股，例如 `NVDL` 映射到 `NVDA`。
+- `knownProducts` 用于补充容易漏识别的已知产品代码。
+- 排除 `Short`、`Bear`、`Inverse`、`做空`、`反向` 等反向产品。
+- 估算经济暴露 = 基金披露的原占净值比例 × 产品杠杆倍数，仅作方向性穿透。
+
+当前 2026Q1 流程从 `79` 只“持有海外公司且属于 LOF”的候选基金里，解析出 `6` 行杠杆基金投资明细，并映射出 `4` 行海外个股杠杆间接暴露。其中 `016823` / `164212` 天弘全球新能源汽车股票(QDII-LOF) 通过 `7709.HK` 持有 `CSOP SK Hynix Daily 2x Leveraged Product`，通过 `7747.HK` 持有 `CSOP Samsung Electronics Daily 2x Leveraged Product`；页面会分别归入 `000660` / SK海力士和 `005930` / 三星电子的“间接 / 杠杆 ETF 暴露”表。
 
 ## AI 战报热点入口
 
@@ -289,6 +319,12 @@ npm run build
 ### 场内基金显示为空
 
 优先检查数据文件中该股票是否存在 `topOnExchangeByRatio`、`onExchangeFundCount` 和 `onExchangeMaxRatioPercent`。场内口径只包含 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
+
+### 为什么看不到某只单股杠杆 ETF 的间接暴露
+
+先检查数据文件的 `meta.indirectExposureRows` 和 `meta.fundInvestmentSourceRows`。如果 `fundInvestmentSourceRows` 为 `0`，说明还没有运行定期报告 PDF 补充流程；如果 `fundInvestmentSourceRows` 有值但某只产品没出现，通常是报告里没有披露、产品名称无法映射到正股，或该基金不在当前候选范围内。
+
+当前默认流程会先定位持有海外公司的基金，再筛选 LOF 基金下载定期报告。若需要扩大范围，可以用 `scripts\fetch_fund_report_holdings.py` 的候选范围参数生成更大的补充明细，再重新运行 `scripts\build_fund_stock_index.py` 和 `npm run build`。
 
 ### 生产预览看到旧数据
 

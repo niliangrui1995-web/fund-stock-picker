@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,11 +14,18 @@ from quarter_config import load_quarter_config
 ROOT = Path(__file__).resolve().parents[1]
 QUARTER = load_quarter_config()
 SOURCE_CSV = QUARTER.source_stock_csv
+FUND_INVESTMENT_CSV = QUARTER.source_fund_investment_csv
 SUMMARY_JSON = QUARTER.run_summary_json
 PURCHASE_LIMIT_CSV = ROOT / "outputs" / "fund_purchase_limit_snapshot.csv"
+EXPOSURE_ALIASES_JSON = ROOT / "config" / "stock-exposure-aliases.json"
 TARGET_JSON = QUARTER.fund_stock_index_json
 INDEX_FUND_MARKERS = ("指数", "ETF", "ETF联接")
 ON_EXCHANGE_FUND_MARKERS = ("ETF", "LOF", "封闭", "REIT")
+LEVERAGED_LONG_MARKERS_RE = re.compile(
+    r"(?i)(?:\b\d(?:\.\d+)?\s*X\b|\d(?:\.\d+)?\s*倍|杠杆|LEVERAGED|LEVERAGE|ULTRA)"
+)
+INVERSE_PRODUCT_RE = re.compile(r"(?i)(?:SHORT|BEAR|INVERSE|DOWN|PUT|做空|反向|反向做多)")
+PRODUCT_MARKERS_RE = re.compile(r"(?i)(?:ETF|ETP|ETN|TRUST|SHARES?|NOTE|CERTIFICATE|PRODUCTS?|基金|产品)")
 SHARE_CLASS_SUFFIXES = ("A", "B", "C", "D", "E", "F", "H", "I", "Y")
 CURRENCY_MARKERS = (
     "人民币",
@@ -165,6 +172,193 @@ def load_purchase_limits() -> dict[str, dict[str, str]]:
     return limits
 
 
+def load_purchase_limit_metadata() -> dict[str, Any]:
+    if not PURCHASE_LIMIT_CSV.exists():
+        return {}
+    fetched_at_values: set[str] = set()
+    source_values: set[str] = set()
+    net_value_dates: Counter[str] = Counter()
+    with PURCHASE_LIMIT_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            fetched_at = row.get("抓取时间", "").strip()
+            source = row.get("数据源", "").strip()
+            net_value_date = row.get("净值日期", "").strip()
+            if fetched_at:
+                fetched_at_values.add(fetched_at)
+            if source:
+                source_values.add(source)
+            if net_value_date:
+                net_value_dates[net_value_date] += 1
+    return {
+        "purchaseLimitFetchedAt": max(fetched_at_values) if fetched_at_values else "",
+        "purchaseLimitSource": sorted(source_values)[0] if source_values else "",
+        "purchaseLimitNetValueDates": [date for date, _count in net_value_dates.most_common(3)],
+    }
+
+
+def load_fund_investment_rows() -> list[dict[str, str]]:
+    if not FUND_INVESTMENT_CSV.exists():
+        return []
+    with FUND_INVESTMENT_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def load_exposure_aliases() -> dict[str, Any]:
+    if not EXPOSURE_ALIASES_JSON.exists():
+        return {"stockAliases": {}, "knownProducts": []}
+    with EXPOSURE_ALIASES_JSON.open("r", encoding="utf-8-sig") as handle:
+        parsed = json.load(handle)
+    if isinstance(parsed, dict):
+        return parsed
+    return {"stockAliases": {}, "knownProducts": []}
+
+
+def normalize_alias_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip().upper())
+
+
+def is_ascii_alias(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z0-9][A-Z0-9 .&/-]*", normalize_alias_text(value)))
+
+
+def alias_in_text(alias: str, text: str) -> bool:
+    alias = normalize_alias_text(alias)
+    text = normalize_alias_text(text)
+    if not alias:
+        return False
+    if is_ascii_alias(alias):
+        pattern = rf"(?<![A-Z0-9]){re.escape(alias)}(?![A-Z0-9])"
+        return re.search(pattern, text) is not None
+    return alias in text
+
+
+def parse_leverage_multiple(text: str, configured: Any = None) -> float | None:
+    if isinstance(configured, (int, float)) and configured > 0:
+        return float(configured)
+    normalized = normalize_alias_text(text)
+    match = re.search(r"(?<!\d)(\d(?:\.\d+)?)\s*X(?![A-Z0-9])", normalized)
+    if match:
+        return float(match.group(1))
+    match = re.search(r"(\d(?:\.\d+)?)\s*倍", normalized)
+    if match:
+        return float(match.group(1))
+    if "ULTRAPRO" in normalized or "3X" in normalized:
+        return 3.0
+    if "ULTRA" in normalized or "LEVERAGED" in normalized or "LEVERAGE" in normalized or "杠杆" in normalized:
+        return 2.0
+    return None
+
+
+def is_leveraged_long_product(code: str, name: str, known_product: dict[str, Any] | None = None) -> bool:
+    if known_product is not None:
+        return True
+    text = f"{code} {name}"
+    if INVERSE_PRODUCT_RE.search(text):
+        return False
+    if not LEVERAGED_LONG_MARKERS_RE.search(text):
+        return False
+    return bool(PRODUCT_MARKERS_RE.search(text) or re.search(r"(?i)\b(LONG|BULL)\b", text))
+
+
+def configured_known_products(alias_config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    products: dict[str, dict[str, Any]] = {}
+    for item in alias_config.get("knownProducts", []):
+        if not isinstance(item, dict):
+            continue
+        source_code = normalize_alias_text(str(item.get("sourceCode", ""))).replace(" ", "")
+        target_code = str(item.get("targetCode", "")).strip()
+        if source_code and target_code:
+            products[source_code] = item
+    return products
+
+
+def stock_alias_candidates(stock_rows: dict[str, dict[str, Any]], alias_config: dict[str, Any]) -> list[dict[str, Any]]:
+    configured_aliases = alias_config.get("stockAliases", {})
+    candidates: list[dict[str, Any]] = []
+    for code, stock in stock_rows.items():
+        if not is_overseas_stock_code(code, stock["name"]):
+            continue
+        aliases = {code, stock["name"]}
+        for alias in configured_aliases.get(code, []):
+            if isinstance(alias, str):
+                aliases.add(alias)
+        aliases = {alias.strip() for alias in aliases if alias and alias.strip()}
+        candidates.append(
+            {
+                "code": code,
+                "aliases": sorted(aliases, key=lambda value: len(value), reverse=True),
+            }
+        )
+    candidates.sort(key=lambda item: max((len(alias) for alias in item["aliases"]), default=0), reverse=True)
+    return candidates
+
+
+def match_indirect_target(
+    source_code: str,
+    source_name: str,
+    stock_rows: dict[str, dict[str, Any]],
+    alias_candidates: list[dict[str, Any]],
+    known_products: dict[str, dict[str, Any]],
+) -> tuple[str, dict[str, Any] | None, str] | None:
+    normalized_source_code = normalize_alias_text(source_code).replace(" ", "")
+    known_product = known_products.get(normalized_source_code)
+    if known_product is not None:
+        target_code = str(known_product.get("targetCode", "")).strip()
+        if target_code in stock_rows and target_code != source_code:
+            return target_code, known_product, f"known product {source_code}"
+
+    if not is_leveraged_long_product(source_code, source_name):
+        return None
+
+    text = f"{source_code} {source_name}"
+    best_match: tuple[str, int, str] | None = None
+    for item in alias_candidates:
+        target_code = item["code"]
+        if target_code == source_code:
+            continue
+        for alias in item["aliases"]:
+            if alias_in_text(alias, text):
+                score = len(alias)
+                if best_match is None or score > best_match[1]:
+                    best_match = (target_code, score, alias)
+                break
+    if best_match is None:
+        return None
+    return best_match[0], None, f"name matched {best_match[2]}"
+
+
+def make_indirect_exposure_record(
+    row: dict[str, str],
+    target_code: str,
+    target_name: str,
+    known_product: dict[str, Any] | None,
+    match_reason: str,
+) -> dict[str, Any]:
+    fund = make_fund_record(row)
+    leverage_multiple = parse_leverage_multiple(
+        f"{row.get('证券代码', '')} {row.get('证券名称', '')}",
+        known_product.get("leverageMultiple") if known_product else None,
+    )
+    estimated_ratio = fund["ratio"] * leverage_multiple if leverage_multiple else None
+    fund.update(
+        {
+            "sourceCode": row.get("证券代码", "").strip() or row.get("证券名称", "").strip(),
+            "sourceName": row.get("证券名称", "").strip(),
+            "targetCode": target_code,
+            "targetName": target_name,
+            "exposureType": "leveraged_etf",
+            "exposureTypeLabel": "个股杠杆 ETF/ETP",
+            "leverageMultiple": rounded(leverage_multiple, 2) if leverage_multiple else None,
+            "estimatedRatio": rounded(estimated_ratio, 6) if estimated_ratio is not None else None,
+            "estimatedRatioPercent": rounded(estimated_ratio * 100, 2)
+            if estimated_ratio is not None
+            else None,
+            "matchReason": match_reason,
+        }
+    )
+    return fund
+
+
 def enrich_fund_record(
     fund: dict[str, Any],
     purchase_limits: dict[str, dict[str, str]],
@@ -198,6 +392,24 @@ def public_fund_record(fund: dict[str, Any]) -> dict[str, Any]:
         "fundVariantCodes": fund.get("fundVariantCodes", [fund["fundCode"]]),
         "fundDisplayName": fund.get("fundDisplayName", fund["fundName"]),
     }
+
+
+def public_indirect_exposure_record(fund: dict[str, Any]) -> dict[str, Any]:
+    record = public_fund_record(fund)
+    record.update(
+        {
+            "sourceCode": fund["sourceCode"],
+            "sourceName": fund["sourceName"],
+            "targetCode": fund["targetCode"],
+            "targetName": fund["targetName"],
+            "exposureType": fund["exposureType"],
+            "exposureTypeLabel": fund["exposureTypeLabel"],
+            "leverageMultiple": fund.get("leverageMultiple"),
+            "estimatedRatioPercent": fund.get("estimatedRatioPercent"),
+            "matchReason": fund.get("matchReason", ""),
+        }
+    )
+    return record
 
 
 def strip_wrapped_share_markers(name: str) -> str:
@@ -371,7 +583,15 @@ def better_record(current: dict[str, Any] | None, candidate: dict[str, Any]) -> 
     return candidate if candidate_score > current_score else current
 
 
-def ranking_key(fund: dict[str, Any], ranking: str) -> tuple[float, float, int, str]:
+def ranking_key(fund: dict[str, Any], ranking: str) -> tuple[Any, ...]:
+    if ranking == "estimated":
+        return (
+            fund.get("estimatedRatio") or fund["ratio"],
+            fund["ratio"],
+            fund["marketValueWan"] or -1,
+            -share_class_penalty(fund),
+            fund["fundCode"],
+        )
     if ranking == "value":
         return (
             fund["marketValueWan"] or -1,
@@ -415,13 +635,37 @@ def better_holding_record(current: dict[str, Any] | None, candidate: dict[str, A
     return candidate if candidate_score > current_score else current
 
 
+def better_indirect_exposure_record(
+    current: dict[str, Any] | None,
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    if current is None:
+        return candidate
+    current_score = (
+        current.get("estimatedRatio") or current["ratio"],
+        current["ratio"],
+        current["marketValueWan"] or -1,
+    )
+    candidate_score = (
+        candidate.get("estimatedRatio") or candidate["ratio"],
+        candidate["ratio"],
+        candidate["marketValueWan"] or -1,
+    )
+    return candidate if candidate_score > current_score else current
+
+
 def build_index() -> dict[str, Any]:
     summary = load_summary()
     purchase_limits = load_purchase_limits()
+    purchase_limit_metadata = load_purchase_limit_metadata()
+    exposure_aliases = load_exposure_aliases()
+    fund_investment_rows = load_fund_investment_rows()
     stock_rows: dict[str, dict[str, Any]] = {}
     stock_funds: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    indirect_exposures: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     fund_profiles: dict[str, dict[str, Any]] = {}
     fund_holdings: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    source_rows: list[dict[str, str]] = []
     row_count = 0
 
     with SOURCE_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -431,6 +675,7 @@ def build_index() -> dict[str, Any]:
             name = row.get("证券名称", "").strip()
             if not code or not name:
                 continue
+            source_rows.append(row)
 
             fund = enrich_fund_record(make_fund_record(row), purchase_limits)
             if not fund["fundCode"]:
@@ -452,17 +697,56 @@ def build_index() -> dict[str, Any]:
             fund_holdings[fund["fundCode"]][code] = better_holding_record(holding_existing, holding)
             row_count += 1
 
+    alias_candidates = stock_alias_candidates(stock_rows, exposure_aliases)
+    known_products = configured_known_products(exposure_aliases)
+    for row in [*source_rows, *fund_investment_rows]:
+        source_code = row.get("证券代码", "").strip()
+        source_name = row.get("证券名称", "").strip()
+        if not source_name:
+            continue
+        source_code_for_match = source_code or source_name
+        target_match = match_indirect_target(
+            source_code_for_match,
+            source_name,
+            stock_rows,
+            alias_candidates,
+            known_products,
+        )
+        if target_match is None:
+            continue
+        target_code, known_product, match_reason = target_match
+        fund = enrich_fund_record(
+            make_indirect_exposure_record(
+                row,
+                target_code,
+                stock_rows[target_code]["name"],
+                known_product,
+                match_reason,
+            ),
+            purchase_limits,
+        )
+        if not fund["fundCode"]:
+            continue
+        existing = indirect_exposures[target_code].get(fund["fundCode"])
+        indirect_exposures[target_code][fund["fundCode"]] = better_indirect_exposure_record(
+            existing,
+            fund,
+        )
+
     stocks: list[dict[str, Any]] = []
     for code, base in stock_rows.items():
         funds = list(stock_funds[code].values())
+        indirect_funds = list(indirect_exposures.get(code, {}).values())
         active_funds = [fund for fund in funds if not is_index_fund(fund)]
         on_exchange_funds = [fund for fund in funds if is_on_exchange_fund(fund)]
         fund_family_count = len({fund_family_key(fund) for fund in funds})
         active_fund_family_count = len({fund_family_key(fund) for fund in active_funds})
         on_exchange_fund_family_count = len({fund_family_key(fund) for fund in on_exchange_funds})
+        indirect_fund_family_count = len({fund_family_key(fund) for fund in indirect_funds})
         top_by_ratio = unique_fund_families(active_funds, "ratio")
         top_by_value = unique_fund_families(active_funds, "value")
         top_on_exchange_by_ratio = unique_fund_families(on_exchange_funds, "ratio")
+        top_indirect_exposure_by_ratio = unique_fund_families(indirect_funds, "estimated")
         disclosed_market_values = [
             item["marketValueWan"] for item in active_funds if item["marketValueWan"] is not None
         ]
@@ -477,6 +761,17 @@ def build_index() -> dict[str, Any]:
         on_exchange_max_ratio = (
             top_on_exchange_by_ratio[0]["ratioPercent"] if top_on_exchange_by_ratio else 0
         )
+        indirect_max_estimated_ratio = (
+            top_indirect_exposure_by_ratio[0].get("estimatedRatioPercent")
+            if top_indirect_exposure_by_ratio
+            else 0
+        )
+        if indirect_max_estimated_ratio is None:
+            indirect_max_estimated_ratio = (
+                top_indirect_exposure_by_ratio[0]["ratioPercent"]
+                if top_indirect_exposure_by_ratio
+                else 0
+            )
         stocks.append(
             {
                 "code": base["code"],
@@ -487,14 +782,18 @@ def build_index() -> dict[str, Any]:
                 "activeShareClassCount": len(active_funds),
                 "onExchangeFundCount": on_exchange_fund_family_count,
                 "onExchangeShareClassCount": len(on_exchange_funds),
+                "indirectExposureFundCount": indirect_fund_family_count,
+                "indirectExposureShareClassCount": len(indirect_funds),
                 "excludedIndexFundCount": len(funds) - len(active_funds),
                 "totalMarketValueWan": rounded_optional(total_market_value, 2),
                 "onExchangeTotalMarketValueWan": rounded_optional(on_exchange_total_market_value, 2),
                 "maxRatioPercent": max_ratio,
                 "onExchangeMaxRatioPercent": on_exchange_max_ratio,
+                "indirectExposureMaxEstimatedRatioPercent": indirect_max_estimated_ratio,
                 "topByRatio": top_by_ratio,
                 "topByValue": top_by_value,
                 "topOnExchangeByRatio": top_on_exchange_by_ratio,
+                "topIndirectExposureByRatio": top_indirect_exposure_by_ratio,
             }
         )
 
@@ -532,7 +831,12 @@ def build_index() -> dict[str, Any]:
     visible_fund_codes = {
         fund["fundCode"]
         for stock in export_stocks
-        for fund in [*stock["topByRatio"], *stock["topByValue"], *stock["topOnExchangeByRatio"]]
+        for fund in [
+            *stock["topByRatio"],
+            *stock["topByValue"],
+            *stock["topOnExchangeByRatio"],
+            *stock["topIndirectExposureByRatio"],
+        ]
         if fund["fundCode"]
     }
     fund_top_holdings: dict[str, list[dict[str, Any]]] = {}
@@ -556,6 +860,10 @@ def build_index() -> dict[str, Any]:
             "topOnExchangeByRatio": [
                 public_fund_record(fund) for fund in stock["topOnExchangeByRatio"]
             ],
+            "topIndirectExposureByRatio": [
+                public_indirect_exposure_record(fund)
+                for fund in stock["topIndirectExposureByRatio"]
+            ],
         }
         for stock in export_stocks
     ]
@@ -564,8 +872,10 @@ def build_index() -> dict[str, Any]:
         "meta": {
             "report": report,
             "sourceFile": SOURCE_CSV.name,
+            "fundInvestmentSourceFile": FUND_INVESTMENT_CSV.name if FUND_INVESTMENT_CSV.exists() else "",
             "generatedAt": datetime.now().isoformat(timespec="seconds"),
             "sourceRows": row_count,
+            "fundInvestmentSourceRows": len(fund_investment_rows),
             "stockCount": len(public_stocks),
             "totalStockCount": len(stocks),
             "defaultRanking": "ratio",
@@ -573,10 +883,13 @@ def build_index() -> dict[str, Any]:
             "alternateRankingLabel": "持仓市值(万元)",
             "fundFilter": "剔除基金类型或基金名称包含 指数、ETF、ETF联接 的基金",
             "onExchangeFundFilter": "基金名称或类型包含 ETF、LOF、封闭、REIT，且排除 ETF 联接基金",
+            "indirectExposureFilter": "股票持仓明细或定期报告基金投资明细中，证券名称或代码匹配海外个股杠杆 ETF/ETP/ETN/产品，并映射到对应正股后单独展示",
             "cutoffDate": cutoff_dates[-1] if cutoff_dates else "",
             "fundCount": summary.get("fund_count"),
             "holdingRows": summary.get("holding_rows", {}).get("stock"),
             "purchaseLimitCount": len(purchase_limits),
+            **purchase_limit_metadata,
+            "indirectExposureRows": sum(len(items) for items in indirect_exposures.values()),
             "fundDedupe": "同一基金不同份额、币种、前后端名称归并后，只保留该股票口径下最强的一类份额",
             "popularScope": "overseas" if overseas_stocks else "all",
             "popularScopeLabel": "海外热门" if overseas_stocks else "高覆盖股票",
@@ -594,8 +907,10 @@ def build_index() -> dict[str, Any]:
 def main() -> None:
     TARGET_JSON.parent.mkdir(parents=True, exist_ok=True)
     payload = build_index()
-    with TARGET_JSON.open("w", encoding="utf-8") as handle:
+    temp_json = TARGET_JSON.with_name(f".{TARGET_JSON.name}.tmp")
+    with temp_json.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+    temp_json.replace(TARGET_JSON)
     print(
         f"Wrote {TARGET_JSON} with {payload['meta']['stockCount']} stocks "
         f"from {payload['meta']['sourceRows']} holding rows."

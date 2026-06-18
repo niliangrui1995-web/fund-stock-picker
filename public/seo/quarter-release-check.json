@@ -7,12 +7,12 @@
   "dataMeta": {
     "report": "2026Q1",
     "cutoffDate": "2026-03-31",
-    "generatedAt": "2026-06-16T10:10:19",
+    "generatedAt": "2026-06-18T11:16:47",
     "sourceFile": "holdings_stock_2026q1.csv",
-    "stockCount": 742,
-    "overseasStockCount": 742,
+    "stockCount": 741,
+    "overseasStockCount": 741,
     "shippedStockScope": "overseas",
-    "shippedStockCount": 742
+    "shippedStockCount": 741
   },
   "seo": {
     "siteUrl": "https://fund.niliangrui.cloud",

@@ -220,6 +220,12 @@ function formatSharesWan(value) {
   return `${valueFormatter.format(value)} 万股`;
 }
 
+function formatPercent(value) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${valueFormatter.format(value)}%`
+    : "未估算";
+}
+
 function iconSvg(name) {
   const paths = {
     arrow: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
@@ -325,6 +331,93 @@ function fundTable(funds, accessLabel) {
   </div>`;
 }
 
+function indirectExposureRows(exposures) {
+  const maxRawRatio = Math.max(...exposures.map((fund) => finiteNumber(fund.ratioPercent)), 1);
+  const maxEstimatedRatio = Math.max(
+    ...exposures.map((fund) => finiteNumber(fund.estimatedRatioPercent ?? fund.ratioPercent)),
+    1,
+  );
+
+  return exposures
+    .slice(0, 10)
+    .map((fund, index) => {
+      const codes = uniqueFundCodes(fund).join(" / ");
+      const rawWidth = Math.min((finiteNumber(fund.ratioPercent) / maxRawRatio) * 100, 100);
+      const estimatedRatio =
+        typeof fund.estimatedRatioPercent === "number" ? fund.estimatedRatioPercent : null;
+      const estimatedWidth =
+        estimatedRatio === null
+          ? rawWidth
+          : Math.min((finiteNumber(estimatedRatio) / maxEstimatedRatio) * 100, 100);
+      const leverageLabel = fund.leverageMultiple
+        ? `${valueFormatter.format(fund.leverageMultiple)}x`
+        : "杠杆";
+      return `<tr>
+        <td><span class="rank rank-${index + 1}">${index + 1}</span></td>
+        <td>
+          <div class="fund-name" title="${escapeHtml(fund.fundName)}">${escapeHtml(fundDisplayName(fund))}</div>
+          <div class="fund-code"><span class="fund-code-list">${escapeHtml(codes)}</span></div>
+        </td>
+        <td>
+          <div class="indirect-product-name" title="${escapeHtml(fund.sourceName)}">${escapeHtml(fund.sourceName)}</div>
+          <div class="indirect-product-code">
+            <span>${escapeHtml(fund.sourceCode)}</span>
+            <span class="leverage-pill">${escapeHtml(leverageLabel)}</span>
+          </div>
+        </td>
+        <td class="strong">
+          <div class="table-metric-cell">
+            <span class="metric-num">${valueFormatter.format(fund.ratioPercent)}%</span>
+            <div class="table-progress-track"><div class="table-progress-fill" style="width: ${rawWidth}%"></div></div>
+          </div>
+        </td>
+        <td class="strong">
+          <div class="table-metric-cell">
+            <span class="metric-num estimated-num">${escapeHtml(formatPercent(estimatedRatio))}</span>
+            <div class="table-progress-track"><div class="table-progress-fill estimated-fill" style="width: ${estimatedWidth}%"></div></div>
+          </div>
+        </td>
+        <td>
+          <div class="table-metric-cell cell-passive">
+            <span class="metric-num-passive">${escapeHtml(formatWan(fund.marketValueWan))}</span>
+          </div>
+        </td>
+        <td>${tradeStatusHtml(fund)}</td>
+      </tr>`;
+    })
+    .join("\n");
+}
+
+function indirectExposureTable(exposures) {
+  if (!exposures?.length) {
+    return "";
+  }
+
+  return `<div class="indirect-exposure-panel" aria-labelledby="indirect-exposure-title">
+    <div id="indirect-exposure" class="section-title section-title-spaced">
+      <h2 id="indirect-exposure-title">间接 / 杠杆 ETF 暴露</h2>
+      <span>${iconSvg("arrow")}不并入正股直接持仓，按估算经济暴露排序</span>
+    </div>
+    <p class="indirect-note">这里展示基金持有的海外个股杠杆 ETF / ETP / ETN 等产品。原占净值来自基金披露，估算暴露按产品杠杆倍数折算，仅作方向性穿透。</p>
+    <div class="table-wrap indirect-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>排名</th>
+            <th>基金</th>
+            <th>杠杆产品</th>
+            <th>原占净值</th>
+            <th>估算暴露</th>
+            <th>持仓市值</th>
+            <th>交易状态</th>
+          </tr>
+        </thead>
+        <tbody>${indirectExposureRows(exposures)}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 async function loadAiBattleHotspots() {
   const raw = await readFile(AI_BATTLE_HOTSPOTS_PATH, "utf8");
   const parsed = JSON.parse(raw);
@@ -383,9 +476,13 @@ function stockPage(stock, meta, hotspotItems = []) {
   const marketBucket = stockMarketBucket(stock.code, stock.name);
   const activeFundCount = finiteNumber(stock.activeFundCount);
   const onExchangeFundCount = finiteNumber(stock.onExchangeFundCount);
+  const indirectExposureFundCount = finiteNumber(stock.indirectExposureFundCount);
   const maxRatio = finiteNumber(stock.maxRatioPercent);
   const onExchangeMaxRatio = finiteNumber(stock.onExchangeMaxRatioPercent);
-  const description = `${stock.name}（${stock.code}）${meta.report} 公募基金持仓穿透：场外主动口径 ${activeFundCount} 只基金持有，最高净值占比 ${valueFormatter.format(maxRatio)}%，场内 ETF/LOF 口径 ${onExchangeFundCount} 只。`;
+  const indirectDescription = indirectExposureFundCount
+    ? `另有 ${indirectExposureFundCount} 只基金通过海外个股杠杆 ETF/ETP/ETN 形成间接暴露。`
+    : "";
+  const description = `${stock.name}（${stock.code}）${meta.report} 公募基金持仓穿透：场外主动口径 ${activeFundCount} 只基金持有，最高净值占比 ${valueFormatter.format(maxRatio)}%，场内 ETF/LOF 口径 ${onExchangeFundCount} 只。${indirectDescription}`;
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -570,6 +667,7 @@ function stockPage(stock, meta, hotspotItems = []) {
             <span>${iconSvg("arrow")}ETF / LOF 等场内品种，按净值占比排序；本页最高 ${valueFormatter.format(onExchangeMaxRatio)}%</span>
           </div>
           ${fundTable(stock.topOnExchangeByRatio ?? [], "场内")}
+${indirectExposureTable(stock.topIndirectExposureByRatio ?? [])}
         </section>
       </section>
 
@@ -589,6 +687,10 @@ function stockPage(stock, meta, hotspotItems = []) {
           <article>
             <strong>场内样本</strong>
             <p>ETF、LOF、封闭式基金和 REIT 单独归入场内视图，便于和场外主动配置分开判断。</p>
+          </article>
+          <article>
+            <strong>间接暴露</strong>
+            <p>海外个股杠杆 ETF/ETP/ETN 通过名称和配置映射回正股，单独展示原始占比和估算经济暴露。</p>
           </article>
           <article>
             <strong>排序规则</strong>
@@ -1430,6 +1532,21 @@ a {
   margin-top: 26px;
 }
 
+.indirect-exposure-panel {
+  margin-top: 22px;
+}
+
+.indirect-note {
+  margin: 8px 0 0;
+  color: #5b708a;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.indirect-table-wrap {
+  margin-top: 10px;
+}
+
 .table-wrap {
   margin-top: 12px;
   overflow-x: auto;
@@ -1534,6 +1651,42 @@ td:nth-child(5) {
 
 .fund-code-list {
   font-weight: 800;
+}
+
+.indirect-product-name {
+  max-width: 300px;
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indirect-product-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #667b96;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.leverage-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid rgba(240, 24, 36, 0.16);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
 }
 
 .fund-trade-row {
@@ -1642,6 +1795,14 @@ td:nth-child(5) {
 
 .passive-fill {
   background: #ccd7e6;
+}
+
+.estimated-num {
+  color: #9a3412;
+}
+
+.estimated-fill {
+  background: #f97316;
 }
 
 .shares-cell {

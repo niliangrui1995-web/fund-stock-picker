@@ -38,6 +38,18 @@ type FundRecord = {
   fundDisplayName?: string;
 };
 
+type IndirectExposureRecord = FundRecord & {
+  sourceCode: string;
+  sourceName: string;
+  targetCode: string;
+  targetName: string;
+  exposureType: string;
+  exposureTypeLabel: string;
+  leverageMultiple?: number | null;
+  estimatedRatioPercent?: number | null;
+  matchReason?: string;
+};
+
 type StockRecord = {
   code: string;
   name: string;
@@ -49,9 +61,13 @@ type StockRecord = {
   onExchangeTotalMarketValueWan?: number | null;
   maxRatioPercent: number;
   onExchangeMaxRatioPercent?: number;
+  indirectExposureFundCount?: number;
+  indirectExposureShareClassCount?: number;
+  indirectExposureMaxEstimatedRatioPercent?: number;
   topByRatio: FundRecord[];
   topByValue: FundRecord[];
   topOnExchangeByRatio?: FundRecord[];
+  topIndirectExposureByRatio?: IndirectExposureRecord[];
 };
 
 type PopularStock = Pick<
@@ -508,6 +524,12 @@ function formatWan(value: number | null | undefined) {
     return `${valueFormatter.format(value / 10000)} 亿`;
   }
   return `${valueFormatter.format(value)} 万`;
+}
+
+function formatPercent(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${valueFormatter.format(value)}%`
+    : "未估算";
 }
 
 function tradeStatusTone(status?: string) {
@@ -993,6 +1015,170 @@ function ResultTable({
   );
 }
 
+function IndirectExposureTable({
+  exposures,
+  onHoverFund,
+}: {
+  exposures: IndirectExposureRecord[];
+  onHoverFund: (
+    fund: { fundCode: string; fundVariantCodes?: string[]; fundName: string; x: number; y: number } | null,
+  ) => void;
+}) {
+  const maxRawRatio = useMemo(() => Math.max(...exposures.map((f) => f.ratioPercent), 1), [exposures]);
+  const maxEstimatedRatio = useMemo(
+    () => Math.max(...exposures.map((f) => f.estimatedRatioPercent ?? f.ratioPercent), 1),
+    [exposures],
+  );
+
+  if (!exposures.length) {
+    return null;
+  }
+
+  return (
+    <div className="indirect-exposure-panel" aria-labelledby="indirect-exposure-title">
+      <div className="section-title section-title-spaced">
+        <h3 id="indirect-exposure-title">间接 / 杠杆 ETF 暴露</h3>
+        <span>
+          <ArrowUpDown size={15} />
+          不并入正股直接持仓，按估算经济暴露排序
+        </span>
+      </div>
+      <p className="indirect-note">
+        这里展示基金持有的海外个股杠杆 ETF / ETP / ETN 等产品。原占净值来自基金披露，估算暴露按产品杠杆倍数折算，仅作方向性穿透。
+      </p>
+      <div className="table-wrap indirect-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>排名</th>
+              <th>基金</th>
+              <th>杠杆产品</th>
+              <th>原占净值</th>
+              <th>估算暴露</th>
+              <th>持仓市值</th>
+              <th>交易状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exposures.map((fund, index) => {
+              const rawWidth = Math.min((fund.ratioPercent / maxRawRatio) * 100, 100);
+              const estimatedRatio = fund.estimatedRatioPercent ?? null;
+              const estimatedWidth =
+                typeof estimatedRatio === "number"
+                  ? Math.min((estimatedRatio / maxEstimatedRatio) * 100, 100)
+                  : rawWidth;
+              const fundCodes = uniqueFundCodes(fund.fundCode, fund.fundVariantCodes);
+              const fundName = displayFundName(fund);
+
+              return (
+                <tr key={`${fund.fundCode}-${fund.sourceCode}-${fund.sourceName}`}>
+                  <td>
+                    <span className={`rank rank-${index + 1}`}>{index + 1}</span>
+                  </td>
+                  <td
+                    onMouseEnter={(e) => {
+                      if (!supportsHoverPointer()) return;
+                      onHoverFund({
+                        fundCode: fund.fundCode,
+                        fundVariantCodes: fund.fundVariantCodes,
+                        fundName,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    onMouseMove={(e) => {
+                      if (!supportsHoverPointer()) return;
+                      onHoverFund({
+                        fundCode: fund.fundCode,
+                        fundVariantCodes: fund.fundVariantCodes,
+                        fundName,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      if (!supportsHoverPointer()) return;
+                      onHoverFund(null);
+                    }}
+                    onClick={(e) => {
+                      onHoverFund({
+                        fundCode: fund.fundCode,
+                        fundVariantCodes: fund.fundVariantCodes,
+                        fundName,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      e.preventDefault();
+                      onHoverFund({
+                        fundCode: fund.fundCode,
+                        fundVariantCodes: fund.fundVariantCodes,
+                        fundName,
+                        x: 24,
+                        y: 24,
+                      });
+                    }}
+                    tabIndex={0}
+                    aria-label={`查看 ${fundName} 前十大持仓`}
+                    style={{ cursor: "help" }}
+                  >
+                    <div className="fund-name" title={fund.fundName}>{fundName}</div>
+                    <div className="fund-code">
+                      <span className="fund-code-list">{fundCodes.join(" / ")}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="indirect-product-name" title={fund.sourceName}>{fund.sourceName}</div>
+                    <div className="indirect-product-code">
+                      <span>{fund.sourceCode}</span>
+                      <span className="leverage-pill">
+                        {fund.leverageMultiple ? `${valueFormatter.format(fund.leverageMultiple)}x` : "杠杆"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="strong">
+                    <div className="table-metric-cell">
+                      <span className="metric-num">{valueFormatter.format(fund.ratioPercent)}%</span>
+                      <div className="table-progress-track">
+                        <div className="table-progress-fill" style={{ width: `${rawWidth}%` }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="strong">
+                    <div className="table-metric-cell">
+                      <span className="metric-num estimated-num">{formatPercent(estimatedRatio)}</span>
+                      <div className="table-progress-track">
+                        <div className="table-progress-fill estimated-fill" style={{ width: `${estimatedWidth}%` }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="table-metric-cell cell-passive">
+                      <span className="metric-num-passive">{formatWan(fund.marketValueWan)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="status-stack">
+                      <span className={`trade-pill ${tradeStatusTone(fund.purchaseStatus)}`}>
+                        {fund.purchaseStatus || "申购 --"}
+                      </span>
+                      <span className={`trade-pill ${tradeStatusTone(fund.redemptionStatus)}`}>
+                        {fund.redemptionStatus || "赎回 --"}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function SkeletonCandidate() {
   return (
     <div className="candidate skeleton">
@@ -1358,6 +1544,9 @@ export function App() {
       ? selectedStock.totalMarketValueWan
       : selectedStock.onExchangeTotalMarketValueWan
     : null;
+  const selectedIndirectExposures = selectedStock?.topIndirectExposureByRatio ?? [];
+  const selectedIndirectExposureCount =
+    selectedStock?.indirectExposureFundCount ?? selectedIndirectExposures.length;
   const accessLabel = accessMode === "offExchange" ? "场外" : "场内";
 
   const popularSuggestions = useMemo(() => {
@@ -1678,6 +1867,12 @@ export function App() {
               </div>
 
               <ResultTable funds={resultFunds} accessMode={accessMode} onHoverFund={setHoveredFund} />
+              {selectedIndirectExposureCount > 0 ? (
+                <IndirectExposureTable
+                  exposures={selectedIndirectExposures}
+                  onHoverFund={setHoveredFund}
+                />
+              ) : null}
             </>
           ) : (
             <EmptyState loading={false} error={error} />
@@ -1701,6 +1896,10 @@ export function App() {
           <article>
             <strong>场内样本</strong>
             <p>ETF、LOF、封闭式基金和 REIT 单独归入场内视图，便于和场外主动配置分开判断。</p>
+          </article>
+          <article>
+            <strong>间接暴露</strong>
+            <p>海外个股杠杆 ETF/ETP/ETN 通过名称和配置映射回正股，单独展示原始占比和估算经济暴露。</p>
           </article>
           <article>
             <strong>排序规则</strong>

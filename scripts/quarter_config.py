@@ -50,6 +50,10 @@ class FundQuarterConfig:
         return Path("outputs") / f"holdings_stock_{self.slug}.csv"
 
     @property
+    def source_fund_investment_csv_relative(self) -> Path:
+        return Path("outputs") / f"holdings_fund_investment_{self.slug}.csv"
+
+    @property
     def run_summary_json_relative(self) -> Path:
         return Path("outputs") / f"run_summary_{self.slug}.json"
 
@@ -76,6 +80,10 @@ class FundQuarterConfig:
     @property
     def source_stock_csv(self) -> Path:
         return self.root / self.source_stock_csv_relative
+
+    @property
+    def source_fund_investment_csv(self) -> Path:
+        return self.root / self.source_fund_investment_csv_relative
 
     @property
     def run_summary_json(self) -> Path:
