@@ -19,6 +19,8 @@ SUMMARY_JSON = QUARTER.run_summary_json
 PURCHASE_LIMIT_CSV = ROOT / "outputs" / "fund_purchase_limit_snapshot.csv"
 EXPOSURE_ALIASES_JSON = ROOT / "config" / "stock-exposure-aliases.json"
 TARGET_JSON = QUARTER.fund_stock_index_json
+FUND_REPORT_SUMMARY_JSON = ROOT / "outputs" / f"fund_report_holdings_summary_{QUARTER.slug}.json"
+INDIRECT_EXPOSURE_AUDIT_MD = ROOT / "public" / "seo" / f"indirect-exposure-audit-{QUARTER.slug}.md"
 INDEX_FUND_MARKERS = ("指数", "ETF", "ETF联接")
 ON_EXCHANGE_FUND_MARKERS = ("ETF", "LOF", "封闭", "REIT")
 LEVERAGED_LONG_MARKERS_RE = re.compile(
@@ -151,6 +153,13 @@ def load_summary() -> dict[str, Any]:
     if not SUMMARY_JSON.exists():
         return {}
     with SUMMARY_JSON.open("r", encoding="utf-8-sig") as handle:
+        return json.load(handle)
+
+
+def load_fund_report_summary() -> dict[str, Any]:
+    if not FUND_REPORT_SUMMARY_JSON.exists():
+        return {}
+    with FUND_REPORT_SUMMARY_JSON.open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
 
 
@@ -412,6 +421,293 @@ def public_indirect_exposure_record(fund: dict[str, Any]) -> dict[str, Any]:
     return record
 
 
+def repo_relative(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT)).replace("\\", "/")
+    except ValueError:
+        return str(path).replace("\\", "/")
+
+
+def markdown_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    text = str(value).replace("\r", " ").replace("\n", " ").strip()
+    return text.replace("|", "\\|")
+
+
+def markdown_table(headers: list[str], rows: list[list[Any]]) -> str:
+    if not rows:
+        return "_无。_"
+    rendered = [
+        "| " + " | ".join(markdown_cell(header) for header in headers) + " |",
+        "| " + " | ".join("---" for _header in headers) + " |",
+    ]
+    rendered.extend(
+        "| " + " | ".join(markdown_cell(value) for value in row) + " |" for row in rows
+    )
+    return "\n".join(rendered)
+
+
+def status_label(status: str) -> str:
+    labels = {
+        "ok": "解析到杠杆明细",
+        "no_leveraged_fund_investment": "报告已解析，无正向杠杆明细",
+        "no_report": "未找到本季报告",
+        "no_report_id": "公告缺少 ID",
+        "pdf_parse_error": "PDF 解析失败",
+        "error": "抓取或解析异常",
+    }
+    return labels.get(status, status or "未知")
+
+
+def skipped_candidate_reason(result: dict[str, Any], mapped_rows: int) -> str:
+    status = str(result.get("status", ""))
+    rows_found = int(result.get("rows_found") or 0)
+    if mapped_rows > 0:
+        return ""
+    if rows_found > 0:
+        return "解析到杠杆明细，但未通过映射配置匹配到站内正股"
+    if status == "no_leveraged_fund_investment":
+        return "报告已解析，但基金投资明细里没有正向个股杠杆产品"
+    if status == "no_report":
+        return "未找到当前季度定期报告"
+    if status == "no_report_id":
+        return "找到公告但缺少公告 ID，无法下载 PDF"
+    if status == "pdf_parse_error":
+        return "PDF 下载后解析失败"
+    if status == "error":
+        return result.get("error", "") or "抓取或解析异常"
+    return status_label(status)
+
+
+def flatten_indirect_exposure_rows(
+    indirect_exposures: dict[str, dict[str, dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    rows = [
+        fund
+        for target_code in sorted(indirect_exposures)
+        for fund in indirect_exposures[target_code].values()
+    ]
+    rows.sort(
+        key=lambda item: (
+            item.get("targetCode", ""),
+            item.get("sourceCode", ""),
+            item.get("fundCode", ""),
+        )
+    )
+    return rows
+
+
+def render_indirect_exposure_audit(
+    payload: dict[str, Any],
+    fetch_summary: dict[str, Any],
+    fund_investment_rows: list[dict[str, str]],
+    indirect_exposures: dict[str, dict[str, dict[str, Any]]],
+    exposure_aliases: dict[str, Any],
+) -> str:
+    meta = payload["meta"]
+    candidate_results = fetch_summary.get("candidate_results", [])
+    final_rows = flatten_indirect_exposure_rows(indirect_exposures)
+    mapped_rows_by_fund = Counter(row["fundCode"] for row in final_rows)
+    parsed_statuses = {"ok", "no_leveraged_fund_investment"}
+    parsed_results = [
+        result for result in candidate_results if result.get("status") in parsed_statuses
+    ]
+    skipped_results = [
+        result
+        for result in candidate_results
+        if mapped_rows_by_fund.get(result.get("fundCode", ""), 0) == 0
+    ]
+    final_keys = {
+        (row.get("fundCode", ""), row.get("sourceCode", ""), row.get("sourceName", ""))
+        for row in final_rows
+    }
+    unmapped_fund_investment_rows = [
+        row
+        for row in fund_investment_rows
+        if (row.get("基金代码", ""), row.get("证券代码", ""), row.get("证券名称", ""))
+        not in final_keys
+    ]
+
+    product_mappings: dict[tuple[Any, ...], set[str]] = defaultdict(set)
+    for row in final_rows:
+        key = (
+            row.get("sourceCode", ""),
+            row.get("sourceName", ""),
+            row.get("targetCode", ""),
+            row.get("targetName", ""),
+            row.get("leverageMultiple", ""),
+            row.get("matchReason", ""),
+        )
+        product_mappings[key].add(row.get("fundCode", ""))
+
+    lines = [
+        f"# {meta.get('report', QUARTER.report)} 间接 / 杠杆 ETF 暴露维护审计",
+        "",
+        (
+            "只读维护产物，由 `scripts/build_fund_stock_index.py` 根据定期报告解析结果、"
+            "`config/stock-exposure-aliases.json` 和最终前端数据生成；不要手工修改它来修页面展示。"
+        ),
+        "",
+        f"- 生成时间：`{meta.get('generatedAt', '')}`",
+        f"- 前端数据：`{repo_relative(TARGET_JSON)}`",
+        f"- 报告解析 summary：`{repo_relative(FUND_REPORT_SUMMARY_JSON)}`",
+        f"- 报告解析 CSV：`{repo_relative(FUND_INVESTMENT_CSV)}`",
+        f"- 映射配置：`{repo_relative(EXPOSURE_ALIASES_JSON)}`",
+        "",
+        "## 总览",
+        "",
+        markdown_table(
+            ["项目", "值"],
+            [
+                ["报告期", meta.get("report", "")],
+                ["候选范围", fetch_summary.get("candidate_scope", "")],
+                ["候选基金数", fetch_summary.get("candidate_fund_count", "")],
+                ["已解析 LOF/QDII 定期报告", len(parsed_results) if candidate_results else "见状态计数"],
+                ["候选未进入 indirectExposureRows", len(skipped_results) if candidate_results else ""],
+                ["报告 PDF 解析出的杠杆明细", meta.get("fundInvestmentSourceRows", "")],
+                ["最终 indirectExposureRows", meta.get("indirectExposureRows", "")],
+                ["stockAliases 正股数", len(exposure_aliases.get("stockAliases", {}))],
+                ["knownProducts 产品数", len(exposure_aliases.get("knownProducts", []))],
+            ],
+        ),
+        "",
+        "## 状态计数",
+        "",
+        markdown_table(
+            ["状态", "含义", "数量"],
+            [
+                [status, status_label(status), count]
+                for status, count in sorted(fetch_summary.get("status_counts", {}).items())
+            ],
+        ),
+        "",
+    ]
+
+    if not candidate_results:
+        lines.extend(
+            [
+                "> 当前 summary 还没有候选级明细。重新运行 `python scripts\\fetch_fund_report_holdings.py`，"
+                "再运行 `python scripts\\build_fund_stock_index.py` 即可补齐下面的候选列表。",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## 已解析定期报告",
+            "",
+            markdown_table(
+                ["基金代码", "基金名称", "基金类型", "状态", "杠杆明细行", "公告日期", "公告 ID"],
+                [
+                    [
+                        result.get("fundCode", ""),
+                        result.get("fundName", ""),
+                        result.get("fundType", ""),
+                        status_label(str(result.get("status", ""))),
+                        result.get("rows_found", 0),
+                        result.get("announcementDate", ""),
+                        result.get("announcementId", ""),
+                    ]
+                    for result in parsed_results
+                ],
+            ),
+            "",
+            "## 杠杆产品映射到正股",
+            "",
+            markdown_table(
+                ["产品代码", "产品名称", "映射正股", "杠杆倍数", "匹配原因", "最终行数", "基金代码"],
+                [
+                    [
+                        source_code,
+                        source_name,
+                        f"{target_code} / {target_name}",
+                        leverage_multiple,
+                        match_reason,
+                        len(fund_codes),
+                        ", ".join(sorted(code for code in fund_codes if code)),
+                    ]
+                    for (
+                        source_code,
+                        source_name,
+                        target_code,
+                        target_name,
+                        leverage_multiple,
+                        match_reason,
+                    ), fund_codes in sorted(product_mappings.items())
+                ],
+            ),
+            "",
+            "## 最终进入 indirectExposureRows",
+            "",
+            markdown_table(
+                [
+                    "正股",
+                    "基金代码",
+                    "基金名称",
+                    "杠杆产品",
+                    "原占净值",
+                    "杠杆倍数",
+                    "估算暴露",
+                ],
+                [
+                    [
+                        f"{row.get('targetCode', '')} / {row.get('targetName', '')}",
+                        row.get("fundCode", ""),
+                        fund_family_display_name(row),
+                        f"{row.get('sourceCode', '')} / {row.get('sourceName', '')}",
+                        row.get("ratioPercent", ""),
+                        row.get("leverageMultiple", ""),
+                        row.get("estimatedRatioPercent", ""),
+                    ]
+                    for row in final_rows
+                ],
+            ),
+            "",
+            "## 解析到但未映射的杠杆明细",
+            "",
+            markdown_table(
+                ["基金代码", "基金名称", "基金类型", "产品代码", "产品名称", "原占净值", "处理结果"],
+                [
+                    [
+                        row.get("基金代码", ""),
+                        row.get("基金名称", ""),
+                        row.get("基金类型", ""),
+                        row.get("证券代码", ""),
+                        row.get("证券名称", ""),
+                        row.get("占净值比例", ""),
+                        "未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。",
+                    ]
+                    for row in unmapped_fund_investment_rows
+                ],
+            ),
+            "",
+            "## 候选跳过 / 未进入 indirectExposureRows",
+            "",
+            markdown_table(
+                ["基金代码", "基金名称", "基金类型", "状态", "解析杠杆行", "映射行", "原因"],
+                [
+                    [
+                        result.get("fundCode", ""),
+                        result.get("fundName", ""),
+                        result.get("fundType", ""),
+                        status_label(str(result.get("status", ""))),
+                        result.get("rows_found", 0),
+                        mapped_rows_by_fund.get(result.get("fundCode", ""), 0),
+                        skipped_candidate_reason(
+                            result,
+                            mapped_rows_by_fund.get(result.get("fundCode", ""), 0),
+                        ),
+                    ]
+                    for result in skipped_results
+                ],
+            ),
+            "",
+        ]
+    )
+    return "\n".join(lines).rstrip()
+
+
 def strip_wrapped_share_markers(name: str) -> str:
     pattern = r"[（(]([^）)]*)[）)]$"
     while True:
@@ -654,8 +950,9 @@ def better_indirect_exposure_record(
     return candidate if candidate_score > current_score else current
 
 
-def build_index() -> dict[str, Any]:
+def build_index_with_audit() -> tuple[dict[str, Any], str]:
     summary = load_summary()
+    fetch_summary = load_fund_report_summary()
     purchase_limits = load_purchase_limits()
     purchase_limit_metadata = load_purchase_limit_metadata()
     exposure_aliases = load_exposure_aliases()
@@ -868,7 +1165,7 @@ def build_index() -> dict[str, Any]:
         for stock in export_stocks
     ]
 
-    return {
+    payload = {
         "meta": {
             "report": report,
             "sourceFile": SOURCE_CSV.name,
@@ -902,19 +1199,35 @@ def build_index() -> dict[str, Any]:
         "stocks": public_stocks,
         "fundHoldings": fund_top_holdings,
     }
+    audit_markdown = render_indirect_exposure_audit(
+        payload,
+        fetch_summary,
+        fund_investment_rows,
+        indirect_exposures,
+        exposure_aliases,
+    )
+    return payload, audit_markdown
+
+
+def build_index() -> dict[str, Any]:
+    payload, _audit_markdown = build_index_with_audit()
+    return payload
 
 
 def main() -> None:
     TARGET_JSON.parent.mkdir(parents=True, exist_ok=True)
-    payload = build_index()
+    payload, audit_markdown = build_index_with_audit()
     temp_json = TARGET_JSON.with_name(f".{TARGET_JSON.name}.tmp")
     with temp_json.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
     temp_json.replace(TARGET_JSON)
+    INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
+    INDIRECT_EXPOSURE_AUDIT_MD.write_text(audit_markdown + "\n", encoding="utf-8")
     print(
         f"Wrote {TARGET_JSON} with {payload['meta']['stockCount']} stocks "
         f"from {payload['meta']['sourceRows']} holding rows."
     )
+    print(f"Wrote {INDIRECT_EXPOSURE_AUDIT_MD}.")
 
 
 if __name__ == "__main__":

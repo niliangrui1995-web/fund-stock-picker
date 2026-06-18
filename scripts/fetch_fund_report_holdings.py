@@ -380,9 +380,18 @@ def fetch_one_fund(
     if report_item is None:
         return {"fund": fund, "status": "no_report", "rows": [], "error": ""}
 
+    source_title = str(report_item.get("TITLE", "")).strip()
+    announcement_date = str(report_item.get("PUBLISHDATEDesc", "")).strip()
     announcement_id = str(report_item.get("ID", "")).strip()
     if not announcement_id:
-        return {"fund": fund, "status": "no_report_id", "rows": [], "error": ""}
+        return {
+            "fund": fund,
+            "status": "no_report_id",
+            "rows": [],
+            "error": "",
+            "source_title": source_title,
+            "announcement_date": announcement_date,
+        }
 
     pdf_url = PDF_URL.format(announcement_id=announcement_id)
     pdf_path = pdf_cache_dir / f"{fund_code}_{announcement_id}.pdf"
@@ -396,6 +405,9 @@ def fetch_one_fund(
             "rows": [],
             "error": str(exc),
             "announcement_id": announcement_id,
+            "announcement_date": announcement_date,
+            "source_title": source_title,
+            "source_url": pdf_url,
         }
     rows = []
     for item in parsed:
@@ -417,10 +429,10 @@ def fetch_one_fund(
                 "",
                 "",
                 "",
-                str(report_item.get("TITLE", "")).strip(),
+                source_title,
                 pdf_url,
                 announcement_id,
-                str(report_item.get("PUBLISHDATEDesc", "")).strip(),
+                announcement_date,
                 candidate_scope,
                 "eastmoney_report_pdf_fund_investment",
             ]
@@ -431,6 +443,26 @@ def fetch_one_fund(
         "rows": rows,
         "error": "",
         "announcement_id": announcement_id,
+        "announcement_date": announcement_date,
+        "source_title": source_title,
+        "source_url": pdf_url,
+    }
+
+
+def candidate_result_record(result: dict[str, Any]) -> dict[str, Any]:
+    fund = result.get("fund", {})
+    rows = result.get("rows", [])
+    return {
+        "fundCode": fund.get("code", ""),
+        "fundName": fund.get("name", ""),
+        "fundType": fund.get("type", ""),
+        "status": result.get("status", ""),
+        "rows_found": len(rows),
+        "announcementId": result.get("announcement_id", ""),
+        "announcementDate": result.get("announcement_date", ""),
+        "sourceTitle": result.get("source_title", ""),
+        "sourceUrl": result.get("source_url", ""),
+        "error": result.get("error", ""),
     }
 
 
@@ -459,6 +491,7 @@ def main() -> int:
 
     started = time.time()
     status_counts: dict[str, int] = {}
+    candidate_results: list[dict[str, Any]] = []
     rows_written = 0
     processed = 0
 
@@ -466,7 +499,7 @@ def main() -> int:
         writer = csv.writer(handle)
         writer.writerow(HOLDING_HEADERS)
         with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
-            futures = [
+            futures = {
                 executor.submit(
                     fetch_one_fund,
                     fund,
@@ -476,16 +509,23 @@ def main() -> int:
                     pdf_cache_dir=pdf_cache_dir,
                     refresh=args.refresh,
                     candidate_scope=args.candidate_scope,
-                )
+                ): fund
                 for fund in candidates
-            ]
+            }
             for future in as_completed(futures):
                 processed += 1
                 try:
                     result = future.result()
                 except Exception as exc:
+                    result = {
+                        "fund": futures[future],
+                        "status": "error",
+                        "rows": [],
+                        "error": str(exc),
+                    }
                     status = "error"
                     status_counts[status] = status_counts.get(status, 0) + 1
+                    candidate_results.append(candidate_result_record(result))
                     if args.progress_every and processed % args.progress_every == 0:
                         print(
                             json.dumps(
@@ -503,6 +543,7 @@ def main() -> int:
                     continue
                 status = result["status"]
                 status_counts[status] = status_counts.get(status, 0) + 1
+                candidate_results.append(candidate_result_record(result))
                 rows = result.get("rows", [])
                 if rows:
                     writer.writerows(rows)
@@ -522,6 +563,7 @@ def main() -> int:
                         flush=True,
                     )
 
+    candidate_results.sort(key=lambda item: item["fundCode"])
     summary = {
         "report": report_label(year, quarter_num),
         "candidate_scope": args.candidate_scope,
@@ -529,6 +571,7 @@ def main() -> int:
         "rows_written": rows_written,
         "output_csv": str(output_path),
         "status_counts": status_counts,
+        "candidate_results": candidate_results,
         "elapsed_seconds": round(time.time() - started, 1),
         "source_stock_csv": str(stock_csv),
         "cache_dir": str(cache_root),

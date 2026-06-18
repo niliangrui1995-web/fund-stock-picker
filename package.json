@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "seo": "node scripts/build_seo_pages.mjs",
+    "hotspots": "node scripts/build_ai_battle_hotspots.mjs",
+    "seo": "npm run hotspots && node scripts/build_seo_pages.mjs",
+    "verify-live-release": "node scripts/verify-live-release.mjs",
     "build": "npm run seo && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
