@@ -3,7 +3,7 @@
 
 # 出海钱眼
 
-出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序。
+出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序；首页也提供 AI 战报热点入口，便于从 AMD、LITE、COHR、SK海力士等高频标的直接跳到持仓穿透结果。
 
 项目的季度发布入口是 `config/fund-quarter.json`。采集脚本、前端数据加载和 SEO 页面生成都会从这里读取 `year` / `quarter`，当前快照主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
 
@@ -18,6 +18,7 @@
 - `NVDA` / `英伟达`：查看英伟达被哪些场外基金和场内品种持有。
 - `TSM` / `台积电`：查看台积电相关基金持仓排序。
 - `00700` / `腾讯控股`：查看腾讯控股在公募基金中的持仓穿透结果。
+- `AMD`、`LITE`、`COHR`、`000660`：查看 AI 战报热点标的对应的基金持仓穿透结果。
 
 ## 功能
 
@@ -25,8 +26,10 @@
 - 场外口径沿用原有逻辑，剔除基金类型或基金名称中包含“指数”“ETF”“ETF联接”的基金。
 - 场内口径覆盖 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
 - 首页展示海外热门标的，并支持按美股、港股、日股、韩股和其他市场筛选。
+- 首页内置“AI 战报热点”专题区，把最近高频 AI 产业链标的做成快捷卡片，点击后直接进入对应穿透结果。
 - 结果展示基金代码、合并份额代码、基金类型、净值占比、持仓市值、持股数、申购状态、赎回状态、起购金额和限购额度。
 - 点击或悬停基金行可查看该基金前十大持仓，并高亮当前查询标的。
+- 页面内置季度发布自检面板，可核对当前配置季度、前端实际加载数据文件、数据 `meta` 和 SEO 静态页口径是否一致。
 - 页面内置意见反馈入口；反馈发送依赖部署环境变量，不在代码中保存邮箱密码或收件人地址。
 
 ## 数据快照
@@ -42,6 +45,8 @@
 | 热门候选 | `60` 个 |
 | 基金持仓卡片索引 | `1,679` 个基金代码 |
 | 前端数据文件 | `public/data/fund-stock-index-<year>q<quarter>.json` |
+| AI 战报热点配置 | `config/ai-battle-hotspots.json` |
+| 季度发布自检清单 | `public/seo/quarter-release-check.json` |
 
 前端只发布海外股票检索范围，完整源股票数量保存在数据文件的 `meta.totalStockCount` 中。`data/eastmoney_cache/` 和 `outputs/` 是本地采集、缓存和中间产物目录，不应提交到公开仓库。
 
@@ -61,15 +66,19 @@
 .
 |-- index.html
 |-- config/
+|   |-- ai-battle-hotspots.json
 |   `-- fund-quarter.json
 |-- package.json
 |-- public/
 |   |-- _headers
 |   |-- _worker.js
-|   `-- data/
-|       `-- fund-stock-index-<year>q<quarter>.json
+|   |-- data/
+|   |   `-- fund-stock-index-<year>q<quarter>.json
+|   `-- seo/
+|       `-- quarter-release-check.json
 |-- scripts/
 |   |-- analyze_overseas_ai_exposure.py
+|   |-- build_seo_pages.mjs
 |   |-- build_fund_stock_index.py
 |   |-- fetch_fund_holdings.py
 |   |-- quarter-config.mjs
@@ -134,6 +143,40 @@ outputs/                    # 本地中间产物，不提交
 public/data/*.json          # 前端发布数据
 ```
 
+`npm run build` 会先执行 `npm run seo`。SEO 生成步骤会读取当前季度的前端 JSON，生成股票静态页、`sitemap.xml`、`og-image.svg`，并同步写出 `public/seo/quarter-release-check.json`。如果配置的 `report` 或季度截止日和数据文件 `meta` 不一致，SEO 构建会直接失败。
+
+## AI 战报热点入口
+
+AI 战报热点入口不是通用新闻聚合。它只维护一组近期高频标的，并把它们映射到站内已有的基金持仓穿透结果。
+
+当前热点配置在 `config/ai-battle-hotspots.json`：
+
+```json
+[
+  {
+    "code": "AMD",
+    "label": "AMD / 超威半导体",
+    "track": "核心算力 / 光互连拉货",
+    "thesis": "MI450 与 CW 激光器产能争夺是近期战报高频线索，先看哪些 QDII 主动基金已经有持仓暴露。",
+    "evidence": "邮件战报：AMD 抢锁 CW 激光器；海外 AI 暴露表：狭义海外AI / 核心算力-GPU"
+  }
+]
+```
+
+页面行为：
+
+- 首页只渲染当前前端 JSON 中真实存在的热点标的。
+- 点击热点卡片会复用现有选股逻辑，直接切换右侧基金持仓穿透结果。
+- 每张热点卡片保留 `/stocks/<code>/` 静态穿透页链接。
+- `npm run seo` 会强制把热点标的纳入 SEO 静态页候选，并在单股静态页中生成同组热点互链。
+
+维护规则：
+
+- 新增热点时，先确认 `public/data/fund-stock-index-<year>q<quarter>.json` 里存在同一 `code`。
+- `code` 使用站内股票代码口径，例如 `AMD`、`LITE`、`COHR`、`000660`。
+- `thesis` 写站内入口理由，不写长新闻正文。
+- `evidence` 只记录线索来源摘要，避免把邮件全文或临时新闻流复制进仓库。
+
 ## 切换季度发布
 
 下一次切到 Q2，只改一个入口：
@@ -146,6 +189,17 @@ public/data/*.json          # 前端发布数据
 ```
 
 保存 `config/fund-quarter.json` 后重新运行“数据生成”流程。脚本会自动使用 `2026Q2`、`2026q2`、`2026-06-30` 和对应的输入输出文件名。跨年时再同时改 `year`。
+
+## 季度发布自检
+
+站内“季度发布自检”面板用于发布后快速确认当前站点挂载的是同一套季度产物。它会核对：
+
+- `config/fund-quarter.json` 派生出的 `report` 和 `cutoffDate`。
+- 浏览器实际请求的前端数据文件名，例如 `fund-stock-index-2026q1.json`。
+- 前端数据文件 `meta.report`、`meta.cutoffDate`、`meta.generatedAt`。
+- `public/seo/quarter-release-check.json` 记录的 SEO 静态页口径、样例静态页、sitemap `lastmod` 和 OG/sitemap 使用的季度。
+
+正常情况下，面板显示“季度产物一致”并默认收起。若数据 JSON、自检清单或 SEO 口径缺失/不一致，面板会自动展开并标红。切季发布后，不需要翻脚本，先打开页面看这个面板即可判断前端数据和静态页是否来自同一套季度产物。
 
 ## 意见反馈配置
 
@@ -246,10 +300,24 @@ npm run build
 npm run preview
 ```
 
+### 季度发布自检显示“需要核对”
+
+优先确认当前季度数据和 SEO 自检清单是否都重新生成：
+
+```powershell
+$config = Get-Content config\fund-quarter.json | ConvertFrom-Json
+$label = "$($config.year)q$($config.quarter)"
+Test-Path "public\data\fund-stock-index-$label.json"
+Test-Path "public\seo\quarter-release-check.json"
+npm run build
+```
+
+如果构建失败，先看错误里的 `Configured quarter` 或 `Configured cutoffDate` 提示，通常是 `config/fund-quarter.json` 已切季，但 `public/data/fund-stock-index-<year>q<quarter>.json` 还没有按新季度重建。
+
 ## 维护约定
 
 - 不手工修改 `public/data/fund-stock-index-<year>q<quarter>.json`，只通过脚本重建。
-- 不手工维护 SEO 股票代码清单；`npm run seo` 会从当前基金持仓数据中自动选择高优先级海外股票，默认生成 120 个股票静态页，可用 `SEO_PAGE_LIMIT` 调整数量。
+- 不手工维护 SEO 股票代码清单和 `public/seo/quarter-release-check.json`；`npm run seo` 会从当前基金持仓数据中自动选择高优先级海外股票，默认生成 120 个股票静态页，可用 `SEO_PAGE_LIMIT` 调整数量。
 - 不提交 `node_modules/`、`dist/`、缓存目录、输出目录、环境变量文件和本地平台配置。
 - 修改数据口径后，同步更新 README 的数据说明和常见问题。
 - 发布前跑构建、依赖审计和隐私关键词扫描。

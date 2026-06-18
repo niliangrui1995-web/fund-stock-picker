@@ -345,6 +345,107 @@ a {
   font-weight: 900;
 }
 
+.ai-hotspot-section {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow-tiny);
+}
+
+.ai-hotspot-head {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-hotspot-head span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ai-hotspot-head h2 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.ai-hotspot-head p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.ai-hotspot-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-hotspot-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid #d8e4f0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.ai-hotspot-link:hover,
+.ai-hotspot-link.active {
+  border-color: rgba(23, 105, 232, 0.48);
+  background: #f4f8ff;
+}
+
+.ai-hotspot-link.active {
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.ai-hotspot-link span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-hotspot-link strong {
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-hotspot-link em {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-hotspot-link b {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
@@ -1059,6 +1160,10 @@ td:nth-child(5) {
     grid-template-columns: 1fr 1fr;
   }
 
+  .ai-hotspot-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .summary-card {
     grid-column: 1 / -1;
   }
@@ -1123,6 +1228,14 @@ td:nth-child(5) {
 
   .search-zone {
     padding-top: 14px;
+  }
+
+  .ai-hotspot-section {
+    padding: 16px;
+  }
+
+  .ai-hotspot-links {
+    grid-template-columns: 1fr;
   }
 
   .seo-search-box {

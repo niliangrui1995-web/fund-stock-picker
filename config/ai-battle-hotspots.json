@@ -1,0 +1,30 @@
+[
+  {
+    "code": "AMD",
+    "label": "AMD / 超威半导体",
+    "track": "核心算力 / 光互连拉货",
+    "thesis": "MI450 与 CW 激光器产能争夺是近期战报高频线索，先看哪些 QDII 主动基金已经有持仓暴露。",
+    "evidence": "邮件战报：AMD 抢锁 CW 激光器；海外 AI 暴露表：狭义海外AI / 核心算力-GPU"
+  },
+  {
+    "code": "LITE",
+    "label": "LITE / Lumentum",
+    "track": "CW 激光器 / InP",
+    "thesis": "Lumentum 是光互连上游产能紧张的核心映射，适合直接穿透基金里的光通信器件仓位。",
+    "evidence": "邮件战报：Lumentum/InP 产能售罄与供应瓶颈；海外 AI 暴露表：扩展海外AI / 光通信器件"
+  },
+  {
+    "code": "COHR",
+    "label": "COHR / Coherent",
+    "track": "光模块上游 / 垂直整合",
+    "thesis": "Coherent 扩产与 CW 激光器供给紧张持续被战报提及，站内可直接查看重仓基金与申赎状态。",
+    "evidence": "邮件战报：Coherent 德州扩产、NVIDIA/AMD 产能争夺；基金持仓索引：2026Q1 已有穿透页"
+  },
+  {
+    "code": "000660",
+    "label": "000660 / SK海力士",
+    "track": "HBM4E / AI 存储",
+    "thesis": "SK 海力士 HBM4E 与存储短缺是最近战报主线，穿透结果能快速定位 QDII 与场内 ETF 暴露。",
+    "evidence": "邮件战报：HBM4E 12层样品出货；海外 AI 暴露表：狭义海外AI / AI存储-HBM"
+  }
+]

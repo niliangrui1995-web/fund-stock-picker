@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "report": "2026Q1",
+  "cutoffDate": "2026-03-31",
+  "dataPath": "data/fund-stock-index-2026q1.json",
+  "dataFileName": "fund-stock-index-2026q1.json",
+  "dataMeta": {
+    "report": "2026Q1",
+    "cutoffDate": "2026-03-31",
+    "generatedAt": "2026-06-16T10:10:19",
+    "sourceFile": "holdings_stock_2026q1.csv",
+    "stockCount": 742,
+    "overseasStockCount": 742,
+    "shippedStockScope": "overseas",
+    "shippedStockCount": 742
+  },
+  "seo": {
+    "siteUrl": "https://fund.niliangrui.cloud",
+    "lastmod": "2026-06-18",
+    "stockPageCount": 120,
+    "sampleStock": {
+      "code": "AMD",
+      "name": "超威半导体",
+      "path": "/stocks/amd/",
+      "canonical": "https://fund.niliangrui.cloud/stocks/amd/"
+    },
+    "titleTemplate": "{stock.name}（{stock.code}）被哪些国内基金重仓？{report} 公募持仓穿透",
+    "descriptionTemplate": "{stock.name}（{stock.code}）{report} 公募基金持仓穿透：场外主动口径 {activeFundCount} 只基金持有，最高净值占比 {maxRatioPercent}%，场内 ETF/LOF 口径 {onExchangeFundCount} 只。",
+    "staticFiles": [
+      "og-image.svg",
+      "sitemap.xml",
+      "robots.txt",
+      "seo/stock-page.css",
+      "seo/share.js"
+    ]
+  },
+  "checks": {
+    "reportMatchesData": true,
+    "cutoffDateMatchesData": true,
+    "seoUsesConfiguredDataFile": true
+  }
+}

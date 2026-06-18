@@ -1,8 +1,12 @@
 import {
+  AlertTriangle,
   ArrowUpDown,
   BarChart3,
   CalendarDays,
+  CheckCircle2,
   Database,
+  FileJson,
+  Globe2,
   Loader2,
   MessageSquareText,
   Search,
@@ -13,6 +17,7 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
 
 type AccessMode = "offExchange" | "onExchange";
@@ -58,6 +63,7 @@ type FundStockIndex = {
   meta: {
     report: string;
     generatedAt: string;
+    sourceFile?: string;
     sourceRows: number;
     stockCount: number;
     defaultRankingLabel: string;
@@ -77,6 +83,53 @@ type FundStockIndex = {
   fundHoldings?: Record<string, HoldingRecord[]>;
 };
 
+type ReleaseCheckManifest = {
+  version: number;
+  report: string;
+  cutoffDate: string;
+  dataPath: string;
+  dataFileName: string;
+  dataMeta: {
+    report?: string;
+    cutoffDate?: string;
+    generatedAt?: string;
+    sourceFile?: string;
+    stockCount?: number;
+    overseasStockCount?: number;
+    shippedStockScope?: string;
+    shippedStockCount?: number;
+  };
+  seo: {
+    siteUrl: string;
+    lastmod: string;
+    stockPageCount: number;
+    sampleStock?: {
+      code: string;
+      name: string;
+      path: string;
+      canonical: string;
+    } | null;
+    titleTemplate: string;
+    descriptionTemplate: string;
+    staticFiles: string[];
+  };
+  checks?: Record<string, boolean>;
+};
+
+type ReleaseCheckState =
+  | { status: "loading" }
+  | { status: "ready"; manifest: ReleaseCheckManifest }
+  | { status: "missing"; message: string }
+  | { status: "error"; message: string };
+
+type ReleaseCheckItem = {
+  label: string;
+  expected: string;
+  actual: string;
+  ok: boolean | null;
+  note?: string;
+};
+
 const popularMarketFilters = [
   { key: "us", label: "美股" },
   { key: "jp", label: "日股" },
@@ -88,6 +141,14 @@ const popularMarketFilters = [
 type PopularMarketFilter = (typeof popularMarketFilters)[number]["key"];
 type MarketBucket = PopularMarketFilter | "a";
 
+type AiBattleHotspot = {
+  code: string;
+  label: string;
+  track: string;
+  thesis: string;
+  evidence: string;
+};
+
 const japaneseStockNamePattern =
   /东京|丰田|索尼|日立|三菱|任天堂|软银|本田|东京电子|三井|住友|瑞穗|武田|迅销|基恩士|信越|村田|电装|佳能|尼康|日本/;
 const koreanStockNamePattern =
@@ -98,6 +159,9 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
 const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
+const aiBattleHotspots = aiBattleHotspotsData as AiBattleHotspot[];
+const RELEASE_CHECK_URL = fundQuarter.releaseCheckUrl;
+const FRONTEND_DATA_FILE = dataFileNameFromUrl(FUND_STOCK_DATA_URL);
 
 function getInitialQuery() {
   if (typeof window === "undefined") {
@@ -105,6 +169,233 @@ function getInitialQuery() {
   }
 
   return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+}
+
+function dataFileNameFromUrl(url: string) {
+  const pathOnly = url.split(/[?#]/, 1)[0];
+  const parts = pathOnly.split("/").filter(Boolean);
+  return parts[parts.length - 1] || pathOnly;
+}
+
+function displayValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "未读取";
+  }
+  return String(value);
+}
+
+function buildReleaseCheckItems(
+  data: FundStockIndex | null,
+  dataError: string | null,
+  manifest?: ReleaseCheckManifest,
+) {
+  const dataErrorText = dataError ? "数据加载失败" : null;
+
+  return [
+    {
+      label: "report",
+      expected: fundQuarter.report,
+      actual: dataErrorText ?? displayValue(data?.meta.report),
+      ok: data ? data.meta.report === fundQuarter.report : dataError ? false : null,
+      note: "配置期与浏览器 JSON",
+    },
+    {
+      label: "cutoffDate",
+      expected: fundQuarter.cutoffDate,
+      actual: dataErrorText ?? displayValue(data?.meta.cutoffDate),
+      ok: data ? data.meta.cutoffDate === fundQuarter.cutoffDate : dataError ? false : null,
+      note: "季度截止日",
+    },
+    {
+      label: "前端数据文件",
+      expected: fundQuarter.dataFileName,
+      actual: FRONTEND_DATA_FILE,
+      ok: FRONTEND_DATA_FILE === fundQuarter.dataFileName,
+      note: FUND_STOCK_DATA_URL,
+    },
+    {
+      label: "SEO 数据文件",
+      expected: FRONTEND_DATA_FILE,
+      actual: displayValue(manifest?.dataFileName),
+      ok: manifest ? manifest.dataFileName === FRONTEND_DATA_FILE : null,
+      note: "静态页构建输入",
+    },
+    {
+      label: "SEO report",
+      expected: displayValue(data?.meta.report),
+      actual: displayValue(manifest?.report),
+      ok: data && manifest ? manifest.report === data.meta.report : dataError ? false : null,
+      note: "静态页标题/OG 口径",
+    },
+    {
+      label: "SEO cutoffDate",
+      expected: displayValue(data?.meta.cutoffDate),
+      actual: displayValue(manifest?.cutoffDate),
+      ok: data && manifest ? manifest.cutoffDate === data.meta.cutoffDate : dataError ? false : null,
+      note: "静态页方法论口径",
+    },
+    {
+      label: "generatedAt",
+      expected: dataErrorText ?? displayValue(data?.meta.generatedAt),
+      actual: displayValue(manifest?.dataMeta.generatedAt),
+      ok: data && manifest ? manifest.dataMeta.generatedAt === data.meta.generatedAt : dataError ? false : null,
+      note: "浏览器 JSON 与 SEO 清单",
+    },
+  ] satisfies ReleaseCheckItem[];
+}
+
+function releaseCheckSummary(state: ReleaseCheckState, checks: ReleaseCheckItem[]) {
+  if (state.status === "missing" || state.status === "error" || checks.some((item) => item.ok === false)) {
+    return "需要核对";
+  }
+  if (state.status === "ready" && checks.every((item) => item.ok === true)) {
+    return "季度产物一致";
+  }
+  return "自检载入中";
+}
+
+function ReleaseStatus({ ok }: { ok: boolean | null }) {
+  if (ok === true) {
+    return (
+      <span className="release-status ok">
+        <CheckCircle2 size={14} />
+        一致
+      </span>
+    );
+  }
+  if (ok === false) {
+    return (
+      <span className="release-status danger">
+        <AlertTriangle size={14} />
+        不一致
+      </span>
+    );
+  }
+  return (
+    <span className="release-status pending">
+      <Loader2 size={14} className="spin" />
+      等待
+    </span>
+  );
+}
+
+function QuarterReleaseCheckPanel({
+  data,
+  dataError,
+  releaseCheck,
+}: {
+  data: FundStockIndex | null;
+  dataError: string | null;
+  releaseCheck: ReleaseCheckState;
+}) {
+  const manifest = releaseCheck.status === "ready" ? releaseCheck.manifest : undefined;
+  const checks = buildReleaseCheckItems(data, dataError, manifest);
+  const needsAttention =
+    releaseCheck.status === "missing" ||
+    releaseCheck.status === "error" ||
+    checks.some((item) => item.ok === false);
+  const summary = releaseCheckSummary(releaseCheck, checks);
+
+  return (
+    <details className={`release-check-panel ${needsAttention ? "needs-attention" : ""}`} open={needsAttention}>
+      <summary>
+        <span className="release-check-title">
+          <FileJson size={17} />
+          季度发布自检
+        </span>
+        <strong>{summary}</strong>
+        <em>{fundQuarter.report} · {FRONTEND_DATA_FILE}</em>
+      </summary>
+
+      <div className="release-check-body">
+        <div className="release-fingerprint" aria-label="当前季度产物指纹">
+          <div>
+            <span>report</span>
+            <strong>{displayValue(data?.meta.report ?? fundQuarter.report)}</strong>
+          </div>
+          <div>
+            <span>cutoffDate</span>
+            <strong>{displayValue(data?.meta.cutoffDate ?? fundQuarter.cutoffDate)}</strong>
+          </div>
+          <div>
+            <span>generatedAt</span>
+            <strong>{displayValue(data?.meta.generatedAt)}</strong>
+          </div>
+          <div>
+            <span>loaded file</span>
+            <strong>{FRONTEND_DATA_FILE}</strong>
+          </div>
+        </div>
+
+        <div className="release-check-table" role="table" aria-label="季度产物一致性检查">
+          {checks.map((item) => (
+            <div className="release-check-row" role="row" key={item.label}>
+              <div className="release-check-name" role="cell">
+                <strong>{item.label}</strong>
+                {item.note && <span>{item.note}</span>}
+              </div>
+              <div role="cell">
+                <span>应为</span>
+                <strong>{item.expected}</strong>
+              </div>
+              <div role="cell">
+                <span>站上</span>
+                <strong>{item.actual}</strong>
+              </div>
+              <ReleaseStatus ok={item.ok} />
+            </div>
+          ))}
+        </div>
+
+        <div className="release-seo-mouth">
+          <div className="release-seo-head">
+            <Globe2 size={17} />
+            <strong>SEO / 静态页关键口径</strong>
+          </div>
+          {manifest ? (
+            <>
+              <p>
+                已生成 {numberFormatter.format(manifest.seo.stockPageCount)} 个股票静态页，sitemap lastmod 为{" "}
+                {manifest.seo.lastmod}，OG 图和 sitemap 使用 {manifest.report}。
+              </p>
+              <dl>
+                <div>
+                  <dt>站点</dt>
+                  <dd>{manifest.seo.siteUrl}</dd>
+                </div>
+                <div>
+                  <dt>样例静态页</dt>
+                  <dd>{manifest.seo.sampleStock?.canonical ?? "未生成"}</dd>
+                </div>
+                <div>
+                  <dt>标题模板</dt>
+                  <dd>{manifest.seo.titleTemplate}</dd>
+                </div>
+                <div>
+                  <dt>描述模板</dt>
+                  <dd>{manifest.seo.descriptionTemplate}</dd>
+                </div>
+                <div>
+                  <dt>静态文件</dt>
+                  <dd>{manifest.seo.staticFiles.join(" / ")}</dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <p>
+              {releaseCheck.status === "loading"
+                ? `正在读取 ${RELEASE_CHECK_URL}`
+                : releaseCheck.status === "missing"
+                  ? releaseCheck.message
+                  : releaseCheck.status === "error"
+                    ? releaseCheck.message
+                    : "未读取到 SEO 自检清单。"}
+            </p>
+          )}
+        </div>
+      </div>
+    </details>
+  );
 }
 
 function normalize(input: string) {
@@ -238,6 +529,11 @@ type HoldingRecord = {
 
 function normalizeStockCode(code: string) {
   return code.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+}
+
+function stockPagePath(code: string) {
+  const slug = code.trim().toLowerCase().replace(/[^0-9a-z]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug ? `/stocks/${slug}/` : "/";
 }
 
 function uniqueFundCodes(fundCode: string, fundVariantCodes?: string[]) {
@@ -965,6 +1261,7 @@ export function App() {
   const [activeSection, setActiveSection] = useState<"research" | "methodology">("research");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [releaseCheck, setReleaseCheck] = useState<ReleaseCheckState>({ status: "loading" });
   
   // Track hovered fund information for Hover Card portal display
   const [hoveredFund, setHoveredFund] = useState<{
@@ -997,6 +1294,34 @@ export function App() {
       })
       .finally(() => {
         if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetch(RELEASE_CHECK_URL, { cache: "no-cache" })
+      .then((response) => {
+        if (response.status === 404) {
+          throw new Error(`未找到 ${RELEASE_CHECK_URL}，请先运行 SEO 构建生成季度自检清单。`);
+        }
+        if (!response.ok) {
+          throw new Error(`季度自检清单读取失败 (HTTP ${response.status})。`);
+        }
+        return response.json() as Promise<ReleaseCheckManifest>;
+      })
+      .then((manifest) => {
+        if (!mounted) return;
+        setReleaseCheck({ status: "ready", manifest });
+      })
+      .catch((checkError: Error) => {
+        if (!mounted) return;
+        const status = checkError.message.includes("未找到") ? "missing" : "error";
+        setReleaseCheck({ status, message: checkError.message });
       });
 
     return () => {
@@ -1041,6 +1366,18 @@ export function App() {
     return source.filter((stock) => stockMarketBucket(stock.code, stock.name) === popularMarketFilter);
   }, [data, popularMarketFilter]);
   const quickStocks = useMemo(() => (data?.popularStocks ?? []).slice(0, 5), [data]);
+  const aiBattleHotspotCards = useMemo(() => {
+    if (!data) return [];
+
+    return aiBattleHotspots
+      .map((hotspot) => {
+        const stock = data.stocks.find(
+          (item) => normalizeStockCode(item.code) === normalizeStockCode(hotspot.code),
+        );
+        return stock ? { hotspot, stock } : null;
+      })
+      .filter((item): item is { hotspot: AiBattleHotspot; stock: StockRecord } => item !== null);
+  }, [data]);
 
   function chooseStock(stock: PopularStock | StockRecord) {
     setHoveredFund(null);
@@ -1164,6 +1501,64 @@ export function App() {
         </div>
       </section>
 
+      <section className="ai-hotspot-section" aria-labelledby="ai-hotspot-title">
+        <div className="ai-hotspot-head">
+          <div>
+            <p className="eyeline">AI 战报热点</p>
+            <h2 id="ai-hotspot-title">最近高频标的一键穿透</h2>
+          </div>
+          <span>
+            邮件战报热点 + {data?.meta.report ?? fundQuarter.report} 基金持仓
+          </span>
+        </div>
+        <div className="ai-hotspot-grid">
+          {aiBattleHotspotCards.length ? (
+            aiBattleHotspotCards.map(({ hotspot, stock }) => {
+              const isActive = normalizeStockCode(selectedStock?.code ?? "") === normalizeStockCode(stock.code);
+
+              return (
+                <article key={hotspot.code} className={`ai-hotspot-card ${isActive ? "active" : ""}`}>
+                  <button
+                    type="button"
+                    className="ai-hotspot-main"
+                    aria-label={`查看 ${hotspot.label} 的基金持仓穿透结果`}
+                    onClick={() => chooseStock(stock)}
+                  >
+                    <span className="hotspot-kicker">
+                      <span>{hotspot.track}</span>
+                      <span>{marketLabel(stock.code, stock.name)}</span>
+                    </span>
+                    <span className="hotspot-title-row">
+                      <StockLogo code={stock.code} name={stock.name} />
+                      <span>
+                        <strong>{hotspot.label}</strong>
+                        <em>{stock.code}</em>
+                      </span>
+                    </span>
+                    <span className="hotspot-thesis">{hotspot.thesis}</span>
+                    <span className="hotspot-metrics">
+                      <span>
+                        <small>场外基金</small>
+                        <b>{numberFormatter.format(stock.activeFundCount)} 只</b>
+                      </span>
+                      <span>
+                        <small>最高占比</small>
+                        <b>{valueFormatter.format(stock.maxRatioPercent)}%</b>
+                      </span>
+                    </span>
+                  </button>
+                  <a className="hotspot-seo-link" href={stockPagePath(stock.code)}>
+                    静态穿透页
+                  </a>
+                </article>
+              );
+            })
+          ) : (
+            <div className="ai-hotspot-empty">热点入口载入中</div>
+          )}
+        </div>
+      </section>
+
       <section className="selected-context" aria-label="当前研究上下文">
         <div>
           <span>数据期</span>
@@ -1184,6 +1579,8 @@ export function App() {
           <strong>{data ? numberFormatter.format(data.meta.holdingRows ?? data.meta.sourceRows) : "--"} 条</strong>
         </div>
       </section>
+
+      <QuarterReleaseCheckPanel data={data} dataError={error} releaseCheck={releaseCheck} />
 
       <section className={`workspace ${selectedStock ? "has-selection" : "no-selection"}`}>
         <aside className="left-panel" aria-label="股票候选">

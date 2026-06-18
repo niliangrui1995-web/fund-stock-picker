@@ -15,6 +15,8 @@ function buildQuarterConfig(config: RawQuarterConfig) {
 
   const report = `${config.year}Q${config.quarter}`;
   const slug = report.toLowerCase();
+  const dataPath = `data/fund-stock-index-${slug}.json`;
+  const dataFileName = `fund-stock-index-${slug}.json`;
   const cutoffDateByQuarter = {
     1: `${config.year}-03-31`,
     2: `${config.year}-06-30`,
@@ -28,7 +30,10 @@ function buildQuarterConfig(config: RawQuarterConfig) {
     report,
     slug,
     cutoffDate: cutoffDateByQuarter[config.quarter as 1 | 2 | 3 | 4],
-    dataUrl: `data/fund-stock-index-${slug}.json?v=${slug}`,
+    dataPath,
+    dataFileName,
+    dataUrl: `${dataPath}?v=${slug}`,
+    releaseCheckUrl: `seo/quarter-release-check.json?v=${slug}`,
   };
 }
 

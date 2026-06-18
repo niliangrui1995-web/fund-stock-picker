@@ -6,6 +6,7 @@ import { loadQuarterConfig } from "./quarter-config.mjs";
 const SITE_URL = "https://fund.niliangrui.cloud";
 const STOCKS_DIR = path.join("public", "stocks");
 const SEO_DIR = path.join("public", "seo");
+const AI_BATTLE_HOTSPOTS_PATH = path.join("config", "ai-battle-hotspots.json");
 const LASTMOD = process.env.SEO_LASTMOD || new Date().toISOString().slice(0, 10);
 const DEFAULT_SEO_PAGE_LIMIT = 120;
 const POPULAR_STOCK_SCORE_BOOST = 1_000_000_000;
@@ -38,8 +39,12 @@ function slugFor(code) {
   return String(code).trim().toLowerCase().replace(/[^0-9a-z]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+function normalizeCodeValue(code) {
+  return String(code ?? "").trim().toUpperCase();
+}
+
 function normalizedStockCode(stock) {
-  return String(stock?.code ?? "").trim().toUpperCase();
+  return normalizeCodeValue(stock?.code);
 }
 
 function finiteNumber(value) {
@@ -85,7 +90,7 @@ function isSeoStockCandidate(stock) {
   );
 }
 
-function selectSeoStocks(payload) {
+function selectSeoStocks(payload, forcedCodes = []) {
   if (!Array.isArray(payload.stocks)) {
     throw new Error("Invalid fund stock payload: missing stocks array");
   }
@@ -113,6 +118,16 @@ function selectSeoStocks(payload) {
 
   const selectedStocks = [];
   const selectedSlugs = new Set();
+  const rankedByCode = new Map(rankedStocks.map((item) => [item.code, item]));
+  for (const code of forcedCodes.map(normalizeCodeValue).filter(Boolean)) {
+    const item = rankedByCode.get(code);
+    if (!item || selectedSlugs.has(item.slug)) {
+      continue;
+    }
+    selectedStocks.push(item.stock);
+    selectedSlugs.add(item.slug);
+  }
+
   const limit = seoPageLimit(rankedStocks.length);
   for (const item of rankedStocks) {
     if (selectedSlugs.has(item.slug)) {
@@ -310,7 +325,56 @@ function fundTable(funds, accessLabel) {
   </div>`;
 }
 
-function stockPage(stock, meta) {
+async function loadAiBattleHotspots() {
+  const raw = await readFile(AI_BATTLE_HOTSPOTS_PATH, "utf8");
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${AI_BATTLE_HOTSPOTS_PATH} must contain an array.`);
+  }
+  return parsed.filter((item) => item?.code && item?.label);
+}
+
+function selectHotspotStocks(payload, hotspots) {
+  const byCode = new Map((payload.stocks ?? []).map((stock) => [normalizedStockCode(stock), stock]));
+  return hotspots
+    .map((hotspot) => {
+      const stock = byCode.get(normalizeCodeValue(hotspot.code));
+      return stock ? { hotspot, stock } : null;
+    })
+    .filter(Boolean);
+}
+
+function aiHotspotSection(currentStock, hotspotItems) {
+  if (!hotspotItems.length) {
+    return "";
+  }
+
+  const currentCode = normalizedStockCode(currentStock);
+  const links = hotspotItems
+    .map(({ hotspot, stock }) => {
+      const isCurrent = normalizedStockCode(stock) === currentCode;
+      return `<a class="ai-hotspot-link ${isCurrent ? "active" : ""}" href="/stocks/${slugFor(stock.code)}/">
+        ${stockLogo(stock)}
+        <span>
+          <strong>${escapeHtml(hotspot.label)}</strong>
+          <em>${escapeHtml(hotspot.track || stock.code)}</em>
+        </span>
+        <b>${integerFormatter.format(finiteNumber(stock.activeFundCount))} 只</b>
+      </a>`;
+    })
+    .join("\n");
+
+  return `<section class="ai-hotspot-section" aria-labelledby="ai-hotspot-title">
+    <div class="ai-hotspot-head">
+      <span>AI 战报热点</span>
+      <h2 id="ai-hotspot-title">最近高频标的一键穿透</h2>
+      <p>基于邮件战报高频线索、海外 AI 暴露表和 ${escapeHtml(currentStock.code)} 当前持仓索引生成。</p>
+    </div>
+    <div class="ai-hotspot-links">${links}</div>
+  </section>`;
+}
+
+function stockPage(stock, meta, hotspotItems = []) {
   const slug = slugFor(stock.code);
   const canonical = `${SITE_URL}/stocks/${slug}/`;
   const appUrl = `/?q=${encodeURIComponent(stock.code)}`;
@@ -414,6 +478,8 @@ function stockPage(stock, meta) {
           <strong>${integerFormatter.format(meta.holdingRows ?? meta.sourceRows)} 条</strong>
         </div>
       </section>
+
+      ${aiHotspotSection(stock, hotspotItems)}
 
       <section class="workspace has-selection">
         <aside class="left-panel" aria-label="股票候选">
@@ -895,6 +961,107 @@ a {
   color: var(--ink-strong);
   font-size: 17px;
   font-weight: 900;
+}
+
+.ai-hotspot-section {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow-tiny);
+}
+
+.ai-hotspot-head {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-hotspot-head span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ai-hotspot-head h2 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.ai-hotspot-head p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.ai-hotspot-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ai-hotspot-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid #d8e4f0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.ai-hotspot-link:hover,
+.ai-hotspot-link.active {
+  border-color: rgba(23, 105, 232, 0.48);
+  background: #f4f8ff;
+}
+
+.ai-hotspot-link.active {
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.ai-hotspot-link span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-hotspot-link strong {
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-hotspot-link em {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-hotspot-link b {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .workspace {
@@ -1611,6 +1778,10 @@ td:nth-child(5) {
     grid-template-columns: 1fr 1fr;
   }
 
+  .ai-hotspot-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .summary-card {
     grid-column: 1 / -1;
   }
@@ -1675,6 +1846,14 @@ td:nth-child(5) {
 
   .search-zone {
     padding-top: 14px;
+  }
+
+  .ai-hotspot-section {
+    padding: 16px;
+  }
+
+  .ai-hotspot-links {
+    grid-template-columns: 1fr;
   }
 
   .seo-search-box {
@@ -1846,6 +2025,66 @@ ${urls
 `;
 }
 
+function toBrowserPath(filePath) {
+  return filePath.replace(/\\/g, "/").replace(/^public\//, "");
+}
+
+function fileNameFromBrowserPath(filePath) {
+  const normalized = toBrowserPath(filePath);
+  const parts = normalized.split("/");
+  return parts[parts.length - 1] || normalized;
+}
+
+function releaseCheckManifest(quarterConfig, payload, selectedStocks, stockUrls) {
+  const dataPath = toBrowserPath(quarterConfig.paths.fundStockIndexJson);
+  const sampleStock = selectedStocks[0] ?? null;
+  const sampleSlug = sampleStock ? slugFor(sampleStock.code) : "";
+
+  return `${JSON.stringify(
+    {
+      version: 1,
+      report: quarterConfig.report,
+      cutoffDate: quarterConfig.cutoffDate,
+      dataPath,
+      dataFileName: fileNameFromBrowserPath(dataPath),
+      dataMeta: {
+        report: payload.meta.report,
+        cutoffDate: payload.meta.cutoffDate,
+        generatedAt: payload.meta.generatedAt,
+        sourceFile: payload.meta.sourceFile,
+        stockCount: payload.meta.stockCount,
+        overseasStockCount: payload.meta.overseasStockCount,
+        shippedStockScope: payload.meta.shippedStockScope,
+        shippedStockCount: payload.meta.shippedStockCount,
+      },
+      seo: {
+        siteUrl: SITE_URL,
+        lastmod: LASTMOD,
+        stockPageCount: selectedStocks.length,
+        sampleStock: sampleStock
+          ? {
+              code: sampleStock.code,
+              name: sampleStock.name,
+              path: `/stocks/${sampleSlug}/`,
+              canonical: stockUrls[0],
+            }
+          : null,
+        titleTemplate: "{stock.name}（{stock.code}）被哪些国内基金重仓？{report} 公募持仓穿透",
+        descriptionTemplate:
+          "{stock.name}（{stock.code}）{report} 公募基金持仓穿透：场外主动口径 {activeFundCount} 只基金持有，最高净值占比 {maxRatioPercent}%，场内 ETF/LOF 口径 {onExchangeFundCount} 只。",
+        staticFiles: ["og-image.svg", "sitemap.xml", "robots.txt", "seo/stock-page.css", "seo/share.js"],
+      },
+      checks: {
+        reportMatchesData: payload.meta.report === quarterConfig.report,
+        cutoffDateMatchesData: payload.meta.cutoffDate === quarterConfig.cutoffDate,
+        seoUsesConfiguredDataFile: true,
+      },
+    },
+    null,
+    2,
+  )}\n`;
+}
+
 async function main() {
   const quarterConfig = await loadQuarterConfig();
   const dataPath = quarterConfig.paths.fundStockIndexJson;
@@ -1855,7 +2094,17 @@ async function main() {
       `Configured quarter is ${quarterConfig.report}, but ${dataPath} contains ${payload?.meta?.report || "unknown"}.`,
     );
   }
-  const selectedStocks = selectSeoStocks(payload);
+  if (payload?.meta?.cutoffDate !== quarterConfig.cutoffDate) {
+    throw new Error(
+      `Configured cutoffDate is ${quarterConfig.cutoffDate}, but ${dataPath} contains ${payload?.meta?.cutoffDate || "unknown"}.`,
+    );
+  }
+  const aiBattleHotspots = await loadAiBattleHotspots();
+  const hotspotItems = selectHotspotStocks(payload, aiBattleHotspots);
+  const selectedStocks = selectSeoStocks(
+    payload,
+    aiBattleHotspots.map((hotspot) => hotspot.code),
+  );
 
   await rm(STOCKS_DIR, { recursive: true, force: true });
   await mkdir(STOCKS_DIR, { recursive: true });
@@ -1866,12 +2115,17 @@ async function main() {
     const slug = slugFor(stock.code);
     const pageDir = path.join(STOCKS_DIR, slug);
     await mkdir(pageDir, { recursive: true });
-    await writeFile(path.join(pageDir, "index.html"), stockPage(stock, payload.meta), "utf8");
+    await writeFile(path.join(pageDir, "index.html"), stockPage(stock, payload.meta, hotspotItems), "utf8");
     stockUrls.push(`${SITE_URL}/stocks/${slug}/`);
   }
 
   await writeFile(path.join(SEO_DIR, "stock-page.css"), stockPageCss(), "utf8");
   await writeFile(path.join(SEO_DIR, "share.js"), shareJs(), "utf8");
+  await writeFile(
+    quarterConfig.paths.releaseCheckJson,
+    releaseCheckManifest(quarterConfig, payload, selectedStocks, stockUrls),
+    "utf8",
+  );
   await writeFile(path.join("public", "og-image.svg"), ogImage(quarterConfig.report), "utf8");
   await writeFile(path.join("public", "sitemap.xml"), sitemap(stockUrls), "utf8");
   await writeFile(
@@ -1885,7 +2139,7 @@ Sitemap: ${SITE_URL}/sitemap.xml
     "utf8",
   );
 
-  console.log(`Generated ${selectedStocks.length} SEO stock pages and sitemap.xml`);
+  console.log(`Generated ${selectedStocks.length} SEO stock pages, sitemap.xml and quarter-release-check.json`);
 }
 
 main().catch((error) => {

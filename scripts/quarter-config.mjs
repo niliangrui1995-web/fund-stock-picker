@@ -34,6 +34,7 @@ export function buildQuarterConfig(rawConfig) {
       sourceStockCsv: path.join("outputs", `holdings_stock_${slug}.csv`),
       runSummaryJson: path.join("outputs", `run_summary_${slug}.json`),
       fundStockIndexJson: path.join("public", "data", `fund-stock-index-${slug}.json`),
+      releaseCheckJson: path.join("public", "seo", "quarter-release-check.json"),
     },
   };
 }
