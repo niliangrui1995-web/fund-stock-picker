@@ -7,7 +7,7 @@
   "dataMeta": {
     "report": "2026Q1",
     "cutoffDate": "2026-03-31",
-    "generatedAt": "2026-06-18T19:41:06",
+    "generatedAt": "2026-06-19T08:00:10",
     "sourceFile": "holdings_stock_2026q1.csv",
     "stockCount": 741,
     "overseasStockCount": 741,
@@ -16,7 +16,7 @@
   },
   "seo": {
     "siteUrl": "https://fund.niliangrui.cloud",
-    "lastmod": "2026-06-18",
+    "lastmod": "2026-06-19",
     "stockPageCount": 120,
     "sampleStock": {
       "code": "AMD",
