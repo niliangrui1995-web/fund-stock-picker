@@ -509,23 +509,6 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-.hotspot-seo-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  border-top: 1px solid var(--line-soft);
-  background: #ffffff;
-  color: var(--blue);
-  font-size: 12px;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.hotspot-seo-link:hover {
-  background: var(--blue-soft);
-}
-
 .ai-hotspot-empty {
   grid-column: 1 / -1;
   display: grid;

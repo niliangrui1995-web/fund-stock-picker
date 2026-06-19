@@ -5,7 +5,7 @@
 
 出海钱眼是一个静态基金持仓穿透工具，用公开基金持仓数据反查海外股票被哪些基金重仓。用户输入美股、港股、日股、韩股或其他海外股票的名称/代码后，页面会展示场外基金和场内 ETF / LOF 等品种的持仓排序；若底层明细披露了海外个股杠杆 ETF / ETP / ETN，也会单独归入“间接 / 杠杆 ETF 暴露”。首页也提供 AI 战报热点入口，便于从 AMD、LITE、COHR、SK海力士等高频标的直接跳到持仓穿透结果。
 
-项目的季度发布入口是 `config/fund-quarter.json`。采集脚本、前端数据加载和 SEO 页面生成都会从这里读取 `year` / `quarter`，当前快照主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
+项目的季度发布入口是 `config/fund-quarter.json`。采集脚本、前端数据加载和发布资产生成都会从这里读取 `year` / `quarter`，当前快照主要用于基金筛选、海外股票持仓穿透和基金集中度研究。页面只做信息展示和研究辅助，不构成投资建议、基金推荐、销售邀约或收益承诺。
 
 ## 在线体验
 
@@ -30,7 +30,6 @@
 - 首页内置“AI 战报热点”专题区，把最近高频 AI 产业链标的做成快捷卡片，点击后直接进入对应穿透结果。
 - 结果展示基金代码、合并份额代码、基金类型、净值占比、持仓市值、持股数、申购状态、赎回状态、起购金额和限购额度。
 - 点击或悬停基金行可查看该基金前十大持仓，并高亮当前查询标的。
-- 页面内置季度发布自检面板，可核对当前配置季度、前端实际加载数据文件、数据 `meta` 和 SEO 静态页口径是否一致。
 - 页面内置意见反馈入口；反馈发送依赖部署环境变量，不在代码中保存邮箱密码或收件人地址。
 
 ## 数据快照
@@ -166,7 +165,7 @@ outputs/                    # 本地中间产物，不提交
 public/data/*.json          # 前端发布数据
 ```
 
-`npm run build` 会先执行 `npm run seo`。SEO 生成步骤会先运行 `npm run hotspots`，把 `config/ai-battle-hotspot-sources.json` 刷新成首页和 SEO 共用的 `config/ai-battle-hotspots.json`；随后读取当前季度的前端 JSON，生成股票静态页、`sitemap.xml`、`og-image.svg`，并同步写出 `public/seo/quarter-release-check.json`。如果配置的 `report` 或季度截止日和数据文件 `meta` 不一致，SEO 构建会直接失败。
+`npm run build` 会先执行 `npm run seo`。SEO 生成步骤会先运行 `npm run hotspots`，把 `config/ai-battle-hotspot-sources.json` 刷新成首页使用的 `config/ai-battle-hotspots.json`；随后读取当前季度的前端 JSON，清理旧股票静态页，生成 `sitemap.xml`、`og-image.svg`，并同步写出 `public/seo/quarter-release-check.json`。如果配置的 `report` 或季度截止日和数据文件 `meta` 不一致，构建会直接失败。
 
 ## 海外个股杠杆间接暴露
 
@@ -224,8 +223,7 @@ npm run hotspots
 
 - 首页只渲染当前前端 JSON 中真实存在的热点标的。
 - 点击热点卡片会复用现有选股逻辑，直接切换右侧基金持仓穿透结果。
-- 每张热点卡片保留 `/stocks/<code>/` 静态穿透页链接。
-- `npm run seo` 会先刷新热点配置，再强制把热点标的纳入 SEO 静态页候选，并在单股静态页中生成同组热点互链。
+- `npm run seo` 会先刷新热点配置，再生成当前季度发布清单和站点基础 SEO 资产。
 
 维护规则：
 
@@ -251,14 +249,14 @@ npm run hotspots
 
 ## 季度发布自检
 
-站内“季度发布自检”面板用于发布后快速确认当前站点挂载的是同一套季度产物。它会核对：
+发布后使用 `npm run verify-live-release` 快速确认当前站点挂载的是同一套季度产物。它会核对：
 
 - `config/fund-quarter.json` 派生出的 `report` 和 `cutoffDate`。
 - 浏览器实际请求的前端数据文件名，例如 `fund-stock-index-2026q1.json`。
 - 前端数据文件 `meta.report`、`meta.cutoffDate`、`meta.generatedAt`。
-- `public/seo/quarter-release-check.json` 记录的 SEO 静态页口径、样例静态页、sitemap `lastmod` 和 OG/sitemap 使用的季度。
+- `public/seo/quarter-release-check.json` 记录的发布清单、sitemap `lastmod` 和 OG/sitemap 使用的季度。
 
-正常情况下，面板显示“季度产物一致”并默认收起。若数据 JSON、自检清单或 SEO 口径缺失/不一致，面板会自动展开并标红。切季发布后，不需要翻脚本，先打开页面看这个面板即可判断前端数据和静态页是否来自同一套季度产物。
+正常情况下，命令会显示所有检查通过。若数据 JSON、自检清单或发布清单缺失 / 不一致，命令会列出不一致字段并以非零退出码结束。
 
 ## 意见反馈配置
 
@@ -369,9 +367,9 @@ npm run build
 npm run preview
 ```
 
-### 季度发布自检显示“需要核对”
+### 季度发布自检失败
 
-优先确认当前季度数据和 SEO 自检清单是否都重新生成：
+优先确认当前季度数据和发布自检清单是否都重新生成：
 
 ```powershell
 $config = Get-Content config\fund-quarter.json | ConvertFrom-Json
@@ -386,7 +384,7 @@ npm run build
 ## 维护约定
 
 - 不手工修改 `public/data/fund-stock-index-<year>q<quarter>.json`，只通过脚本重建。
-- 不手工维护 `config/ai-battle-hotspots.json`、SEO 股票代码清单和 `public/seo/quarter-release-check.json`；`npm run seo` 会先刷新 AI 战报热点，再从当前基金持仓数据中自动选择高优先级海外股票，默认生成 120 个股票静态页，可用 `SEO_PAGE_LIMIT` 调整数量。
+- 不手工维护 `config/ai-battle-hotspots.json` 和 `public/seo/quarter-release-check.json`；`npm run seo` 会先刷新 AI 战报热点，再生成当前季度发布清单和站点基础 SEO 资产。
 - 不手工维护 `public/seo/indirect-exposure-audit-<year>q<quarter>.md`；重新运行 `scripts\build_fund_stock_index.py` 会按当前解析结果和映射配置生成。
 - 不提交 `node_modules/`、`dist/`、缓存目录、输出目录、环境变量文件和本地平台配置。
 - 修改数据口径后，同步更新 README 的数据说明和常见问题。

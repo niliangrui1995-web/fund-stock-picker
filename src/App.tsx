@@ -273,11 +273,6 @@ function normalizeStockCode(code: string) {
   return code.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
 }
 
-function stockPagePath(code: string) {
-  const slug = code.trim().toLowerCase().replace(/[^0-9a-z]+/g, "-").replace(/^-+|-+$/g, "");
-  return slug ? `/stocks/${slug}/` : "/";
-}
-
 function uniqueFundCodes(fundCode: string, fundVariantCodes?: string[]) {
   return Array.from(new Set([fundCode, ...(fundVariantCodes ?? [])].filter(Boolean)));
 }
@@ -1427,9 +1422,6 @@ export function App() {
                       </span>
                     </span>
                   </button>
-                  <a className="hotspot-seo-link" href={stockPagePath(stock.code)}>
-                    静态穿透页
-                  </a>
                 </article>
               );
             })
