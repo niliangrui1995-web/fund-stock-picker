@@ -52,36 +52,14 @@ function fundHoldingsFromCell(cell) {
   }
 }
 
-function positionFundCard(card, event, isMobilePanel) {
-  if (isMobilePanel) {
-    Object.assign(card.style, {
-      position: "fixed",
-      left: "12px",
-      right: "12px",
-      bottom: "12px",
-      zIndex: "10000",
-      pointerEvents: "auto",
-      visibility: "visible",
-    });
-    return;
+function cardPositionClass(event) {
+  if (!event || typeof event.clientX !== "number" || typeof event.clientY !== "number") {
+    return "";
   }
 
-  const x = typeof event?.clientX === "number" ? event.clientX : 24;
-  const y = typeof event?.clientY === "number" ? event.clientY : 24;
-  const cardWidth = Math.min(382, window.innerWidth - 24);
-  const rect = card.getBoundingClientRect();
-  const visibleHeight = Math.min(rect.height || 420, window.innerHeight - 24);
-  const left = Math.max(12, Math.min(x + 18, window.innerWidth - cardWidth - 12));
-  const top = Math.max(12, Math.min(y + 12, window.innerHeight - visibleHeight - 12));
-
-  Object.assign(card.style, {
-    position: "fixed",
-    left: left + "px",
-    top: top + "px",
-    zIndex: "9999",
-    pointerEvents: "none",
-    visibility: "visible",
-  });
+  const horizontalClass = event.clientX > window.innerWidth / 2 ? " card-left" : "";
+  const verticalClass = event.clientY < window.innerHeight / 2 ? " card-bottom" : "";
+  return horizontalClass + verticalClass;
 }
 
 function buildFundCard(cell, event, isMobilePanel) {
@@ -93,8 +71,10 @@ function buildFundCard(cell, event, isMobilePanel) {
   const topHolding = holdings[0] || null;
   const currentHolding = holdings.find((holding) => normalizeStockCode(holding.stockCode) === currentStockCode);
 
-  const card = createElement("div", "fund-holdings-hover-card" + (isMobilePanel ? " mobile-panel" : ""));
-  card.style.visibility = "hidden";
+  const card = createElement(
+    "div",
+    "fund-holdings-hover-card" + (isMobilePanel ? " mobile-panel" : cardPositionClass(event)),
+  );
 
   const header = createElement("div", "hover-card-header");
   const fundInfo = createElement("div", "hover-card-fund-info");
@@ -153,8 +133,8 @@ function buildFundCard(cell, event, isMobilePanel) {
         nameLine.append(createElement("span", "target-badge", "查询标的"));
       }
       const progress = createElement("div", "holding-progress-bar");
-      const fill = createElement("div", "holding-progress-fill");
-      fill.style.width = Math.min((ratio / maxRatio) * 100, 100) + "%";
+      const width = Math.max(0, Math.min(100, Math.round((ratio / maxRatio) * 100)));
+      const fill = createElement("div", "holding-progress-fill width-pct-" + width);
       progress.append(fill);
       main.append(nameLine, progress);
       row.append(
@@ -180,7 +160,6 @@ function buildFundCard(cell, event, isMobilePanel) {
   }
 
   document.body.append(card);
-  positionFundCard(card, event, isMobilePanel);
   return card;
 }
 
@@ -193,7 +172,7 @@ function showFundCard(cell, event, forceMobilePanel = false) {
     return;
   }
   if (activeFundCard) {
-    positionFundCard(activeFundCard, event, false);
+    activeFundCard.className = "fund-holdings-hover-card" + cardPositionClass(event);
   }
 }
 
@@ -205,7 +184,7 @@ document.querySelectorAll(".js-fund-cell").forEach((cell) => {
 
   cell.addEventListener("mousemove", (event) => {
     if (!supportsHoverPointer() || activeFundCell !== cell || !activeFundCard) return;
-    positionFundCard(activeFundCard, event, false);
+    activeFundCard.className = "fund-holdings-hover-card" + cardPositionClass(event);
   });
 
   cell.addEventListener("mouseleave", () => {

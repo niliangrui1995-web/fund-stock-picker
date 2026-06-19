@@ -51,6 +51,15 @@ function finiteNumber(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function widthClass(value) {
+  const width = Math.max(0, Math.min(100, Math.round(finiteNumber(value))));
+  return `width-pct-${width}`;
+}
+
+function percentageWidthCss() {
+  return Array.from({ length: 101 }, (_, width) => `.width-pct-${width} { width: ${width}%; }`).join("\n");
+}
+
 function seoPageLimit(stockCount) {
   const configuredLimit = Number.parseInt(process.env.SEO_PAGE_LIMIT ?? "", 10);
   if (!Number.isFinite(configuredLimit) || configuredLimit <= 0) {
@@ -319,13 +328,13 @@ function fundRows(funds, fundHoldings, currentStock) {
         <td class="strong">
           <div class="table-metric-cell">
             <span class="metric-num">${valueFormatter.format(fund.ratioPercent)}%</span>
-            <div class="table-progress-track"><div class="table-progress-fill" style="width: ${ratioWidth}%"></div></div>
+            <div class="table-progress-track"><div class="table-progress-fill ${widthClass(ratioWidth)}"></div></div>
           </div>
         </td>
         <td>
           <div class="table-metric-cell cell-passive">
             <span class="metric-num-passive">${escapeHtml(formatWan(fund.marketValueWan))}</span>
-            <div class="table-progress-track passive-track"><div class="table-progress-fill passive-fill" style="width: ${valueWidth}%"></div></div>
+            <div class="table-progress-track passive-track"><div class="table-progress-fill passive-fill ${widthClass(valueWidth)}"></div></div>
           </div>
         </td>
         <td class="shares-cell">${escapeHtml(formatSharesWan(fund.sharesWan))}</td>
@@ -395,13 +404,13 @@ function indirectExposureRows(exposures, fundHoldings, currentStock) {
         <td class="strong">
           <div class="table-metric-cell">
             <span class="metric-num">${valueFormatter.format(fund.ratioPercent)}%</span>
-            <div class="table-progress-track"><div class="table-progress-fill" style="width: ${rawWidth}%"></div></div>
+            <div class="table-progress-track"><div class="table-progress-fill ${widthClass(rawWidth)}"></div></div>
           </div>
         </td>
         <td class="strong">
           <div class="table-metric-cell">
             <span class="metric-num estimated-num">${escapeHtml(formatPercent(estimatedRatio))}</span>
-            <div class="table-progress-track"><div class="table-progress-fill estimated-fill" style="width: ${estimatedWidth}%"></div></div>
+            <div class="table-progress-track"><div class="table-progress-fill estimated-fill ${widthClass(estimatedWidth)}"></div></div>
           </div>
         </td>
         <td>
@@ -1831,6 +1840,8 @@ td:nth-child(5) {
   background: var(--accent);
 }
 
+${percentageWidthCss()}
+
 .passive-fill {
   background: #ccd7e6;
 }
@@ -1878,6 +1889,10 @@ td:nth-child(5) {
 }
 
 .fund-holdings-hover-card {
+  position: fixed;
+  top: 84px;
+  right: 12px;
+  z-index: 9999;
   width: 382px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
@@ -1889,6 +1904,16 @@ td:nth-child(5) {
   padding: 14px;
   pointer-events: none;
   animation: hover-card-pop 0.2s var(--ease) forwards;
+}
+
+.fund-holdings-hover-card.card-left {
+  right: auto;
+  left: 12px;
+}
+
+.fund-holdings-hover-card.card-bottom {
+  top: auto;
+  bottom: 12px;
 }
 
 .fund-holdings-backdrop {
@@ -2409,6 +2434,10 @@ td:nth-child(5) {
     width: auto;
     max-width: none;
     max-height: min(72vh, 620px);
+    top: auto;
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
     border-radius: 8px 8px 0 0;
     pointer-events: auto;
     animation: mobile-card-rise 0.2s var(--ease) forwards;
@@ -2493,36 +2522,14 @@ function fundHoldingsFromCell(cell) {
   }
 }
 
-function positionFundCard(card, event, isMobilePanel) {
-  if (isMobilePanel) {
-    Object.assign(card.style, {
-      position: "fixed",
-      left: "12px",
-      right: "12px",
-      bottom: "12px",
-      zIndex: "10000",
-      pointerEvents: "auto",
-      visibility: "visible",
-    });
-    return;
+function cardPositionClass(event) {
+  if (!event || typeof event.clientX !== "number" || typeof event.clientY !== "number") {
+    return "";
   }
 
-  const x = typeof event?.clientX === "number" ? event.clientX : 24;
-  const y = typeof event?.clientY === "number" ? event.clientY : 24;
-  const cardWidth = Math.min(382, window.innerWidth - 24);
-  const rect = card.getBoundingClientRect();
-  const visibleHeight = Math.min(rect.height || 420, window.innerHeight - 24);
-  const left = Math.max(12, Math.min(x + 18, window.innerWidth - cardWidth - 12));
-  const top = Math.max(12, Math.min(y + 12, window.innerHeight - visibleHeight - 12));
-
-  Object.assign(card.style, {
-    position: "fixed",
-    left: left + "px",
-    top: top + "px",
-    zIndex: "9999",
-    pointerEvents: "none",
-    visibility: "visible",
-  });
+  const horizontalClass = event.clientX > window.innerWidth / 2 ? " card-left" : "";
+  const verticalClass = event.clientY < window.innerHeight / 2 ? " card-bottom" : "";
+  return horizontalClass + verticalClass;
 }
 
 function buildFundCard(cell, event, isMobilePanel) {
@@ -2534,8 +2541,10 @@ function buildFundCard(cell, event, isMobilePanel) {
   const topHolding = holdings[0] || null;
   const currentHolding = holdings.find((holding) => normalizeStockCode(holding.stockCode) === currentStockCode);
 
-  const card = createElement("div", "fund-holdings-hover-card" + (isMobilePanel ? " mobile-panel" : ""));
-  card.style.visibility = "hidden";
+  const card = createElement(
+    "div",
+    "fund-holdings-hover-card" + (isMobilePanel ? " mobile-panel" : cardPositionClass(event)),
+  );
 
   const header = createElement("div", "hover-card-header");
   const fundInfo = createElement("div", "hover-card-fund-info");
@@ -2594,8 +2603,8 @@ function buildFundCard(cell, event, isMobilePanel) {
         nameLine.append(createElement("span", "target-badge", "查询标的"));
       }
       const progress = createElement("div", "holding-progress-bar");
-      const fill = createElement("div", "holding-progress-fill");
-      fill.style.width = Math.min((ratio / maxRatio) * 100, 100) + "%";
+      const width = Math.max(0, Math.min(100, Math.round((ratio / maxRatio) * 100)));
+      const fill = createElement("div", "holding-progress-fill width-pct-" + width);
       progress.append(fill);
       main.append(nameLine, progress);
       row.append(
@@ -2621,7 +2630,6 @@ function buildFundCard(cell, event, isMobilePanel) {
   }
 
   document.body.append(card);
-  positionFundCard(card, event, isMobilePanel);
   return card;
 }
 
@@ -2634,7 +2642,7 @@ function showFundCard(cell, event, forceMobilePanel = false) {
     return;
   }
   if (activeFundCard) {
-    positionFundCard(activeFundCard, event, false);
+    activeFundCard.className = "fund-holdings-hover-card" + cardPositionClass(event);
   }
 }
 
@@ -2646,7 +2654,7 @@ document.querySelectorAll(".js-fund-cell").forEach((cell) => {
 
   cell.addEventListener("mousemove", (event) => {
     if (!supportsHoverPointer() || activeFundCell !== cell || !activeFundCard) return;
-    positionFundCard(activeFundCard, event, false);
+    activeFundCard.className = "fund-holdings-hover-card" + cardPositionClass(event);
   });
 
   cell.addEventListener("mouseleave", () => {
