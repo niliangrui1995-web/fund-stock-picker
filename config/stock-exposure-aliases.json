@@ -40,5 +40,13 @@
     { "sourceCode": "07709", "targetCode": "000660", "leverageMultiple": 2 },
     { "sourceCode": "7747.HK", "targetCode": "005930", "leverageMultiple": 2 },
     { "sourceCode": "07747", "targetCode": "005930", "leverageMultiple": 2 }
+  ],
+  "ignoredProducts": [
+    {
+      "sourceCode": "DIG",
+      "aliases": ["ProShares Ultra Energy"],
+      "reason": "ProShares Ultra Energy (DIG) 是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品；不要映射到 XOM/CVX 等站内正股。",
+      "evidence": "https://www.proshares.com/our-etfs/leveraged-and-inverse/dig"
+    }
   ]
 }

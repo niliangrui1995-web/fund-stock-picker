@@ -2,7 +2,7 @@
 
 只读维护产物，由 `scripts/build_fund_stock_index.py` 根据定期报告解析结果、`config/stock-exposure-aliases.json` 和最终前端数据生成；不要手工修改它来修页面展示。
 
-- 生成时间：`2026-06-18T19:41:06`
+- 生成时间：`2026-06-19T08:00:10`
 - 前端数据：`public/data/fund-stock-index-2026q1.json`
 - 报告解析 summary：`outputs/fund_report_holdings_summary_2026q1.json`
 - 报告解析 CSV：`outputs/holdings_fund_investment_2026q1.csv`
@@ -21,6 +21,7 @@
 | 最终 indirectExposureRows | 4 |
 | stockAliases 正股数 | 19 |
 | knownProducts 产品数 | 18 |
+| ignoredProducts 暂不映射产品数 | 1 |
 
 ## 状态计数
 
@@ -131,8 +132,8 @@
 
 | 基金代码 | 基金名称 | 基金类型 | 产品代码 | 产品名称 | 原占净值 | 处理结果 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 019710 | 广发道琼斯石油指数(QDII-LOF)人民币E | 指数型-海外股票 | REPORT-FUND-01 | 1 ProShares Ultra | 1.97% | 未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。 |
-| 019711 | 广发道琼斯石油指数(QDII-LOF)美元现汇E | 指数型-海外股票 | REPORT-FUND-01 | 1 ProShares Ultra | 1.97% | 未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。 |
+| 019710 | 广发道琼斯石油指数(QDII-LOF)人民币E | 指数型-海外股票 | DIG | ProShares Ultra Energy | 1.97% | 已确认暂不映射：ProShares Ultra Energy (DIG) 是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品；不要映射到 XOM/CVX 等站内正股。 |
+| 019711 | 广发道琼斯石油指数(QDII-LOF)美元现汇E | 指数型-海外股票 | DIG | ProShares Ultra Energy | 1.97% | 已确认暂不映射：ProShares Ultra Energy (DIG) 是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品；不要映射到 XOM/CVX 等站内正股。 |
 
 ## 候选跳过 / 未进入 indirectExposureRows
 
@@ -160,8 +161,8 @@
 | 018860 | 嘉实产业优选混合(LOF)C | 混合型-灵活 | 报告已解析，无正向杠杆明细 | 0 | 0 | 报告已解析，但基金投资明细里没有正向个股杠杆产品 |
 | 018948 | 东方红睿满沪港深混合(LOF)C | 混合型-灵活 | 报告已解析，无正向杠杆明细 | 0 | 0 | 报告已解析，但基金投资明细里没有正向个股杠杆产品 |
 | 018949 | 东方红睿华沪港深混合(LOF)C | 混合型-灵活 | 报告已解析，无正向杠杆明细 | 0 | 0 | 报告已解析，但基金投资明细里没有正向个股杠杆产品 |
-| 019710 | 广发道琼斯石油指数(QDII-LOF)人民币E | 指数型-海外股票 | 解析到杠杆明细 | 1 | 0 | 解析到杠杆明细，但未通过映射配置匹配到站内正股 |
-| 019711 | 广发道琼斯石油指数(QDII-LOF)美元现汇E | 指数型-海外股票 | 解析到杠杆明细 | 1 | 0 | 解析到杠杆明细，但未通过映射配置匹配到站内正股 |
+| 019710 | 广发道琼斯石油指数(QDII-LOF)人民币E | 指数型-海外股票 | 解析到杠杆明细 | 1 | 0 | 已确认暂不映射：ProShares Ultra Energy (DIG) 是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品；不要映射到 XOM/CVX 等站内正股。 |
+| 019711 | 广发道琼斯石油指数(QDII-LOF)美元现汇E | 指数型-海外股票 | 解析到杠杆明细 | 1 | 0 | 已确认暂不映射：ProShares Ultra Energy (DIG) 是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品；不要映射到 XOM/CVX 等站内正股。 |
 | 022182 | 招商智星稳健配置混合(FOF-LOF)D | FOF-稳健型 | 报告已解析，无正向杠杆明细 | 0 | 0 | 报告已解析，但基金投资明细里没有正向个股杠杆产品 |
 | 022834 | 鹏华中证沪港深科技龙头指数(LOF)I | 指数型-股票 | 报告已解析，无正向杠杆明细 | 0 | 0 | 报告已解析，但基金投资明细里没有正向个股杠杆产品 |
 | 024114 | 泓德丰泽混合(LOF)C | 混合型-偏股 | 报告已解析，无正向杠杆明细 | 0 | 0 | 报告已解析，但基金投资明细里没有正向个股杠杆产品 |

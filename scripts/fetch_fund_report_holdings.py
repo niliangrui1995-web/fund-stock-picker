@@ -77,6 +77,7 @@ NAME_FIXES = (
 KNOWN_PRODUCT_CODES = (
     (re.compile(r"(?i)\bCSOP\b.*\bSK\s+HYNIX\b.*\b2\s*X\b"), "7709.HK"),
     (re.compile(r"(?i)\bCSOP\b.*\bSAMSUNG\s+ELECTRONICS\b.*\b2\s*X\b"), "7747.HK"),
+    (re.compile(r"(?i)\bPROSHARES\s+ULTRA\s+ENERGY\b"), "DIG"),
 )
 
 
@@ -240,6 +241,36 @@ def normalize_product_name(value: str) -> str:
     return normalized.strip()
 
 
+def clean_product_name(value: str) -> str:
+    normalized = normalize_product_name(value)
+    return re.sub(r"^\d{1,2}\s+", "", normalized).strip()
+
+
+def closest_name_continuation(
+    name_block: tuple[float, float, float, float, str],
+    blocks: list[tuple[float, float, float, float, str]],
+) -> str:
+    x0, y0, _x1, y1, _text = name_block
+    pieces: list[tuple[float, float, str]] = []
+    for candidate in blocks:
+        if candidate == name_block:
+            continue
+        cx0, cy0, cx1, _cy1, ctext = candidate
+        if not (80 <= cx0 <= 260 and cx1 <= 280):
+            continue
+        if cy0 < y0 + 4 or cy0 > y1 + 18:
+            continue
+        if cx0 < x0 + 20:
+            continue
+        piece = clean_product_name(ctext)
+        if not piece or piece == "基金名称" or NUMERIC_RE.fullmatch(piece):
+            continue
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9 .&/-]*", piece):
+            continue
+        pieces.append((cy0, cx0, piece))
+    return " ".join(piece for _cy0, _cx0, piece in sorted(pieces))
+
+
 def infer_product_code(name: str, rank: int) -> str:
     normalized = normalize_product_name(name)
     for pattern, code in KNOWN_PRODUCT_CODES:
@@ -333,7 +364,10 @@ def parse_leveraged_fund_investments(pdf_path: Path) -> list[dict[str, Any]]:
                     continue
                 if not (80 <= x0 <= 260):
                     continue
-                name = normalize_product_name(text)
+                name = clean_product_name(text)
+                continuation = closest_name_continuation(block, blocks)
+                if continuation and continuation not in name:
+                    name = normalize_product_name(f"{name} {continuation}")
                 if not name or "基金名称" in name:
                     continue
                 if INVERSE_PRODUCT_RE.search(name) or not LEVERAGED_LONG_RE.search(name):

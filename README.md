@@ -184,10 +184,13 @@ public/data/*.json          # 前端发布数据
 - 自动扫描持仓证券代码和名称中包含 `2X`、`3X`、`杠杆`、`Leveraged`、`Ultra`、`Long`、`Bull` 等特征的海外单股产品。
 - 使用股票代码、股票名称和 `stockAliases` 把产品映射回对应正股，例如 `NVDL` 映射到 `NVDA`。
 - `knownProducts` 用于补充容易漏识别的已知产品代码。
+- `ignoredProducts` 用于记录已确认不是单股杠杆产品的行业 / 主题 / 指数杠杆 ETF，审计页会显示暂不映射原因。
 - 排除 `Short`、`Bear`、`Inverse`、`做空`、`反向` 等反向产品。
 - 估算经济暴露 = 基金披露的原占净值比例 × 产品杠杆倍数，仅作方向性穿透。
 
 当前 2026Q1 流程从 `79` 只“持有海外公司且属于 LOF”的候选基金里，解析出 `6` 行杠杆基金投资明细，并映射出 `4` 行海外个股杠杆间接暴露。其中 `016823` / `164212` 天弘全球新能源汽车股票(QDII-LOF) 通过 `7709.HK` 持有 `CSOP SK Hynix Daily 2x Leveraged Product`，通过 `7747.HK` 持有 `CSOP Samsung Electronics Daily 2x Leveraged Product`；页面会分别归入 `000660` / SK海力士和 `005930` / 三星电子的“间接 / 杠杆 ETF 暴露”表。
+
+`019710` / `019711` 广发道琼斯石油指数(QDII-LOF) 解析出的 `ProShares Ultra Energy` 对应 `DIG`。它是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品，因此已记录在 `ignoredProducts`，不要映射到 XOM / CVX 等站内正股。
 
 维护者审计文件由 `scripts\build_fund_stock_index.py` 同步生成到 `public/seo/indirect-exposure-audit-<year>q<quarter>.md`。它串起本季定期报告解析候选、候选跳过原因、杠杆产品到正股的映射关系，以及最终进入前端数据的 `meta.indirectExposureRows` 数量；排查间接暴露时先看这个文件，不需要先读脚本。
 
@@ -351,6 +354,8 @@ npm run build
 先检查数据文件的 `meta.indirectExposureRows` 和 `meta.fundInvestmentSourceRows`。如果 `fundInvestmentSourceRows` 为 `0`，说明还没有运行定期报告 PDF 补充流程；如果 `fundInvestmentSourceRows` 有值但某只产品没出现，通常是报告里没有披露、产品名称无法映射到正股，或该基金不在当前候选范围内。
 
 也可以先打开 `public/seo/indirect-exposure-audit-<year>q<quarter>.md`。审计文件会列出本季哪些 LOF/QDII 定期报告被解析、哪些候选未进入 `indirectExposureRows`、哪些解析到的杠杆产品没有映射到站内正股，以及最终映射进前端数据的行数。
+
+如果审计里出现 `ProShares Ultra Energy` / `DIG`，它属于已确认暂不映射的行业 ETF，不是某只能源正股的单股杠杆产品；优先看审计页“解析到但未映射的杠杆明细”的处理结果，不要为它补单股别名。
 
 当前默认流程会先定位持有海外公司的基金，再筛选 LOF 基金下载定期报告。若需要扩大范围，可以用 `scripts\fetch_fund_report_holdings.py` 的候选范围参数生成更大的补充明细，再重新运行 `scripts\build_fund_stock_index.py` 和 `npm run build`。
 

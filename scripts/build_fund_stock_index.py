@@ -281,6 +281,39 @@ def configured_known_products(alias_config: dict[str, Any]) -> dict[str, dict[st
     return products
 
 
+def configured_ignored_products(alias_config: dict[str, Any]) -> list[dict[str, Any]]:
+    products: list[dict[str, Any]] = []
+    for item in alias_config.get("ignoredProducts", []):
+        if isinstance(item, dict):
+            products.append(item)
+    return products
+
+
+def ignored_product_reason(row: dict[str, str], ignored_products: list[dict[str, Any]]) -> str:
+    source_code = row.get("证券代码", "").strip()
+    source_name = row.get("证券名称", "").strip()
+    normalized_source_code = normalize_alias_text(source_code).replace(" ", "")
+    text = f"{source_code} {source_name}"
+    for item in ignored_products:
+        configured_code = normalize_alias_text(str(item.get("sourceCode", ""))).replace(" ", "")
+        if configured_code and configured_code == normalized_source_code:
+            return str(item.get("reason", "")).strip()
+        for alias in item.get("aliases", []):
+            if isinstance(alias, str) and alias_in_text(alias, text):
+                return str(item.get("reason", "")).strip()
+    return ""
+
+
+def unmapped_fund_investment_reason(
+    row: dict[str, str],
+    ignored_products: list[dict[str, Any]],
+) -> str:
+    reason = ignored_product_reason(row, ignored_products)
+    if reason:
+        return f"已确认暂不映射：{reason}"
+    return "未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。"
+
+
 def stock_alias_candidates(stock_rows: dict[str, dict[str, Any]], alias_config: dict[str, Any]) -> list[dict[str, Any]]:
     configured_aliases = alias_config.get("stockAliases", {})
     candidates: list[dict[str, Any]] = []
@@ -460,12 +493,18 @@ def status_label(status: str) -> str:
     return labels.get(status, status or "未知")
 
 
-def skipped_candidate_reason(result: dict[str, Any], mapped_rows: int) -> str:
+def skipped_candidate_reason(
+    result: dict[str, Any],
+    mapped_rows: int,
+    unmapped_reason: str = "",
+) -> str:
     status = str(result.get("status", ""))
     rows_found = int(result.get("rows_found") or 0)
     if mapped_rows > 0:
         return ""
     if rows_found > 0:
+        if unmapped_reason:
+            return unmapped_reason
         return "解析到杠杆明细，但未通过映射配置匹配到站内正股"
     if status == "no_leveraged_fund_investment":
         return "报告已解析，但基金投资明细里没有正向个股杠杆产品"
@@ -509,6 +548,7 @@ def render_indirect_exposure_audit(
     candidate_results = fetch_summary.get("candidate_results", [])
     final_rows = flatten_indirect_exposure_rows(indirect_exposures)
     mapped_rows_by_fund = Counter(row["fundCode"] for row in final_rows)
+    ignored_products = configured_ignored_products(exposure_aliases)
     parsed_statuses = {"ok", "no_leveraged_fund_investment"}
     parsed_results = [
         result for result in candidate_results if result.get("status") in parsed_statuses
@@ -528,6 +568,11 @@ def render_indirect_exposure_audit(
         if (row.get("基金代码", ""), row.get("证券代码", ""), row.get("证券名称", ""))
         not in final_keys
     ]
+    unmapped_reasons_by_fund: dict[str, set[str]] = defaultdict(set)
+    for row in unmapped_fund_investment_rows:
+        reason = unmapped_fund_investment_reason(row, ignored_products)
+        if reason.startswith("已确认暂不映射"):
+            unmapped_reasons_by_fund[row.get("基金代码", "")].add(reason)
 
     product_mappings: dict[tuple[Any, ...], set[str]] = defaultdict(set)
     for row in final_rows:
@@ -569,6 +614,7 @@ def render_indirect_exposure_audit(
                 ["最终 indirectExposureRows", meta.get("indirectExposureRows", "")],
                 ["stockAliases 正股数", len(exposure_aliases.get("stockAliases", {}))],
                 ["knownProducts 产品数", len(exposure_aliases.get("knownProducts", []))],
+                ["ignoredProducts 暂不映射产品数", len(exposure_aliases.get("ignoredProducts", []))],
             ],
         ),
         "",
@@ -676,7 +722,7 @@ def render_indirect_exposure_audit(
                         row.get("证券代码", ""),
                         row.get("证券名称", ""),
                         row.get("占净值比例", ""),
-                        "未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。",
+                        unmapped_fund_investment_reason(row, ignored_products),
                     ]
                     for row in unmapped_fund_investment_rows
                 ],
@@ -697,6 +743,7 @@ def render_indirect_exposure_audit(
                         skipped_candidate_reason(
                             result,
                             mapped_rows_by_fund.get(result.get("fundCode", ""), 0),
+                            "；".join(sorted(unmapped_reasons_by_fund.get(result.get("fundCode", ""), set()))),
                         ),
                     ]
                     for result in skipped_results
