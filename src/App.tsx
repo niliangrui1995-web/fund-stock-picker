@@ -127,11 +127,21 @@ const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
 const aiBattleHotspots = aiBattleHotspotsData as AiBattleHotspot[];
 
 function getInitialQuery() {
+  const stockCode = getInitialSearchParam("stock");
+  const query = getInitialSearchParam("q");
+  return query || stockCode || "";
+}
+
+function getInitialSelectedCode() {
+  return getInitialSearchParam("stock") || null;
+}
+
+function getInitialSearchParam(name: string) {
   if (typeof window === "undefined") {
     return "";
   }
 
-  return new URLSearchParams(window.location.search).get("q")?.trim() ?? "";
+  return new URLSearchParams(window.location.search).get(name)?.trim() ?? "";
 }
 
 function normalize(input: string) {
@@ -1155,7 +1165,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
 export function App() {
   const [data, setData] = useState<FundStockIndex | null>(null);
   const [query, setQuery] = useState(getInitialQuery);
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState<string | null>(getInitialSelectedCode);
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -1205,7 +1215,10 @@ export function App() {
 
   const selectedStock = useMemo(() => {
     if (!data) return null;
-    const fromSelectedCode = data.stocks.find((stock) => stock.code === selectedCode);
+    const normalizedSelectedCode = selectedCode ? normalizeStockCode(selectedCode) : "";
+    const fromSelectedCode = normalizedSelectedCode
+      ? data.stocks.find((stock) => normalizeStockCode(stock.code) === normalizedSelectedCode)
+      : null;
     if (fromSelectedCode) return fromSelectedCode;
     return matches[0] ?? null;
   }, [data, matches, selectedCode]);

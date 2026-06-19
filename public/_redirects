@@ -1,1 +1,4 @@
+/stocks/:code/index.html /?stock=:code 302
+/stocks/:code/ /?stock=:code 302
+/stocks/:code /?stock=:code 302
 /stocks/* / 302

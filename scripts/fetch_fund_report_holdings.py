@@ -225,11 +225,38 @@ def load_candidate_funds(
     return dict(sorted(candidates.items()))
 
 
+YEAR_DIGIT_VARIANTS = {
+    "0": ("0", "零", "〇"),
+    "1": ("一",),
+    "2": ("二",),
+    "3": ("三",),
+    "4": ("四",),
+    "5": ("五",),
+    "6": ("六",),
+    "7": ("七",),
+    "8": ("八",),
+    "9": ("九",),
+}
+
+
+def year_title_variants(year: int) -> set[str]:
+    variants = {""}
+    for digit in str(year):
+        variants = {
+            prefix + suffix
+            for prefix in variants
+            for suffix in YEAR_DIGIT_VARIANTS.get(digit, (digit,))
+        }
+    variants.add(str(year))
+    return variants
+
+
 def select_quarter_report(data: dict[str, Any], year: int, quarter: int) -> dict[str, Any] | None:
-    marker = f"{year}年第{quarter}季度报告"
+    quarter_marker = f"第{quarter}季度报告"
+    year_markers = tuple(f"{variant}年" for variant in year_title_variants(year))
     for item in data.get("Data") or []:
         title = str(item.get("TITLE", ""))
-        if marker in title:
+        if quarter_marker in title and any(marker in title for marker in year_markers):
             return item
     return None
 

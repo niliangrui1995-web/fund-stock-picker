@@ -353,6 +353,27 @@ async function handleFeedback(request, env) {
   }
 }
 
+function safeDecodePathSegment(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch (error) {
+    void error;
+    return value;
+  }
+}
+
+function legacyStockPageRedirect(url) {
+  const match = url.pathname.match(/^\/stocks\/([^/]+)(?:\/index\.html|\/)?$/);
+  if (!match) return null;
+
+  const stockCode = safeDecodePathSegment(match[1]).trim();
+  if (!stockCode) return null;
+
+  const target = new URL("/", url);
+  target.searchParams.set("stock", stockCode);
+  return Response.redirect(target.toString(), 302);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -361,6 +382,11 @@ export default {
         return handleFeedback(request, env);
       }
       return jsonResponse({ ok: false, error: "Method not allowed" }, { status: 405 });
+    }
+
+    const stockRedirect = legacyStockPageRedirect(url);
+    if (stockRedirect) {
+      return stockRedirect;
     }
 
     return env.ASSETS.fetch(request);
