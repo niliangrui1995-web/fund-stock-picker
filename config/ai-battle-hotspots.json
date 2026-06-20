@@ -26,5 +26,19 @@
     "track": "HBM4E / AI 存储",
     "thesis": "SK 海力士 HBM4E 与存储短缺是最近战报主线，穿透结果能快速定位 QDII 与场内 ETF 暴露。",
     "evidence": "邮件战报：HBM4E 12层样品出货；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q1 基金持仓索引：场外 5 只，最高占比 8.65%"
+  },
+  {
+    "code": "MU",
+    "label": "MU / 美光科技",
+    "track": "HBM4E / AI 存储",
+    "thesis": "美光同时映射 HBM、DRAM 与数据中心 SSD 的 AI 内存/存储缺口，适合作为 HBM4E + 存储短缺主线的美国内存侧入口。",
+    "evidence": "公司公告/IR复查：HBM4/HBM4E 路线推进，DRAM/NAND 供给偏紧；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q1 基金持仓索引：场外 16 只，最高占比 7.69%"
+  },
+  {
+    "code": "SNDK",
+    "label": "SNDK / 闪迪",
+    "track": "AI 存储 / NAND SSD",
+    "thesis": "闪迪不属于 HBM4E，但承接 AI 数据层、企业 SSD 与 NAND 供给偏紧分支；站内已有扩展海外 AI / AI 存储持仓明细，可作为存储侧入口。",
+    "evidence": "公司公告/IR复查：AI 数据层带动企业 SSD/NAND 需求，供需维持偏紧；海外 AI 暴露表：扩展海外AI / AI存储；2026Q1 基金持仓索引：场外 10 只，最高占比 8.57%"
   }
 ]

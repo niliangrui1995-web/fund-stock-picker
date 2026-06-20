@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
+import { verifyLiveStockDeeplinks } from "./verify-stock-deeplinks.mjs";
 
 const DEFAULT_LIVE_ORIGIN = "https://fund.niliangrui.cloud";
 const LIVE_ORIGIN = (process.env.LIVE_RELEASE_ORIGIN || DEFAULT_LIVE_ORIGIN).replace(/\/+$/, "");
@@ -215,6 +216,18 @@ async function main() {
   }
 
   addGroupedCheck("live data meta matches live release manifest", dataMetaMismatches(liveData, liveManifest));
+
+  const liveStockDeeplinkResults = await verifyLiveStockDeeplinks({
+    liveOrigin: LIVE_ORIGIN,
+    stockPayload: liveData,
+  });
+  for (const result of liveStockDeeplinkResults) {
+    addCheck(
+      `live legacy ${result.requestPath} lands on /?stock=${result.code}`,
+      result.passed,
+      result.details,
+    );
+  }
 
   printResult(expected, localManifest, liveManifest);
 }

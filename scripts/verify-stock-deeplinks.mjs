@@ -1,14 +1,15 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
 
-const SAMPLE_CODES = ["AMD", "LITE", "COHR", "000660"];
+export const SAMPLE_CODES = ["AMD", "LITE", "COHR", "000660"];
 const REDIRECTS_PATH = path.join(ROOT, "public", "_redirects");
 const WORKER_PATH = path.join(ROOT, "public", "_worker.js");
 const TEST_ORIGIN = "https://fund.niliangrui.cloud";
 
-function normalizeStockCode(code) {
+export function normalizeStockCode(code) {
   return String(code ?? "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
 }
 
@@ -75,6 +76,98 @@ function assert(condition, message) {
   }
 }
 
+function stockMap(payload) {
+  return new Map((payload.stocks ?? []).map((stock) => [normalizeStockCode(stock.code), stock]));
+}
+
+function expectedStockContext(stocksByNormalizedCode, code, dataLabel) {
+  const expectedCode = normalizeStockCode(code);
+  const expectedStock = stocksByNormalizedCode.get(expectedCode);
+  assert(expectedStock, `${code} is missing from ${dataLabel}`);
+  assert(
+    Array.isArray(expectedStock.topByRatio) && expectedStock.topByRatio.length > 0,
+    `${code} has no off-exchange fund holding result rows`,
+  );
+
+  return { expectedCode, expectedStock };
+}
+
+function noCacheHeaders() {
+  return {
+    "cache-control": "no-cache",
+    pragma: "no-cache",
+  };
+}
+
+function finalPath(url) {
+  return `${url.pathname}${url.search}`;
+}
+
+export async function verifyLiveStockDeeplinks({
+  liveOrigin = TEST_ORIGIN,
+  stockPayload,
+  sampleCodes = SAMPLE_CODES,
+} = {}) {
+  assert(stockPayload, "stockPayload is required for live stock deeplink verification");
+
+  const origin = String(liveOrigin || TEST_ORIGIN).replace(/\/+$/, "");
+  const expectedOrigin = new URL(origin).origin;
+  const stocksByNormalizedCode = stockMap(stockPayload);
+  const results = [];
+
+  for (const code of sampleCodes) {
+    const requestPath = `/stocks/${encodeURIComponent(code)}/`;
+
+    try {
+      const { expectedCode, expectedStock } = expectedStockContext(
+        stocksByNormalizedCode,
+        code,
+        "live stock data payload",
+      );
+      const requestUrl = new URL(requestPath, `${origin}/`);
+      const response = await fetch(requestUrl, {
+        cache: "no-store",
+        headers: noCacheHeaders(),
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        throw new Error(`${requestUrl.href} returned ${response.status} ${response.statusText}`);
+      }
+
+      const resolvedUrl = new URL(response.url);
+      const stockParam = resolvedUrl.searchParams.get("stock") ?? "";
+      assert(resolvedUrl.origin === expectedOrigin, `${requestPath} landed on ${resolvedUrl.origin}`);
+      assert(resolvedUrl.pathname === "/", `${requestPath} should land on /, got ${resolvedUrl.pathname}`);
+      assert(
+        normalizeStockCode(stockParam) === expectedCode,
+        `${requestPath} should preserve stock=${code}, got ${stockParam || "(empty)"}`,
+      );
+
+      const selectedStock = stocksByNormalizedCode.get(normalizeStockCode(stockParam));
+      assert(selectedStock?.code === expectedStock.code, `${requestPath} would select the wrong live stock`);
+
+      results.push({
+        code,
+        passed: true,
+        requestPath,
+        finalPath: finalPath(resolvedUrl),
+        details: `${requestUrl.href} -> ${finalPath(resolvedUrl)} -> ${selectedStock.code} (${selectedStock.topByRatio.length} result rows)`,
+      });
+    } catch (error) {
+      results.push({
+        code,
+        passed: false,
+        requestPath,
+        finalPath: "",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return results;
+}
+
 async function main() {
   const quarterConfig = await loadQuarterConfig();
   const [redirectsRaw, workerRaw, dataRaw] = await Promise.all([
@@ -84,17 +177,13 @@ async function main() {
   ]);
   const rules = parseRedirects(redirectsRaw);
   const payload = JSON.parse(dataRaw);
-  const stocksByNormalizedCode = new Map(
-    (payload.stocks ?? []).map((stock) => [normalizeStockCode(stock.code), stock]),
-  );
+  const stocksByNormalizedCode = stockMap(payload);
 
   for (const code of SAMPLE_CODES) {
-    const expectedCode = normalizeStockCode(code);
-    const expectedStock = stocksByNormalizedCode.get(expectedCode);
-    assert(expectedStock, `${code} is missing from ${quarterConfig.paths.fundStockIndexJson}`);
-    assert(
-      Array.isArray(expectedStock.topByRatio) && expectedStock.topByRatio.length > 0,
-      `${code} has no off-exchange fund holding result rows`,
+    const { expectedCode, expectedStock } = expectedStockContext(
+      stocksByNormalizedCode,
+      code,
+      quarterConfig.paths.fundStockIndexJson,
     );
 
     for (const pathname of stockPathVariants(code)) {
@@ -127,7 +216,9 @@ async function main() {
   console.log("[OK] public/_worker.js preserves stock context before serving assets");
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
