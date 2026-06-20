@@ -135,7 +135,7 @@ npm run preview
 npm run verify-live-release
 ```
 
-该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`000660`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。
+该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`000660`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。
 
 ## 数据生成
 
@@ -255,7 +255,7 @@ npm run hotspots
 - 浏览器实际请求的前端数据文件名，例如 `fund-stock-index-2026q1.json`。
 - 前端数据文件 `meta.report`、`meta.cutoffDate`、`meta.generatedAt`。
 - `public/seo/quarter-release-check.json` 记录的发布清单、sitemap `lastmod` 和 OG/sitemap 使用的季度。
-- 旧 `/stocks/<code>/` 深链样例会真实请求 `https://fund.niliangrui.cloud/stocks/AMD/`、`LITE`、`COHR`、`000660`，确认最终回到 `/?stock=<code>` 并能保留正确股票上下文。
+- 旧 `/stocks/<code>/` 深链样例会真实请求 `https://fund.niliangrui.cloud/stocks/AMD/`、`LITE`、`COHR`、`000660`、`MU`、`SNDK`，确认最终回到 `/?stock=<code>` 并能保留正确股票上下文。
 
 正常情况下，命令会显示所有检查通过。若数据 JSON、自检清单或发布清单缺失 / 不一致，命令会列出不一致字段并以非零退出码结束。
 
