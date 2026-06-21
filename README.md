@@ -18,7 +18,7 @@
 - `NVDA` / `英伟达`：查看英伟达被哪些场外基金和场内品种持有。
 - `TSM` / `台积电`：查看台积电相关基金持仓排序。
 - `00700` / `腾讯控股`：查看腾讯控股在公募基金中的持仓穿透结果。
-- `AMD`、`LITE`、`COHR`、`000660`：查看 AI 战报热点标的对应的基金持仓穿透结果。
+- `AMD`、`LITE`、`COHR`、`000660`、`005930`：查看 AI 战报热点标的对应的基金持仓穿透结果。
 
 ## 功能
 
@@ -135,7 +135,7 @@ npm run preview
 npm run verify-live-release
 ```
 
-该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`000660`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。
+该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。
 
 ## 数据生成
 
@@ -228,7 +228,7 @@ npm run hotspots
 维护规则：
 
 - 新增热点时，只改 `config/ai-battle-hotspot-sources.json`，不要直接手改 `config/ai-battle-hotspots.json`。
-- `code` 使用站内股票代码口径，例如 `AMD`、`LITE`、`COHR`、`000660`；脚本会确认当前季度前端 JSON 里存在同一 `code`。
+- `code` 使用站内股票代码口径，例如 `AMD`、`LITE`、`COHR`、`000660`、`005930`；脚本会确认当前季度前端 JSON 里存在同一 `code`。
 - `source` / `signal` 记录热点线索来源和一句话摘要，不复制邮件全文或临时新闻流。
 - `track` 写给首页卡片看的产业链标签；留空时脚本会尝试用海外 AI 明细里的“口径 / 分类”补齐。
 - `thesis` 写站内入口理由，不写长新闻正文。
@@ -255,7 +255,7 @@ npm run hotspots
 - 浏览器实际请求的前端数据文件名，例如 `fund-stock-index-2026q1.json`。
 - 前端数据文件 `meta.report`、`meta.cutoffDate`、`meta.generatedAt`。
 - `public/seo/quarter-release-check.json` 记录的发布清单、sitemap `lastmod` 和 OG/sitemap 使用的季度。
-- 旧 `/stocks/<code>/` 深链样例会真实请求 `https://fund.niliangrui.cloud/stocks/AMD/`、`LITE`、`COHR`、`000660`、`MU`、`SNDK`，确认最终回到 `/?stock=<code>` 并能保留正确股票上下文。
+- 旧 `/stocks/<code>/` 深链样例会真实请求 `https://fund.niliangrui.cloud/stocks/AMD/`、`LITE`、`COHR`、`000660`、`005930`、`MU`、`SNDK`，确认最终回到 `/?stock=<code>` 并能保留正确股票上下文。
 
 正常情况下，命令会显示所有检查通过。若数据 JSON、自检清单或发布清单缺失 / 不一致，命令会列出不一致字段并以非零退出码结束。
 

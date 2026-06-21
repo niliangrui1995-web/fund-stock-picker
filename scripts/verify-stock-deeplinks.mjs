@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
 
-export const SAMPLE_CODES = ["AMD", "LITE", "COHR", "000660", "MU", "SNDK"];
+export const SAMPLE_CODES = ["AMD", "LITE", "COHR", "000660", "005930", "MU", "SNDK"];
 const REDIRECTS_PATH = path.join(ROOT, "public", "_redirects");
 const WORKER_PATH = path.join(ROOT, "public", "_worker.js");
 const TEST_ORIGIN = "https://fund.niliangrui.cloud";
