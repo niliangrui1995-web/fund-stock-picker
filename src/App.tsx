@@ -125,6 +125,7 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
 });
 const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
 const aiBattleHotspots = aiBattleHotspotsData as AiBattleHotspot[];
+const preferredQuickStockCodes = ["005930", "MU", "SNDK"];
 
 function getInitialQuery() {
   const stockCode = getInitialSearchParam("stock");
@@ -1253,7 +1254,19 @@ export function App() {
     if (!popularMarketFilter) return source;
     return source.filter((stock) => stockMarketBucket(stock.code, stock.name) === popularMarketFilter);
   }, [data, popularMarketFilter]);
-  const quickStocks = useMemo(() => (data?.popularStocks ?? []).slice(0, 5), [data]);
+  const quickStocks = useMemo(() => {
+    if (!data) return [];
+
+    const preferredStocks = preferredQuickStockCodes
+      .map((code) => data.stocks.find((stock) => normalizeStockCode(stock.code) === code))
+      .filter((stock): stock is StockRecord => Boolean(stock));
+    const preferredCodes = new Set(preferredStocks.map((stock) => normalizeStockCode(stock.code)));
+    const fallbackStocks = data.popularStocks.filter(
+      (stock) => !preferredCodes.has(normalizeStockCode(stock.code)),
+    );
+
+    return [...preferredStocks, ...fallbackStocks].slice(0, 5);
+  }, [data]);
   const aiBattleHotspotCards = useMemo(() => {
     if (!data) return [];
 
@@ -1367,7 +1380,7 @@ export function App() {
 
         <div className="recent-panel" aria-label="快速查询">
           <div className="panel-status">
-            <span>最近查询</span>
+            <span>AI 存储热点</span>
           </div>
           <div className="recent-chips">
             {quickStocks.length ? (

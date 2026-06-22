@@ -2,12 +2,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
-import { verifyLiveStockDeeplinks } from "./verify-stock-deeplinks.mjs";
+import { normalizeStockCode, verifyLiveStockDeeplinks } from "./verify-stock-deeplinks.mjs";
 
 const DEFAULT_LIVE_ORIGIN = "https://fund.niliangrui.cloud";
 const LIVE_ORIGIN = (process.env.LIVE_RELEASE_ORIGIN || DEFAULT_LIVE_ORIGIN).replace(/\/+$/, "");
 const CACHE_BUST = process.env.LIVE_RELEASE_CACHE_BUST || Date.now().toString();
 const RELEASE_CHECK_PATH = "seo/quarter-release-check.json";
+const HOMEPAGE_PATH = "/";
+const HOTSPOTS_PATH = path.join(ROOT, "config", "ai-battle-hotspots.json");
+const LIVE_HOMEPAGE_HOTSPOT_CODES = ["005930", "MU", "SNDK"];
 
 const checks = [];
 
@@ -35,6 +38,22 @@ function liveUrl(browserPath) {
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
+}
+
+async function fetchText(url, label) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "cache-control": "no-cache",
+      pragma: "no-cache",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${label} returned ${response.status} ${response.statusText}`);
+  }
+
+  return response.text();
 }
 
 async function fetchJson(url, label) {
@@ -115,6 +134,29 @@ function releaseFingerprintDiffs(localManifest, liveManifest) {
     .filter(Boolean);
 }
 
+function getHtmlAttribute(tag, name) {
+  const match = new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, "i").exec(tag);
+  return match?.[2] ?? "";
+}
+
+function extractScriptSources(html) {
+  const sources = Array.from(html.matchAll(/<script\b[^>]*>/gi))
+    .map(([tag]) => {
+      const src = getHtmlAttribute(tag, "src");
+      const type = getHtmlAttribute(tag, "type").toLowerCase();
+      return src && (!type || type === "module" || src.split("?")[0].endsWith(".js")) ? src : null;
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set(sources));
+}
+
+function cacheBustedUrl(source, baseUrl) {
+  const url = new URL(source, baseUrl);
+  url.searchParams.set("verify-live-release", CACHE_BUST);
+  return url;
+}
+
 function dataMetaMismatches(dataPayload, manifest) {
   const meta = dataPayload?.meta ?? {};
   return [
@@ -137,6 +179,55 @@ function dataMetaMismatches(dataPayload, manifest) {
 
 function addGroupedCheck(label, mismatches) {
   addCheck(label, mismatches.length === 0, mismatches.slice(0, 6).join("; "));
+}
+
+function stockByNormalizedCode(payload, code) {
+  const expectedCode = normalizeStockCode(code);
+  return (payload?.stocks ?? []).find((stock) => normalizeStockCode(stock.code) === expectedCode) ?? null;
+}
+
+function expectedHomepageHotspots(hotspots) {
+  const byCode = new Map((hotspots ?? []).map((hotspot) => [normalizeStockCode(hotspot.code), hotspot]));
+  return LIVE_HOMEPAGE_HOTSPOT_CODES.map((code) => ({
+    code,
+    hotspot: byCode.get(normalizeStockCode(code)) ?? null,
+  }));
+}
+
+function homepageHotspotMismatches({ homepagePayload, hotspot, code, stockPayload }) {
+  if (!hotspot) {
+    return [`${code} is missing from config/ai-battle-hotspots.json`];
+  }
+
+  const mismatches = [];
+  const requiredHomepageText = [hotspot.label, hotspot.track, hotspot.thesis];
+
+  if (!homepagePayload) {
+    mismatches.push("live homepage script assets were not available");
+  } else {
+    if (!homepagePayload.includes("ai-hotspot-card")) {
+      mismatches.push("live homepage bundle is missing the AI hotspot card renderer");
+    }
+    for (const text of requiredHomepageText) {
+      if (text && !homepagePayload.includes(text)) {
+        mismatches.push(`live homepage bundle is missing ${formatValue(text)}`);
+      }
+    }
+  }
+
+  const liveStock = stockByNormalizedCode(stockPayload, hotspot.code);
+  if (!liveStock) {
+    mismatches.push(`${hotspot.code} is missing from the live frontend data file`);
+  } else {
+    if (!Number.isFinite(liveStock.activeFundCount)) {
+      mismatches.push(`${hotspot.code} is missing activeFundCount in the live frontend data file`);
+    }
+    if (!Number.isFinite(liveStock.maxRatioPercent)) {
+      mismatches.push(`${hotspot.code} is missing maxRatioPercent in the live frontend data file`);
+    }
+  }
+
+  return mismatches;
 }
 
 function printResult(expected, localManifest, liveManifest) {
@@ -216,6 +307,50 @@ async function main() {
   }
 
   addGroupedCheck("live data meta matches live release manifest", dataMetaMismatches(liveData, liveManifest));
+
+  const localHotspots = await readJson(HOTSPOTS_PATH);
+  let homepagePayload = "";
+  let homepageHtml = "";
+  const homepageUrl = liveUrl(HOMEPAGE_PATH);
+
+  try {
+    homepageHtml = await fetchText(homepageUrl, "live homepage /");
+    addCheck("live homepage / is reachable", true);
+  } catch (error) {
+    addCheck("live homepage / is reachable", false, error.message);
+  }
+
+  if (homepageHtml) {
+    const scriptSources = extractScriptSources(homepageHtml);
+    if (scriptSources.length === 0) {
+      addCheck("live homepage script assets are reachable", false, "no script src assets found on live homepage");
+    } else {
+      const scriptPayloads = [];
+      const scriptErrors = [];
+
+      for (const source of scriptSources) {
+        const scriptUrl = cacheBustedUrl(source, homepageUrl);
+        try {
+          scriptPayloads.push(await fetchText(scriptUrl, `live homepage script ${scriptUrl.pathname}`));
+        } catch (error) {
+          scriptErrors.push(error.message);
+        }
+      }
+
+      addCheck("live homepage script assets are reachable", scriptErrors.length === 0, scriptErrors.join("; "));
+      if (scriptErrors.length === 0) {
+        homepagePayload = [homepageHtml, ...scriptPayloads].join("\n");
+      }
+    }
+  }
+
+  for (const { code, hotspot } of expectedHomepageHotspots(localHotspots)) {
+    const label = hotspot?.label ?? code;
+    addGroupedCheck(
+      `live homepage shows AI hotspot ${label}`,
+      homepageHotspotMismatches({ homepagePayload, hotspot, code, stockPayload: liveData }),
+    );
+  }
 
   const liveStockDeeplinkResults = await verifyLiveStockDeeplinks({
     liveOrigin: LIVE_ORIGIN,
