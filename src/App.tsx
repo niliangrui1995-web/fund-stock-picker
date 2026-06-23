@@ -1413,9 +1413,6 @@ export function App() {
             <p className="eyeline">AI 战报热点</p>
             <h2 id="ai-hotspot-title">最近高频标的一键穿透</h2>
           </div>
-          <span>
-            邮件战报热点 + {data?.meta.report ?? fundQuarter.report} 基金持仓
-          </span>
         </div>
         <div className="ai-hotspot-grid">
           {aiBattleHotspotCards.length ? (
