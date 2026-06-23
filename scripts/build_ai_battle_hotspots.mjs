@@ -102,6 +102,9 @@ function validateSources(sources) {
     if (!item?.source || !item?.signal || !item?.thesis) {
       throw new Error(`${SOURCE_PATH}[${index}] must contain source, signal and thesis.`);
     }
+    if ("homepageQuickEntry" in item && typeof item.homepageQuickEntry !== "boolean") {
+      throw new Error(`${SOURCE_PATH}[${index}].homepageQuickEntry must be a boolean when present.`);
+    }
     if (seen.has(code)) {
       throw new Error(`${SOURCE_PATH} contains duplicate hotspot code: ${code}.`);
     }
@@ -145,13 +148,17 @@ async function main() {
       throw new Error(`${SOURCE_PATH} references ${code}, but it is missing from ${quarterConfig.paths.fundStockIndexJson}.`);
     }
 
-    return {
+    const hotspot = {
       code: stock.code,
       label: `${stock.code} / ${stock.name}`,
       track: source.track || exposureByCode.get(code) || stock.name,
       thesis: source.thesis,
       evidence: buildEvidence(source, stock, exposureByCode.get(code), quarterConfig.report),
     };
+    if (source.homepageQuickEntry) {
+      hotspot.homepageQuickEntry = true;
+    }
+    return hotspot;
   });
 
   await writeFile(OUTPUT_PATH, `${JSON.stringify(hotspots, null, 2)}\n`, "utf8");

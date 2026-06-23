@@ -112,6 +112,7 @@ type AiBattleHotspot = {
   track: string;
   thesis: string;
   evidence: string;
+  homepageQuickEntry?: boolean;
 };
 
 const japaneseStockNamePattern =
@@ -125,7 +126,7 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
 });
 const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
 const aiBattleHotspots = aiBattleHotspotsData as AiBattleHotspot[];
-const preferredQuickStockCodes = ["005930", "MU", "SNDK"];
+const homepageQuickHotspots = aiBattleHotspots.filter((hotspot) => hotspot.homepageQuickEntry);
 
 function getInitialQuery() {
   const stockCode = getInitialSearchParam("stock");
@@ -1257,8 +1258,12 @@ export function App() {
   const quickStocks = useMemo(() => {
     if (!data) return [];
 
-    const preferredStocks = preferredQuickStockCodes
-      .map((code) => data.stocks.find((stock) => normalizeStockCode(stock.code) === code))
+    const preferredStocks = homepageQuickHotspots
+      .map((hotspot) =>
+        data.stocks.find(
+          (stock) => normalizeStockCode(stock.code) === normalizeStockCode(hotspot.code),
+        ),
+      )
       .filter((stock): stock is StockRecord => Boolean(stock));
     const preferredCodes = new Set(preferredStocks.map((stock) => normalizeStockCode(stock.code)));
     const fallbackStocks = data.popularStocks.filter(

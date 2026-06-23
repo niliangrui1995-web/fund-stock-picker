@@ -10,7 +10,7 @@ const CACHE_BUST = process.env.LIVE_RELEASE_CACHE_BUST || Date.now().toString();
 const RELEASE_CHECK_PATH = "seo/quarter-release-check.json";
 const HOMEPAGE_PATH = "/";
 const HOTSPOTS_PATH = path.join(ROOT, "config", "ai-battle-hotspots.json");
-const LIVE_HOMEPAGE_HOTSPOT_CODES = ["005930", "MU", "SNDK"];
+const INDEX_HTML_PATH = path.join(ROOT, "index.html");
 
 const checks = [];
 
@@ -151,6 +151,16 @@ function extractScriptSources(html) {
   return Array.from(new Set(sources));
 }
 
+function getMetaContent(html, attributeName, attributeValue) {
+  const expectedValue = attributeValue.toLowerCase();
+  for (const [tag] of html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (getHtmlAttribute(tag, attributeName).toLowerCase() === expectedValue) {
+      return getHtmlAttribute(tag, "content");
+    }
+  }
+  return "";
+}
+
 function cacheBustedUrl(source, baseUrl) {
   const url = new URL(source, baseUrl);
   url.searchParams.set("verify-live-release", CACHE_BUST);
@@ -187,11 +197,36 @@ function stockByNormalizedCode(payload, code) {
 }
 
 function expectedHomepageHotspots(hotspots) {
-  const byCode = new Map((hotspots ?? []).map((hotspot) => [normalizeStockCode(hotspot.code), hotspot]));
-  return LIVE_HOMEPAGE_HOTSPOT_CODES.map((code) => ({
-    code,
-    hotspot: byCode.get(normalizeStockCode(code)) ?? null,
-  }));
+  return (hotspots ?? []).filter((hotspot) => hotspot?.homepageQuickEntry);
+}
+
+function homepageDescriptionMismatches({ localHtml, homepageHtml, quickHotspots }) {
+  const descriptions = [
+    { label: "description", attributeName: "name", attributeValue: "description" },
+    { label: "og:description", attributeName: "property", attributeValue: "og:description" },
+    { label: "twitter:description", attributeName: "name", attributeValue: "twitter:description" },
+  ];
+  const mismatches = [];
+  const requiredHomepageTerms = Array.from(
+    new Set(["AI 存储", "热点入口", ...quickHotspots.map((hotspot) => hotspot.code).filter(Boolean)]),
+  );
+
+  for (const description of descriptions) {
+    const expected = getMetaContent(localHtml, description.attributeName, description.attributeValue);
+    const actual = getMetaContent(homepageHtml, description.attributeName, description.attributeValue);
+    if (!expected) {
+      mismatches.push(`local index.html is missing ${description.label}`);
+    } else if (actual !== expected) {
+      mismatches.push(`${description.label}: expected ${formatValue(expected)}, got ${formatValue(actual)}`);
+    }
+    for (const text of requiredHomepageTerms) {
+      if (!actual.includes(text)) {
+        mismatches.push(`${description.label} is missing ${formatValue(text)}`);
+      }
+    }
+  }
+
+  return mismatches;
 }
 
 function homepageHotspotMismatches({ homepagePayload, hotspot, code, stockPayload }) {
@@ -308,7 +343,16 @@ async function main() {
 
   addGroupedCheck("live data meta matches live release manifest", dataMetaMismatches(liveData, liveManifest));
 
-  const localHotspots = await readJson(HOTSPOTS_PATH);
+  const [localHotspots, localIndexHtml] = await Promise.all([
+    readJson(HOTSPOTS_PATH),
+    readFile(INDEX_HTML_PATH, "utf8"),
+  ]);
+  const homepageHotspots = expectedHomepageHotspots(localHotspots);
+  addCheck(
+    "local homepage AI storage quick hotspots are configured",
+    homepageHotspots.length > 0,
+    "config/ai-battle-hotspots.json has no homepageQuickEntry hotspots",
+  );
   let homepagePayload = "";
   let homepageHtml = "";
   const homepageUrl = liveUrl(HOMEPAGE_PATH);
@@ -321,6 +365,11 @@ async function main() {
   }
 
   if (homepageHtml) {
+    addGroupedCheck(
+      "live homepage HTML carries promoted AI storage descriptions",
+      homepageDescriptionMismatches({ localHtml: localIndexHtml, homepageHtml, quickHotspots: homepageHotspots }),
+    );
+
     const scriptSources = extractScriptSources(homepageHtml);
     if (scriptSources.length === 0) {
       addCheck("live homepage script assets are reachable", false, "no script src assets found on live homepage");
@@ -344,11 +393,10 @@ async function main() {
     }
   }
 
-  for (const { code, hotspot } of expectedHomepageHotspots(localHotspots)) {
-    const label = hotspot?.label ?? code;
+  for (const hotspot of homepageHotspots) {
     addGroupedCheck(
-      `live homepage shows AI hotspot ${label}`,
-      homepageHotspotMismatches({ homepagePayload, hotspot, code, stockPayload: liveData }),
+      `live homepage shows AI hotspot ${hotspot.label}`,
+      homepageHotspotMismatches({ homepagePayload, hotspot, code: hotspot.code, stockPayload: liveData }),
     );
   }
 

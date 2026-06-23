@@ -32,6 +32,7 @@
     "source": "间接暴露审计复查",
     "signal": "7747.HK 三星电子 2x 杠杆产品映射已与 000660 同链路闭合",
     "track": "AI 存储 / 韩国半导体",
+    "homepageQuickEntry": true,
     "thesis": "三星电子与 SK 海力士构成韩国存储配对入口；站内已有 7747.HK 个股杠杆产品映射和 QDII 直接持仓，可作为 000660 旁的对照穿透入口。"
   },
   {
@@ -39,6 +40,7 @@
     "source": "公司公告/IR复查",
     "signal": "HBM4/HBM4E 路线推进，DRAM/NAND 供给偏紧",
     "track": "HBM4E / AI 存储",
+    "homepageQuickEntry": true,
     "thesis": "美光同时映射 HBM、DRAM 与数据中心 SSD 的 AI 内存/存储缺口，适合作为 HBM4E + 存储短缺主线的美国内存侧入口。"
   },
   {
@@ -46,6 +48,7 @@
     "source": "公司公告/IR复查",
     "signal": "AI 数据层带动企业 SSD/NAND 需求，供需维持偏紧",
     "track": "AI 存储 / NAND SSD",
+    "homepageQuickEntry": true,
     "thesis": "闪迪不属于 HBM4E，但承接 AI 数据层、企业 SSD 与 NAND 供给偏紧分支；站内已有扩展海外 AI / AI 存储持仓明细，可作为存储侧入口。"
   }
 ]
