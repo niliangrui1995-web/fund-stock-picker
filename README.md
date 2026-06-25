@@ -135,7 +135,7 @@ npm run preview
 npm run verify-live-release
 ```
 
-该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件、线上首页 `/` 及其首页脚本资产，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，首页已挂出 `005930`、`MU`、`SNDK` 三个 AI 热点入口，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。
+该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件、线上首页 `/` 及其首页脚本资产，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，首页已挂出 `005930`、`MU`、`SNDK` 三个 AI 热点入口，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。发布校验也会检查申购限额快照新鲜度：距离配置的季度截止日满 5 天会显示 `[WARN]`，满 10 天会显示 `[FAIL]` 并阻断发布校验。
 
 ## 数据生成
 
@@ -242,7 +242,7 @@ npm run hotspots
 npm run preflight:2026q2
 ```
 
-该命令不会修改 `config/fund-quarter.json`，也不会生成假的 Q2 数据文件。它会单独检查 `2026Q2`、`2026q2`、`2026-06-30` 这些派生命名，确认 Node / Python 季度配置一致，并复用 SEO 发布清单生成逻辑验证 `quarter-release-check.json` 必备字段和切季后缺数据 / 错季数据的报错信息。
+该命令不会修改 `config/fund-quarter.json`，也不会生成假的 Q2 数据文件。它会单独检查 `2026Q2`、`2026q2`、`2026-06-30` 这些派生命名，确认 Node / Python 季度配置一致，并复用 SEO 发布清单生成逻辑验证 `quarter-release-check.json` 必备字段和切季后缺数据 / 错季数据的报错信息。同时会读取当前 `public/seo/quarter-release-check.json` 的 `purchaseLimitFetchedAt`，按 `2026-06-30` 切季日计算申购限额快照天数；满 5 天提示 `[WARN]`，满 10 天直接 `[FAIL]`，避免把旧限额快照静默带到 Q2。
 
 下一次正式切到 Q2，只改一个入口：
 
@@ -262,6 +262,7 @@ npm run preflight:2026q2
 - `config/fund-quarter.json` 派生出的 `report` 和 `cutoffDate`。
 - 浏览器实际请求的前端数据文件名，例如 `fund-stock-index-2026q1.json`。
 - 前端数据文件 `meta.report`、`meta.cutoffDate`、`meta.generatedAt`。
+- 前端数据 / 发布清单里的 `purchaseLimitFetchedAt` 是否相对当前季度截止日仍足够新鲜，满 5 天会告警，满 10 天会失败。
 - `public/seo/quarter-release-check.json` 记录的发布清单、sitemap `lastmod` 和 OG/sitemap 使用的季度。
 - 线上首页 `/` 和首页脚本资产是否已经包含 `005930 / 三星电子`、`MU / 美光科技`、`SNDK / 闪迪` 三个 AI 热点入口，且这三只标的能从线上前端数据文件匹配出卡片所需的基金覆盖和最高占比。
 - 旧 `/stocks/<code>/` 深链样例会真实请求 `https://fund.niliangrui.cloud/stocks/AMD/`、`LITE`、`COHR`、`000660`、`005930`、`MU`、`SNDK`，确认最终回到 `/?stock=<code>` 并能保留正确股票上下文。

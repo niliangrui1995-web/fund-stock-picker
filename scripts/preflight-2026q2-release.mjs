@@ -1,9 +1,10 @@
 import { execFile } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
 import { buildQuarterConfig, loadQuarterConfig, ROOT } from "./quarter-config.mjs";
+import { evaluatePurchaseLimitSnapshotFreshness } from "./purchase-limit-freshness.mjs";
 import {
   indirectExposureReleaseEvidence,
   loadQuarterPayload,
@@ -78,11 +79,23 @@ function formatValue(value) {
 }
 
 function addCheck(label, passed, details = "") {
-  checks.push({ label, passed, details });
+  checks.push({ label, passed, details, severity: passed ? "ok" : "fail" });
+}
+
+function addWarning(label, details = "") {
+  checks.push({ label, passed: true, details, severity: "warn" });
 }
 
 function addGroupedCheck(label, mismatches) {
   addCheck(label, mismatches.length === 0, mismatches.slice(0, 8).join("; "));
+}
+
+function addFreshnessCheck(label, freshness) {
+  if (freshness.status === "warn") {
+    addWarning(label, freshness.message);
+    return;
+  }
+  addCheck(label, freshness.passed, freshness.message);
 }
 
 function compareExact(actual, expected) {
@@ -130,6 +143,10 @@ async function exists(filePath) {
   } catch {
     return false;
   }
+}
+
+async function readJson(filePath) {
+  return JSON.parse(await readFile(path.join(ROOT, filePath), "utf8"));
 }
 
 function nodeQuarterSnapshot(quarterConfig) {
@@ -206,8 +223,8 @@ function printResult(currentQuarter, targetQuarter, targetDataExists) {
   console.log("");
 
   for (const check of checks) {
-    const prefix = check.passed ? "[OK]" : "[FAIL]";
-    const details = check.details && !check.passed ? ` - ${check.details}` : "";
+    const prefix = check.severity === "warn" ? "[WARN]" : check.passed ? "[OK]" : "[FAIL]";
+    const details = check.details && (!check.passed || check.severity === "warn") ? ` - ${check.details}` : "";
     console.log(`${prefix} ${check.label}${details}`);
   }
 
@@ -257,11 +274,37 @@ async function main() {
   const targetDataExists = await exists(targetDataPath);
   let targetPayload = null;
 
+  try {
+    const currentReleaseManifest = await readJson(TARGET_EXPECTED.releaseCheckJson);
+    addFreshnessCheck(
+      "current public/seo/quarter-release-check.json purchase-limit snapshot is fresh enough for the 2026-06-30 cutover",
+      evaluatePurchaseLimitSnapshotFreshness(currentReleaseManifest.dataMeta, {
+        asOfDate: TARGET_EXPECTED.cutoffDate,
+        releaseLabel: TARGET_EXPECTED.report,
+        snapshotPath: TARGET_EXPECTED.releaseCheckJson,
+      }),
+    );
+  } catch (error) {
+    addCheck(
+      "current public/seo/quarter-release-check.json purchase-limit snapshot is fresh enough for the 2026-06-30 cutover",
+      false,
+      error.message,
+    );
+  }
+
   if (targetDataExists) {
     try {
       targetPayload = await loadQuarterPayload(targetQuarter);
       validateQuarterPayload(targetQuarter, targetPayload);
       addCheck("existing 2026Q2 frontend data meta matches the target quarter", true);
+      addFreshnessCheck(
+        "existing 2026Q2 frontend data purchase-limit snapshot is fresh enough for the 2026-06-30 cutover",
+        evaluatePurchaseLimitSnapshotFreshness(targetPayload.meta, {
+          asOfDate: TARGET_EXPECTED.cutoffDate,
+          releaseLabel: TARGET_EXPECTED.report,
+          snapshotPath: TARGET_EXPECTED.fundStockIndexJson,
+        }),
+      );
     } catch (error) {
       addCheck("existing 2026Q2 frontend data meta matches the target quarter", false, error.message);
     }

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
+import { evaluatePurchaseLimitSnapshotFreshness } from "./purchase-limit-freshness.mjs";
 import { normalizeStockCode, verifyLiveStockDeeplinks } from "./verify-stock-deeplinks.mjs";
 
 const DEFAULT_LIVE_ORIGIN = "https://fund.niliangrui.cloud";
@@ -41,7 +42,19 @@ function valuesEqual(left, right) {
 }
 
 function addCheck(label, passed, details = "") {
-  checks.push({ label, passed, details });
+  checks.push({ label, passed, details, severity: passed ? "ok" : "fail" });
+}
+
+function addWarning(label, details = "") {
+  checks.push({ label, passed: true, details, severity: "warn" });
+}
+
+function addFreshnessCheck(label, freshness) {
+  if (freshness.status === "warn") {
+    addWarning(label, freshness.message);
+    return;
+  }
+  addCheck(label, freshness.passed, freshness.message);
 }
 
 function liveUrl(browserPath) {
@@ -384,8 +397,8 @@ function printResult(expected, localManifest, liveManifest, liveData = null) {
   console.log("");
 
   for (const check of checks) {
-    const prefix = check.passed ? "[OK]" : "[FAIL]";
-    const details = check.details && !check.passed ? ` - ${check.details}` : "";
+    const prefix = check.severity === "warn" ? "[WARN]" : check.passed ? "[OK]" : "[FAIL]";
+    const details = check.details && (!check.passed || check.severity === "warn") ? ` - ${check.details}` : "";
     console.log(`${prefix} ${check.label}${details}`);
   }
 
@@ -423,6 +436,14 @@ async function main() {
   const localManifestMismatches = manifestMismatches(localManifest, expected);
   addGroupedCheck("local config matches public/seo/quarter-release-check.json", localManifestMismatches);
   addGroupedCheck("local release manifest declares purchase limit snapshot", purchaseLimitManifestMismatches(localManifest));
+  addFreshnessCheck(
+    "local release manifest purchase-limit snapshot is fresh enough for the configured cutoff",
+    evaluatePurchaseLimitSnapshotFreshness(localManifest.dataMeta, {
+      asOfDate: expected.cutoffDate,
+      releaseLabel: expected.report,
+      snapshotPath: "public/seo/quarter-release-check.json",
+    }),
+  );
 
   let liveManifest = null;
   try {
@@ -436,6 +457,14 @@ async function main() {
 
   addGroupedCheck("live manifest matches local config", manifestMismatches(liveManifest, expected));
   addGroupedCheck("live release manifest declares purchase limit snapshot", purchaseLimitManifestMismatches(liveManifest));
+  addFreshnessCheck(
+    "live release manifest purchase-limit snapshot is fresh enough for the configured cutoff",
+    evaluatePurchaseLimitSnapshotFreshness(liveManifest.dataMeta, {
+      asOfDate: expected.cutoffDate,
+      releaseLabel: expected.report,
+      snapshotPath: `${LIVE_ORIGIN}/${RELEASE_CHECK_PATH}`,
+    }),
+  );
   addGroupedCheck(
     "live manifest matches local release fingerprint",
     releaseFingerprintDiffs(localManifest, liveManifest),
