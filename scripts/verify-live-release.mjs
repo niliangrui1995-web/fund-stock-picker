@@ -11,6 +11,12 @@ const RELEASE_CHECK_PATH = "seo/quarter-release-check.json";
 const HOMEPAGE_PATH = "/";
 const HOTSPOTS_PATH = path.join(ROOT, "config", "ai-battle-hotspots.json");
 const INDEX_HTML_PATH = path.join(ROOT, "index.html");
+const PURCHASE_LIMIT_META_FIELDS = [
+  "purchaseLimitCount",
+  "purchaseLimitFetchedAt",
+  "purchaseLimitSource",
+  "purchaseLimitNetValueDates",
+];
 
 const checks = [];
 
@@ -24,6 +30,14 @@ function getValue(source, keyPath) {
 
 function formatValue(value) {
   return value === undefined ? "undefined" : JSON.stringify(value);
+}
+
+function comparableValue(value) {
+  return value && typeof value === "object" ? JSON.stringify(value) : value;
+}
+
+function valuesEqual(left, right) {
+  return Object.is(comparableValue(left), comparableValue(right));
 }
 
 function addCheck(label, passed, details = "") {
@@ -88,10 +102,16 @@ function manifestMismatches(manifest, expected) {
     ["checks.reportMatchesData", true],
     ["checks.cutoffDateMatchesData", true],
     ["checks.seoUsesConfiguredDataFile", true],
+    ["checks.hasFundInvestmentSourceRows", true],
+    ["checks.hasIndirectExposureRows", true],
+    ["checks.hasRequiredIndirectExposureMappings", true],
+    ["checks.hasIndirectExposureAuditFile", true],
+    ["checks.auditCoversRequiredIndirectMappings", true],
+    ["indirectExposureAudit.path", expected.auditPath],
   ]
     .map(([keyPath, expectedValue]) => {
       const actualValue = getValue(manifest, keyPath);
-      return Object.is(actualValue, expectedValue)
+      return valuesEqual(actualValue, expectedValue)
         ? null
         : `${keyPath}: expected ${formatValue(expectedValue)}, got ${formatValue(actualValue)}`;
     })
@@ -109,10 +129,16 @@ function releaseFingerprintDiffs(localManifest, liveManifest) {
     "dataMeta.cutoffDate",
     "dataMeta.generatedAt",
     "dataMeta.sourceFile",
+    ...PURCHASE_LIMIT_META_FIELDS.map((field) => `dataMeta.${field}`),
+    "dataMeta.fundInvestmentSourceRows",
+    "dataMeta.indirectExposureRows",
     "dataMeta.stockCount",
     "dataMeta.overseasStockCount",
     "dataMeta.shippedStockScope",
     "dataMeta.shippedStockCount",
+    "indirectExposureAudit.path",
+    "indirectExposureAudit.fileName",
+    "indirectExposureAudit.requiredMappings",
     "seo.siteUrl",
     "seo.lastmod",
     "seo.stockPageCount",
@@ -121,13 +147,18 @@ function releaseFingerprintDiffs(localManifest, liveManifest) {
     "checks.reportMatchesData",
     "checks.cutoffDateMatchesData",
     "checks.seoUsesConfiguredDataFile",
+    "checks.hasFundInvestmentSourceRows",
+    "checks.hasIndirectExposureRows",
+    "checks.hasRequiredIndirectExposureMappings",
+    "checks.hasIndirectExposureAuditFile",
+    "checks.auditCoversRequiredIndirectMappings",
   ];
 
   return fields
     .map((field) => {
       const localValue = getValue(localManifest, field);
       const liveValue = getValue(liveManifest, field);
-      return Object.is(localValue, liveValue)
+      return valuesEqual(localValue, liveValue)
         ? null
         : `${field}: local ${formatValue(localValue)}, live ${formatValue(liveValue)}`;
     })
@@ -174,16 +205,97 @@ function dataMetaMismatches(dataPayload, manifest) {
     ["meta.cutoffDate", manifest.cutoffDate, meta.cutoffDate],
     ["meta.generatedAt", manifest.dataMeta?.generatedAt, meta.generatedAt],
     ["meta.sourceFile", manifest.dataMeta?.sourceFile, meta.sourceFile],
+    ...PURCHASE_LIMIT_META_FIELDS.map((field) => [
+      `meta.${field}`,
+      manifest.dataMeta?.[field],
+      meta[field],
+    ]),
+    ["meta.fundInvestmentSourceRows", manifest.dataMeta?.fundInvestmentSourceRows, meta.fundInvestmentSourceRows],
+    ["meta.indirectExposureRows", manifest.dataMeta?.indirectExposureRows, meta.indirectExposureRows],
     ["meta.stockCount", manifest.dataMeta?.stockCount, meta.stockCount],
     ["meta.overseasStockCount", manifest.dataMeta?.overseasStockCount, meta.overseasStockCount],
     ["meta.shippedStockScope", manifest.dataMeta?.shippedStockScope, meta.shippedStockScope],
     ["meta.shippedStockCount", manifest.dataMeta?.shippedStockCount, meta.shippedStockCount],
   ]
     .map(([label, expectedValue, actualValue]) =>
-      Object.is(expectedValue, actualValue)
+      valuesEqual(expectedValue, actualValue)
         ? null
         : `${label}: expected ${formatValue(expectedValue)}, got ${formatValue(actualValue)}`,
     )
+    .filter(Boolean);
+}
+
+function purchaseLimitManifestMismatches(manifest) {
+  const meta = manifest?.dataMeta ?? {};
+  const mismatches = [];
+  if (meta.purchaseLimitCount === undefined || meta.purchaseLimitCount === null) {
+    mismatches.push("dataMeta.purchaseLimitCount is missing");
+  }
+  if (!meta.purchaseLimitFetchedAt) {
+    mismatches.push("dataMeta.purchaseLimitFetchedAt is missing");
+  }
+  if (!meta.purchaseLimitSource) {
+    mismatches.push("dataMeta.purchaseLimitSource is missing");
+  }
+  if (!Array.isArray(meta.purchaseLimitNetValueDates) || meta.purchaseLimitNetValueDates.length === 0) {
+    mismatches.push("dataMeta.purchaseLimitNetValueDates is missing");
+  }
+  return mismatches;
+}
+
+function purchaseLimitSnapshotSummary(meta) {
+  const fetchedAt = meta?.purchaseLimitFetchedAt || "N/A";
+  const netValueDates = Array.isArray(meta?.purchaseLimitNetValueDates)
+    ? meta.purchaseLimitNetValueDates.join(", ")
+    : meta?.purchaseLimitNetValueDates || "N/A";
+  const rowCount = meta?.purchaseLimitCount ?? "N/A";
+  return `fetchedAt=${fetchedAt}; netValueDates=${netValueDates || "N/A"}; rows=${rowCount}`;
+}
+
+function requiredIndirectExposureMappings(manifest) {
+  return (manifest?.indirectExposureAudit?.requiredMappings ?? []).filter(
+    (mapping) => mapping?.sourceCode && mapping?.targetCode,
+  );
+}
+
+function indirectExposureDataMismatches(stockPayload, requiredMappings) {
+  if (requiredMappings.length === 0) {
+    return ["indirectExposureAudit.requiredMappings is missing"];
+  }
+
+  return requiredMappings
+    .map((mapping) => {
+      const liveStock = stockByNormalizedCode(stockPayload, mapping.targetCode);
+      if (!liveStock) {
+        return `${mapping.targetCode} is missing from the live frontend data file`;
+      }
+      const hasMapping = (liveStock.topIndirectExposureByRatio ?? []).some(
+        (row) =>
+          row?.sourceCode === mapping.sourceCode
+          && normalizeStockCode(row?.targetCode ?? liveStock.code) === normalizeStockCode(mapping.targetCode),
+      );
+      return hasMapping
+        ? null
+        : `${mapping.sourceCode} -> ${mapping.targetCode} is missing from live indirect exposure rows`;
+    })
+    .filter(Boolean);
+}
+
+function indirectExposureAuditMismatches(auditText, requiredMappings) {
+  if (requiredMappings.length === 0) {
+    return ["indirectExposureAudit.requiredMappings is missing"];
+  }
+
+  const lines = auditText.split(/\r?\n/);
+  return requiredMappings
+    .map((mapping) => {
+      const hasAuditLine = lines.some(
+        (line) => line.includes(mapping.sourceCode) && line.includes(mapping.targetCode),
+      );
+      return hasAuditLine
+        ? null
+        : `${mapping.sourceCode} -> ${mapping.targetCode} is missing from live indirect exposure audit`;
+    })
     .filter(Boolean);
 }
 
@@ -265,7 +377,7 @@ function homepageHotspotMismatches({ homepagePayload, hotspot, code, stockPayloa
   return mismatches;
 }
 
-function printResult(expected, localManifest, liveManifest) {
+function printResult(expected, localManifest, liveManifest, liveData = null) {
   console.log(`Live release origin: ${LIVE_ORIGIN}`);
   console.log(`Expected release: ${expected.report} (${expected.cutoffDate})`);
   console.log(`Expected frontend data file: ${expected.dataFileName}`);
@@ -281,6 +393,9 @@ function printResult(expected, localManifest, liveManifest) {
   console.log("");
   console.log(`Local manifest generatedAt: ${localManifest?.dataMeta?.generatedAt ?? "N/A"}`);
   console.log(`Live manifest generatedAt: ${liveManifest?.dataMeta?.generatedAt ?? "N/A"}`);
+  console.log(`Current live purchase limit snapshot: ${purchaseLimitSnapshotSummary(liveData?.meta ?? liveManifest?.dataMeta)}`);
+  console.log(`Local manifest purchase limit snapshot: ${purchaseLimitSnapshotSummary(localManifest?.dataMeta)}`);
+  console.log(`Live manifest purchase limit snapshot: ${purchaseLimitSnapshotSummary(liveManifest?.dataMeta)}`);
 
   if (failedChecks.length > 0) {
     console.error("");
@@ -300,12 +415,14 @@ async function main() {
     cutoffDate: quarterConfig.cutoffDate,
     dataPath: toBrowserPath(quarterConfig.paths.fundStockIndexJson),
     dataFileName: path.posix.basename(toBrowserPath(quarterConfig.paths.fundStockIndexJson)),
+    auditPath: `seo/indirect-exposure-audit-${quarterConfig.slug}.md`,
   };
 
   const localManifestPath = path.join(ROOT, quarterConfig.paths.releaseCheckJson);
   const localManifest = await readJson(localManifestPath);
   const localManifestMismatches = manifestMismatches(localManifest, expected);
   addGroupedCheck("local config matches public/seo/quarter-release-check.json", localManifestMismatches);
+  addGroupedCheck("local release manifest declares purchase limit snapshot", purchaseLimitManifestMismatches(localManifest));
 
   let liveManifest = null;
   try {
@@ -318,6 +435,7 @@ async function main() {
   }
 
   addGroupedCheck("live manifest matches local config", manifestMismatches(liveManifest, expected));
+  addGroupedCheck("live release manifest declares purchase limit snapshot", purchaseLimitManifestMismatches(liveManifest));
   addGroupedCheck(
     "live manifest matches local release fingerprint",
     releaseFingerprintDiffs(localManifest, liveManifest),
@@ -342,6 +460,35 @@ async function main() {
   }
 
   addGroupedCheck("live data meta matches live release manifest", dataMetaMismatches(liveData, liveManifest));
+  const requiredMappings = requiredIndirectExposureMappings(liveManifest);
+  addCheck(
+    "live release manifest declares required indirect exposure mappings",
+    requiredMappings.length > 0,
+    "indirectExposureAudit.requiredMappings is missing",
+  );
+  addGroupedCheck(
+    "live data keeps required indirect exposure mappings",
+    indirectExposureDataMismatches(liveData, requiredMappings),
+  );
+
+  const liveAuditPath = liveManifest?.indirectExposureAudit?.path;
+  let liveAudit = "";
+  if (!liveAuditPath) {
+    addCheck("live indirect exposure audit is reachable", false, "indirectExposureAudit.path is missing");
+  } else {
+    try {
+      liveAudit = await fetchText(liveUrl(liveAuditPath), `live indirect exposure audit ${liveAuditPath}`);
+      addCheck(`live indirect exposure audit ${liveAuditPath} is reachable`, true);
+    } catch (error) {
+      addCheck(`live indirect exposure audit ${liveAuditPath} is reachable`, false, error.message);
+    }
+  }
+  if (liveAudit) {
+    addGroupedCheck(
+      "live indirect exposure audit covers required mappings",
+      indirectExposureAuditMismatches(liveAudit, requiredMappings),
+    );
+  }
 
   const [localHotspots, localIndexHtml] = await Promise.all([
     readJson(HOTSPOTS_PATH),
@@ -412,7 +559,7 @@ async function main() {
     );
   }
 
-  printResult(expected, localManifest, liveManifest);
+  printResult(expected, localManifest, liveManifest, liveData);
 }
 
 main().catch((error) => {

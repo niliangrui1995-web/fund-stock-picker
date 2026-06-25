@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "hotspots": "node scripts/build_ai_battle_hotspots.mjs",
     "seo": "npm run hotspots && node scripts/build_seo_pages.mjs",
+    "preflight:2026q2": "node scripts/preflight-2026q2-release.mjs",
     "verify-live-release": "node scripts/verify-live-release.mjs",
     "verify-stock-deeplinks": "node scripts/verify-stock-deeplinks.mjs",
     "build": "npm run seo && tsc --noEmit && vite build",

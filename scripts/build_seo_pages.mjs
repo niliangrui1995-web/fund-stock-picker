@@ -1,5 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { loadQuarterConfig } from "./quarter-config.mjs";
 
@@ -7,6 +8,10 @@ const SITE_URL = "https://fund.niliangrui.cloud";
 const STOCKS_DIR = path.join("public", "stocks");
 const SEO_DIR = path.join("public", "seo");
 const LASTMOD = process.env.SEO_LASTMOD || new Date().toISOString().slice(0, 10);
+const REQUIRED_INDIRECT_EXPOSURE_MAPPINGS = [
+  { sourceCode: "7709.HK", targetCode: "000660" },
+  { sourceCode: "7747.HK", targetCode: "005930" },
+];
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -25,6 +30,55 @@ function fileNameFromBrowserPath(filePath) {
   const normalized = toBrowserPath(filePath);
   const parts = normalized.split("/");
   return parts[parts.length - 1] || normalized;
+}
+
+function indirectExposureAuditBrowserPath(quarterConfig) {
+  return `seo/indirect-exposure-audit-${quarterConfig.slug}.md`;
+}
+
+function stockHasRequiredIndirectMapping(payload, mapping) {
+  const stock = (payload?.stocks ?? []).find((item) => item?.code === mapping.targetCode);
+  return (stock?.topIndirectExposureByRatio ?? []).some(
+    (row) => row?.sourceCode === mapping.sourceCode && row?.targetCode === mapping.targetCode,
+  );
+}
+
+function auditHasRequiredIndirectMapping(auditText, mapping) {
+  return auditText
+    .split(/\r?\n/)
+    .some((line) => line.includes(mapping.sourceCode) && line.includes(mapping.targetCode));
+}
+
+export async function indirectExposureReleaseEvidence(quarterConfig, payload) {
+  const auditPath = indirectExposureAuditBrowserPath(quarterConfig);
+  let auditText = "";
+  let auditFileExists = false;
+
+  try {
+    auditText = await readFile(path.join("public", auditPath), "utf8");
+    auditFileExists = true;
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  return {
+    auditPath,
+    requiredMappings: REQUIRED_INDIRECT_EXPOSURE_MAPPINGS,
+    hasFundInvestmentSourceRows: Number.isFinite(payload?.meta?.fundInvestmentSourceRows)
+      && payload.meta.fundInvestmentSourceRows > 0,
+    hasIndirectExposureRows: Number.isFinite(payload?.meta?.indirectExposureRows)
+      && payload.meta.indirectExposureRows > 0,
+    hasRequiredMappings: REQUIRED_INDIRECT_EXPOSURE_MAPPINGS.every((mapping) =>
+      stockHasRequiredIndirectMapping(payload, mapping),
+    ),
+    auditFileExists,
+    auditCoversRequiredMappings: auditFileExists
+      && REQUIRED_INDIRECT_EXPOSURE_MAPPINGS.every((mapping) =>
+        auditHasRequiredIndirectMapping(auditText, mapping),
+      ),
+  };
 }
 
 function sitemap() {
@@ -82,7 +136,7 @@ function ogImage(report) {
 `;
 }
 
-function releaseCheckManifest(quarterConfig, payload) {
+export function releaseCheckManifest(quarterConfig, payload, indirectExposure) {
   const dataPath = toBrowserPath(quarterConfig.paths.fundStockIndexJson);
 
   return `${JSON.stringify(
@@ -97,10 +151,21 @@ function releaseCheckManifest(quarterConfig, payload) {
         cutoffDate: payload.meta.cutoffDate,
         generatedAt: payload.meta.generatedAt,
         sourceFile: payload.meta.sourceFile,
+        purchaseLimitCount: payload.meta.purchaseLimitCount,
+        purchaseLimitFetchedAt: payload.meta.purchaseLimitFetchedAt,
+        purchaseLimitSource: payload.meta.purchaseLimitSource,
+        purchaseLimitNetValueDates: payload.meta.purchaseLimitNetValueDates,
+        fundInvestmentSourceRows: payload.meta.fundInvestmentSourceRows,
+        indirectExposureRows: payload.meta.indirectExposureRows,
         stockCount: payload.meta.stockCount,
         overseasStockCount: payload.meta.overseasStockCount,
         shippedStockScope: payload.meta.shippedStockScope,
         shippedStockCount: payload.meta.shippedStockCount,
+      },
+      indirectExposureAudit: {
+        path: indirectExposure.auditPath,
+        fileName: path.posix.basename(indirectExposure.auditPath),
+        requiredMappings: indirectExposure.requiredMappings,
       },
       seo: {
         siteUrl: SITE_URL,
@@ -113,6 +178,11 @@ function releaseCheckManifest(quarterConfig, payload) {
         reportMatchesData: payload.meta.report === quarterConfig.report,
         cutoffDateMatchesData: payload.meta.cutoffDate === quarterConfig.cutoffDate,
         seoUsesConfiguredDataFile: true,
+        hasFundInvestmentSourceRows: indirectExposure.hasFundInvestmentSourceRows,
+        hasIndirectExposureRows: indirectExposure.hasIndirectExposureRows,
+        hasRequiredIndirectExposureMappings: indirectExposure.hasRequiredMappings,
+        hasIndirectExposureAuditFile: indirectExposure.auditFileExists,
+        auditCoversRequiredIndirectMappings: indirectExposure.auditCoversRequiredMappings,
       },
     },
     null,
@@ -120,10 +190,29 @@ function releaseCheckManifest(quarterConfig, payload) {
   )}\n`;
 }
 
-async function main() {
-  const quarterConfig = await loadQuarterConfig();
+export async function loadQuarterPayload(quarterConfig) {
   const dataPath = quarterConfig.paths.fundStockIndexJson;
-  const payload = JSON.parse(await readFile(dataPath, "utf8"));
+  let payloadText = "";
+
+  try {
+    payloadText = await readFile(dataPath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new Error(
+        `Configured quarter is ${quarterConfig.report} (${quarterConfig.cutoffDate}), but ${dataPath} is missing. Generate ${quarterConfig.slug} frontend data before running npm run seo/build.`,
+      );
+    }
+    throw error;
+  }
+
+  try {
+    return JSON.parse(payloadText);
+  } catch (error) {
+    throw new Error(`${dataPath} is not valid JSON for ${quarterConfig.report} (${quarterConfig.cutoffDate}): ${error.message}`);
+  }
+}
+
+export function validateQuarterPayload(quarterConfig, payload, dataPath = quarterConfig.paths.fundStockIndexJson) {
   if (payload?.meta?.report !== quarterConfig.report) {
     throw new Error(
       `Configured quarter is ${quarterConfig.report}, but ${dataPath} contains ${payload?.meta?.report || "unknown"}.`,
@@ -134,13 +223,25 @@ async function main() {
       `Configured cutoffDate is ${quarterConfig.cutoffDate}, but ${dataPath} contains ${payload?.meta?.cutoffDate || "unknown"}.`,
     );
   }
+}
+
+async function main() {
+  const quarterConfig = await loadQuarterConfig();
+  const dataPath = quarterConfig.paths.fundStockIndexJson;
+  const payload = await loadQuarterPayload(quarterConfig);
+  validateQuarterPayload(quarterConfig, payload, dataPath);
 
   await rm(STOCKS_DIR, { recursive: true, force: true });
   await mkdir(SEO_DIR, { recursive: true });
   await rm(path.join(SEO_DIR, "stock-page.css"), { force: true });
   await rm(path.join(SEO_DIR, "share.js"), { force: true });
 
-  await writeFile(quarterConfig.paths.releaseCheckJson, releaseCheckManifest(quarterConfig, payload), "utf8");
+  const indirectExposure = await indirectExposureReleaseEvidence(quarterConfig, payload);
+  await writeFile(
+    quarterConfig.paths.releaseCheckJson,
+    releaseCheckManifest(quarterConfig, payload, indirectExposure),
+    "utf8",
+  );
   await writeFile(path.join("public", "og-image.svg"), ogImage(quarterConfig.report), "utf8");
   await writeFile(path.join("public", "sitemap.xml"), sitemap(), "utf8");
   await writeFile(
@@ -157,7 +258,9 @@ Sitemap: ${SITE_URL}/sitemap.xml
   console.log("Generated release assets without static stock pages.");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

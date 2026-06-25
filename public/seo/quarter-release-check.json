@@ -9,10 +9,34 @@
     "cutoffDate": "2026-03-31",
     "generatedAt": "2026-06-19T15:44:24",
     "sourceFile": "holdings_stock_2026q1.csv",
+    "purchaseLimitCount": 26768,
+    "purchaseLimitFetchedAt": "2026-06-18 11:09:38",
+    "purchaseLimitSource": "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx",
+    "purchaseLimitNetValueDates": [
+      "06-17",
+      "06-15",
+      "06-16"
+    ],
+    "fundInvestmentSourceRows": 6,
+    "indirectExposureRows": 4,
     "stockCount": 741,
     "overseasStockCount": 741,
     "shippedStockScope": "overseas",
     "shippedStockCount": 741
+  },
+  "indirectExposureAudit": {
+    "path": "seo/indirect-exposure-audit-2026q1.md",
+    "fileName": "indirect-exposure-audit-2026q1.md",
+    "requiredMappings": [
+      {
+        "sourceCode": "7709.HK",
+        "targetCode": "000660"
+      },
+      {
+        "sourceCode": "7747.HK",
+        "targetCode": "005930"
+      }
+    ]
   },
   "seo": {
     "siteUrl": "https://fund.niliangrui.cloud",
@@ -28,6 +52,11 @@
   "checks": {
     "reportMatchesData": true,
     "cutoffDateMatchesData": true,
-    "seoUsesConfiguredDataFile": true
+    "seoUsesConfiguredDataFile": true,
+    "hasFundInvestmentSourceRows": true,
+    "hasIndirectExposureRows": true,
+    "hasRequiredIndirectExposureMappings": true,
+    "hasIndirectExposureAuditFile": true,
+    "auditCoversRequiredIndirectMappings": true
   }
 }

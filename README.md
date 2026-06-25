@@ -236,7 +236,15 @@ npm run hotspots
 
 ## 切换季度发布
 
-下一次切到 Q2，只改一个入口：
+正式切到 Q2 前，先跑只读预检：
+
+```powershell
+npm run preflight:2026q2
+```
+
+该命令不会修改 `config/fund-quarter.json`，也不会生成假的 Q2 数据文件。它会单独检查 `2026Q2`、`2026q2`、`2026-06-30` 这些派生命名，确认 Node / Python 季度配置一致，并复用 SEO 发布清单生成逻辑验证 `quarter-release-check.json` 必备字段和切季后缺数据 / 错季数据的报错信息。
+
+下一次正式切到 Q2，只改一个入口：
 
 ```json
 {
