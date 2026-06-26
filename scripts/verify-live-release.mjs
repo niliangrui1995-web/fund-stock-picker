@@ -321,8 +321,12 @@ function stockByNormalizedCode(payload, code) {
   return (payload?.stocks ?? []).find((stock) => normalizeStockCode(stock.code) === expectedCode) ?? null;
 }
 
-function expectedHomepageHotspots(hotspots) {
+function expectedHomepageQuickHotspots(hotspots) {
   return (hotspots ?? []).filter((hotspot) => hotspot?.homepageQuickEntry);
+}
+
+function expectedHomepageHotspots(hotspots) {
+  return hotspots ?? [];
 }
 
 function homepageDescriptionMismatches({ localHtml, homepageHtml, quickHotspots }) {
@@ -524,9 +528,15 @@ async function main() {
     readFile(INDEX_HTML_PATH, "utf8"),
   ]);
   const homepageHotspots = expectedHomepageHotspots(localHotspots);
+  const homepageQuickHotspots = expectedHomepageQuickHotspots(localHotspots);
+  addCheck(
+    "local homepage AI battle hotspots are configured",
+    homepageHotspots.length > 0,
+    "config/ai-battle-hotspots.json has no AI battle hotspots",
+  );
   addCheck(
     "local homepage AI storage quick hotspots are configured",
-    homepageHotspots.length > 0,
+    homepageQuickHotspots.length > 0,
     "config/ai-battle-hotspots.json has no homepageQuickEntry hotspots",
   );
   let homepagePayload = "";
@@ -543,7 +553,7 @@ async function main() {
   if (homepageHtml) {
     addGroupedCheck(
       "live homepage HTML carries promoted AI storage descriptions",
-      homepageDescriptionMismatches({ localHtml: localIndexHtml, homepageHtml, quickHotspots: homepageHotspots }),
+      homepageDescriptionMismatches({ localHtml: localIndexHtml, homepageHtml, quickHotspots: homepageQuickHotspots }),
     );
 
     const scriptSources = extractScriptSources(homepageHtml);
