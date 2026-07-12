@@ -2,7 +2,7 @@
 
 只读维护产物，由 `scripts/build_fund_stock_index.py` 根据定期报告解析结果、`config/stock-exposure-aliases.json` 和最终前端数据生成；不要手工修改它来修页面展示。
 
-- 生成时间：`2026-06-19T15:44:24`
+- 生成时间：`2026-07-12T19:04:48`
 - 前端数据：`public/data/fund-stock-index-2026q1.json`
 - 报告解析 summary：`outputs/fund_report_holdings_summary_2026q1.json`
 - 报告解析 CSV：`outputs/holdings_fund_investment_2026q1.csv`

@@ -7,15 +7,15 @@
   "dataMeta": {
     "report": "2026Q1",
     "cutoffDate": "2026-03-31",
-    "generatedAt": "2026-06-19T15:44:24",
+    "generatedAt": "2026-07-12T19:04:48",
     "sourceFile": "holdings_stock_2026q1.csv",
-    "purchaseLimitCount": 26768,
-    "purchaseLimitFetchedAt": "2026-06-18 11:09:38",
+    "purchaseLimitCount": 26987,
+    "purchaseLimitFetchedAt": "2026-07-12 19:04:25",
     "purchaseLimitSource": "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx",
     "purchaseLimitNetValueDates": [
-      "06-17",
-      "06-15",
-      "06-16"
+      "07-10",
+      "07-08",
+      "07-09"
     ],
     "fundInvestmentSourceRows": 6,
     "indirectExposureRows": 4,
