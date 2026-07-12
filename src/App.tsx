@@ -326,7 +326,27 @@ function StockLogo({
     setFailed(false);
   }, [sources]);
 
-  if (failed || !src) return null;
+  const initials = useMemo(() => {
+    const clean = code.replace(/[^0-9A-Za-z]/g, "").replace(/^0+/, "");
+    return clean ? clean.slice(0, 2).toUpperCase() : code.slice(0, 2).toUpperCase();
+  }, [code]);
+
+  const gradientClass = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < code.length; i++) {
+      hash = code.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % 5;
+    return `stock-logo-fallback-grad-${index}`;
+  }, [code]);
+
+  if (failed || !src) {
+    return (
+      <span className={`stock-logo stock-logo-fallback ${gradientClass} ${size === "lg" ? "large" : ""}`}>
+        {initials}
+      </span>
+    );
+  }
 
   return (
     <span className={`stock-logo ${size === "lg" ? "large" : ""}`}>
