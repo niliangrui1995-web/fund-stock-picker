@@ -4,42 +4,42 @@
     "label": "AMD / 超威半导体",
     "track": "核心算力 / 光互连拉货",
     "thesis": "MI450 与 CW 激光器产能争夺是近期战报高频线索，先看哪些 QDII 主动基金已经有持仓暴露。",
-    "evidence": "邮件战报：AMD 抢锁 CW 激光器；海外 AI 暴露表：狭义海外AI / 核心算力-GPU；2026Q1 基金持仓索引：场外 5 只，最高占比 7.4%"
+    "evidence": "邮件战报：AMD 抢锁 CW 激光器；海外 AI 暴露表：狭义海外AI / 核心算力-GPU；2026Q2 基金持仓索引：场外 24 只，最高占比 8.11%"
   },
   {
     "code": "LITE",
     "label": "LITE / Lumentum Holdings Inc",
     "track": "CW 激光器 / InP",
     "thesis": "Lumentum 是光互连上游产能紧张的核心映射，适合直接穿透基金里的光通信器件仓位。",
-    "evidence": "邮件战报：Lumentum/InP 产能售罄与供应瓶颈；海外 AI 暴露表：扩展海外AI / 光通信器件；2026Q1 基金持仓索引：场外 14 只，最高占比 8.68%"
+    "evidence": "邮件战报：Lumentum/InP 产能售罄与供应瓶颈；海外 AI 暴露表：扩展海外AI / 光通信器件；2026Q2 基金持仓索引：场外 5 只，最高占比 4.54%"
   },
   {
     "code": "COHR",
     "label": "COHR / Coherent Corp",
     "track": "光模块上游 / 垂直整合",
     "thesis": "Coherent 扩产与 CW 激光器供给紧张持续被战报提及，站内可直接查看重仓基金与申赎状态。",
-    "evidence": "邮件战报：Coherent 德州扩产、NVIDIA/AMD 产能争夺；2026Q1 基金持仓索引：场外 8 只，最高占比 7.54%"
+    "evidence": "邮件战报：Coherent 德州扩产、NVIDIA/AMD 产能争夺；2026Q2 基金持仓索引：场外 2 只，最高占比 3.95%"
   },
   {
     "code": "GLW",
     "label": "GLW / 康宁",
     "track": "Glass Bridge / 光连接",
     "thesis": "康宁同时映射 Glass Bridge / GlassWorks AI 技术线和 Amazon、NVIDIA AI 数据中心光连接供货线索；站内已有 QDII 光通信持仓暴露，适合作为 LITE、COHR 旁的光通信上游入口。",
-    "evidence": "战报/公司公告复查：Glass Bridge 发布，Amazon/NVIDIA 光连接长单交叉验证；海外 AI 暴露表：扩展海外AI / 光纤/材料；2026Q1 基金持仓索引：场外 9 只，最高占比 6.79%"
+    "evidence": "战报/公司公告复查：Glass Bridge 发布，Amazon/NVIDIA 光连接长单交叉验证；海外 AI 暴露表：扩展海外AI / 光纤/材料；2026Q2 基金持仓索引：场外 7 只，最高占比 5.37%"
   },
   {
     "code": "000660",
     "label": "000660 / SK海力士",
     "track": "HBM4E / AI 存储",
     "thesis": "SK 海力士 HBM4E 与存储短缺是最近战报主线，穿透结果能快速定位 QDII 与场内 ETF 暴露。",
-    "evidence": "邮件战报：HBM4E 12层样品出货；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q1 基金持仓索引：场外 5 只，最高占比 8.65%"
+    "evidence": "邮件战报：HBM4E 12层样品出货；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q2 基金持仓索引：场外 12 只，最高占比 9.32%"
   },
   {
     "code": "005930",
     "label": "005930 / 三星电子",
     "track": "AI 存储 / 韩国半导体",
     "thesis": "三星电子与 SK 海力士构成韩国存储配对入口；站内已有 7747.HK 个股杠杆产品映射和 QDII 直接持仓，可作为 000660 旁的对照穿透入口。",
-    "evidence": "间接暴露审计复查：7747.HK 三星电子 2x 杠杆产品映射已与 000660 同链路闭合；海外 AI 暴露表：扩展海外AI / 半导体/存储；2026Q1 基金持仓索引：场外 6 只，最高占比 9.18%",
+    "evidence": "间接暴露审计复查：7747.HK 三星电子 2x 杠杆产品映射已与 000660 同链路闭合；海外 AI 暴露表：扩展海外AI / 半导体/存储；2026Q2 基金持仓索引：场外 9 只，最高占比 9.7%",
     "homepageQuickEntry": true
   },
   {
@@ -47,7 +47,7 @@
     "label": "MU / 美光科技",
     "track": "HBM4E / AI 存储",
     "thesis": "美光同时映射 HBM、DRAM 与数据中心 SSD 的 AI 内存/存储缺口，适合作为 HBM4E + 存储短缺主线的美国内存侧入口。",
-    "evidence": "公司公告/IR复查：HBM4/HBM4E 路线推进，DRAM/NAND 供给偏紧；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q1 基金持仓索引：场外 16 只，最高占比 7.69%",
+    "evidence": "公司公告/IR复查：HBM4/HBM4E 路线推进，DRAM/NAND 供给偏紧；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q2 基金持仓索引：场外 33 只，最高占比 10.64%",
     "homepageQuickEntry": true
   },
   {
@@ -55,7 +55,7 @@
     "label": "SNDK / 闪迪",
     "track": "AI 存储 / NAND SSD",
     "thesis": "闪迪不属于 HBM4E，但承接 AI 数据层、企业 SSD 与 NAND 供给偏紧分支；站内已有扩展海外 AI / AI 存储持仓明细，可作为存储侧入口。",
-    "evidence": "公司公告/IR复查：AI 数据层带动企业 SSD/NAND 需求，供需维持偏紧；海外 AI 暴露表：扩展海外AI / AI存储；2026Q1 基金持仓索引：场外 10 只，最高占比 8.57%",
+    "evidence": "公司公告/IR复查：AI 数据层带动企业 SSD/NAND 需求，供需维持偏紧；海外 AI 暴露表：扩展海外AI / AI存储；2026Q2 基金持仓索引：场外 18 只，最高占比 10.54%",
     "homepageQuickEntry": true
   }
 ]

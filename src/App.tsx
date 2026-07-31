@@ -1614,7 +1614,7 @@ export function App() {
           <span>方法论</span>
           <h2 id="methodology-title">基金持仓穿透口径</h2>
           <p>
-            数据期为 {data?.meta.report ?? fundQuarter.report}，截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。页面优先展示海外标的在公募基金披露持仓中的覆盖、权重和可交易状态。
+            数据期为 {data?.meta.report ?? fundQuarter.report}，截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。页面按公募基金季度报告披露的前十大股票持仓展示海外标的覆盖和权重；未出现不代表基金未持有该标的。
           </p>
         </div>
         <div className="methodology-grid">
