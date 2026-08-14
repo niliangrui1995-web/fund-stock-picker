@@ -36,6 +36,8 @@ const screenshotDirectory = resolve(projectRoot, "design-qa-assets");
 const resultPath = join(screenshotDirectory, "leverage-browser-qa-result.json");
 const qaScrollTop = 3960;
 const sourceSwitchDate = "2017-01-03";
+const officialUnavailableMixedReviewStatus =
+  "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
 const ratioUnavailableReason = "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。";
 const dataFiles = [
   "leverage-dashboard.json",
@@ -122,15 +124,30 @@ async function snapshotFormalData() {
   return hashes;
 }
 
-async function readFormalDataCutoff() {
+async function readFormalDataBounds() {
+  const payloadPath = join(formalDataDirectory, "leverage-dashboard.json");
   const manifestPath = join(formalDataDirectory, "leverage-dashboard.manifest.json");
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const [payload, manifest] = await Promise.all([
+    readFile(payloadPath, "utf8").then(JSON.parse),
+    readFile(manifestPath, "utf8").then(JSON.parse),
+  ]);
   const cutoff = manifest?.data_range?.end;
+  const ratioRange = payload?.provenance?.ratio_data_range;
   assertCondition(
     typeof cutoff === "string" && /^\d{4}-\d{2}-\d{2}$/.test(cutoff),
     "正式发布清单 data_range.end 无效。",
   );
-  return cutoff;
+  assertCondition(
+    payload?.provenance?.ratio_available === true &&
+      ratioRange !== null &&
+      typeof ratioRange?.start === "string" &&
+      typeof ratioRange?.end === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(ratioRange.start) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(ratioRange.end) &&
+      ratioRange.start <= ratioRange.end,
+    "正式发布包比例日期范围无效。",
+  );
+  return { dataCutoff: cutoff, ratioStart: ratioRange.start, ratioEnd: ratioRange.end };
 }
 
 function assertEqualObject(actual, expected, message) {
@@ -219,12 +236,20 @@ async function createRatioUnavailablePackage(previewDirectory) {
     manifest?.market_cap !== null && typeof manifest.market_cap === "object",
     "比例不可用临时包缺少 market_cap。",
   );
+  const hasOfficialPre2017Records = payload.records.some(
+    (record) =>
+      record.date < sourceSwitchDate &&
+      record.market_cap_source === "official_exchange_pre2017_raw_chain_audited",
+  );
 
   for (const record of payload.records) {
     assertCondition(record !== null && typeof record === "object", "比例不可用临时包存在无效记录。");
     record.denominator_market_cap_yi = null;
     record.ratio_pct = null;
-    if (record.date >= sourceSwitchDate) {
+    if (record.date < sourceSwitchDate && record.market_cap_source === "official_exchange_pre2017_raw_chain_audited") {
+      record.market_cap_source = "pre2017_official_unavailable";
+      record.market_cap_review_status = "unavailable";
+    } else if (record.date >= sourceSwitchDate) {
       record.market_cap_review_status = "unavailable";
     }
   }
@@ -232,11 +257,39 @@ async function createRatioUnavailablePackage(previewDirectory) {
   const emptyRatioRange = { start: null, end: null };
   payload.provenance.ratio_available = false;
   payload.provenance.ratio_unavailable_reason = ratioUnavailableReason;
+  payload.provenance.ratio_scope_warning =
+    "QA 临时包：2011–2016 官方前段与 2017 年后东方财富分母均改为 N/A；东方财富Choice厂商口径仍未经交易所复核、未经完整审计，分子可能含非 A 股融资标的。";
   payload.provenance.ratio_data_range = emptyRatioRange;
   manifest.market_cap.ratio_available = false;
   manifest.market_cap.reason = ratioUnavailableReason;
   manifest.market_cap.ratio_data_range = emptyRatioRange;
   manifest.market_cap.ratio_missing_records = payload.records.length;
+  manifest.market_cap.source_segments = manifest.market_cap.source_segments.map((segment) => ({
+    ...segment,
+    market_cap_source:
+      hasOfficialPre2017Records && segment.start < sourceSwitchDate
+        ? "pre2017_official_unavailable"
+        : segment.market_cap_source,
+    market_cap_review_status: "unavailable",
+    ratio_available: false,
+    reason: ratioUnavailableReason,
+  }));
+  if (payload.provenance.official_pre2017_chain_status === "available") {
+    payload.provenance.official_pre2017_chain_status = "unavailable";
+    payload.provenance.official_pre2017_unavailable_reason = ratioUnavailableReason;
+    manifest.market_cap.official_pre2017 = {
+      available: false,
+      reason: ratioUnavailableReason,
+      table_sha256: null,
+      raw_chain_status: "blocked",
+      financial_evidence_audit: {
+        applicable: false,
+        status: "N/A",
+        reason_code: "UNSUPPORTED_RATIO_CONTRACT",
+      },
+    };
+    manifest.market_cap.ratio_review_status = officialUnavailableMixedReviewStatus;
+  }
 
   const payloadText = `${JSON.stringify(payload, null, 2)}\n`;
   manifest.payload_sha256 = createHash("sha256").update(payloadText, "utf8").digest("hex");
@@ -388,7 +441,7 @@ async function moveToMidChartAndReadTooltip(page) {
   return { chart, box, tooltip: await chart.innerText() };
 }
 
-async function runDesktopScenario(browser, result, baseUrl, dataCutoff) {
+async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRange) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1024 },
     deviceScaleFactor: 1,
@@ -416,7 +469,14 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff) {
     textContains(chartHead, "共同基期", "默认主图基期标签");
     const disclosure = await page.locator(".leverage-disclosure-list").innerText();
     textContains(disclosure, "东方财富Choice厂商市值", "市值来源披露");
-    textContains(disclosure, "交易所历史市值段待准出", "前段市值披露");
+    assertCondition(
+      [
+        "交易所官方历史原始链已审计",
+        "交易所历史市值段不可用",
+        "交易所历史市值段待准出",
+      ].some((text) => disclosure.includes(text)),
+      "前段市值披露无效。",
+    );
 
     const baseBeforeZoom = await page.locator(".leverage-chart-panel-head em").innerText();
     const beforeZoom = await moveToMidChartAndReadTooltip(page);
@@ -475,12 +535,13 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff) {
     const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
     assert.equal(await ratioButton.isDisabled(), false, "当前发布包比例模式应可用。");
     await ratioButton.click();
+    await page.getByRole("button", { name: "全部", exact: true }).click();
     await page
       .locator(".leverage-chart-panel-head")
-      .filter({ hasText: `${sourceSwitchDate} 至 ${dataCutoff}` })
+      .filter({ hasText: `${ratioRange.start} 至 ${ratioRange.end}` })
       .waitFor({ state: "visible", timeout: 10_000 });
     const ratioHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(ratioHead, `共同基期 ${sourceSwitchDate} = 100`, "比例主图共同基期");
+    textContains(ratioHead, `共同基期 ${ratioRange.start} = 100`, "比例主图共同基期");
     textContains(await page.locator(".leverage-summary-primary").innerText(), "%", "比例摘要单位");
     const ratioDisclosure = await page.locator(".leverage-disclosure").innerText();
     textContains(ratioDisclosure, "东方财富Choice厂商口径", "比例厂商口径提示");
@@ -497,7 +558,8 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff) {
       baseAfterZoom,
       zoomedTooltipDate: afterZoom.tooltip.split("\n")[0] ?? "N/A",
       manualBase: "2020-01-02",
-      ratioStart: sourceSwitchDate,
+      ratioStart: ratioRange.start,
+      ratioEnd: ratioRange.end,
       dataCutoff,
     };
   } finally {
@@ -704,6 +766,7 @@ const result = {
   command: "npm run qa:leverage",
   status: "running",
   data_cutoff: null,
+  ratio_data_range: null,
   temp_parent: tempParent,
   normal_preview: null,
   bad_preview: null,
@@ -726,7 +789,12 @@ try {
   await mkdir(screenshotDirectory, { recursive: true });
   sourceDataBefore = await snapshotFormalData();
   result.formal_data_sha256_before = sourceDataBefore;
-  result.data_cutoff = await readFormalDataCutoff();
+  const formalDataBounds = await readFormalDataBounds();
+  result.data_cutoff = formalDataBounds.dataCutoff;
+  result.ratio_data_range = {
+    start: formalDataBounds.ratioStart,
+    end: formalDataBounds.ratioEnd,
+  };
 
   temporaryRoot = await mkdtemp(join(tempParent, tempPrefix));
   assertCondition(isSafeTemporaryRoot(temporaryRoot), "临时 QA 目录不在 D:\\vcp_hunter 范围内。");
@@ -786,7 +854,13 @@ try {
     executable: playwright.executablePath,
     availability_policy: "preprovisioned_local_only_no_automatic_download",
   };
-  await runDesktopScenario(browser, result.scenarios, normalServer.url, result.data_cutoff);
+  await runDesktopScenario(
+    browser,
+    result.scenarios,
+    normalServer.url,
+    result.data_cutoff,
+    result.ratio_data_range,
+  );
   await runMobileScenario(browser, result.scenarios, normalServer.url);
   await runBlockedScenario(browser, result.scenarios, badServer.url);
   await runRatioUnavailableScenario(

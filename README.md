@@ -154,7 +154,7 @@ npm run test:leverage
 npm run verify:leverage:build
 ```
 
-校验会核对原始 UTF-8 发布包的 SHA-256、记录数、严格升序日期、DFCF-only 审计标记以及市值来源分段。`npm run verify:leverage:build` 会在 `D:\vcp_hunter` 下创建并删除临时构建目录，执行生产 TypeScript 检查和 Vite 打包，确认两融/ECharts 是异步 chunk；它不调用项目的 SEO 生成链，也不写 `config/`、`public/seo/`、`robots.txt`、`sitemap.xml` 或 OG 产物。融资余额从 `2011-08-03` 起完整展示；比例仅在与分母精确同日的 `2017-01-03` 起展示，后续若单日市值缺失则该日仍为 `N/A`，不补值、不移日。此前交易所市值分段未通过，比例固定为 `N/A`；之后分母为东方财富 Choice 厂商口径，未经交易所复核和完整审计，不能称为严格沪深 A 股市值。融资余额变化仅作去杠杆压力代理，不据此证明强制平仓、市场底或必然反弹。
+校验会核对原始 UTF-8 发布包的 SHA-256、记录数、严格升序日期、DFCF-only 审计标记以及市值来源分段。`npm run verify:leverage:build` 会在 `D:\vcp_hunter` 下创建并删除临时构建目录，执行生产 TypeScript 检查和 Vite 打包，确认两融/ECharts 是异步 chunk；它不调用项目的 SEO 生成链，也不写 `config/`、`public/seo/`、`robots.txt`、`sitemap.xml` 或 OG 产物。融资余额从 `2011-08-03` 起完整展示；比例只在分子与分母精确同日时展示，单日市值缺失仍为 `N/A`，不补值、不移日。`2011-08-03` 至 `2016-12-30` 的分母仅在交易所官方原始链、哈希、日期绑定与 Decimal 校验全部通过时标记为 `official_exchange_pre2017_raw_chain_audited` 并启用；`2017-01-03` 起分母仍为东方财富 Choice 厂商口径，未经交易所复核和完整审计。前段已审计不改变后段的厂商未审计属性，且 DFCF 两融分子可能包含非 A 股融资标的；全段均不能称为严格沪深 A 股市值或正式财务比例（`UNSUPPORTED_RATIO_CONTRACT`）。融资余额变化仅作去杠杆压力代理，不据此证明强制平仓、市场底或必然反弹。
 
 这两份 JSON 由 `D:\vcp_hunter\产业链投研` 的发布流程原子写入，不应在本项目手工改写；网页不会请求 DFCF、交易所、TDX、外部图片或其他外部行情接口。股票图标仅尝试本地 `stock-logos/` 文件，读取失败时使用页面内文本占位。
 

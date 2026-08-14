@@ -5,10 +5,18 @@ import { fileURLToPath } from "node:url";
 
 const SOURCE_SWITCH_DATE = "2017-01-03";
 const FIRST_MARGIN_DATE = "2011-08-03";
-const PRE_2017_SOURCE = "pre2017_official_pending";
+const OFFICIAL_PRE2017_SOURCE = "official_exchange_pre2017_raw_chain_audited";
+const OFFICIAL_PRE2017_REVIEW_STATUS = "official_exchange_pre2017_raw_chain_audited";
+const PRE2017_UNAVAILABLE_SOURCE = "pre2017_official_unavailable";
+const LEGACY_PRE2017_SOURCE = "pre2017_official_pending";
 const PRE_2017_REVIEW_STATUS = "unavailable";
 const POST_2017_SOURCE = "eastmoney_post2017_vendor_unverified";
 const POST_2017_REVIEW_STATUS = "eastmoney_vendor_unverified";
+const LEGACY_MIXED_REVIEW_STATUS = "mixed_pre2017_pending_eastmoney_vendor_unverified";
+const AUDITED_MIXED_REVIEW_STATUS =
+  "mixed_official_pre2017_raw_chain_audited_eastmoney_vendor_unverified";
+const OFFICIAL_UNAVAILABLE_MIXED_REVIEW_STATUS =
+  "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
 const DFCF_INPUT_FILENAMES = [
   "dfcf_sse_margin.csv",
   "dfcf_szse_margin.csv",
@@ -140,6 +148,8 @@ function validateRecords(records) {
   let post2017Count = 0;
   let pre2017LastDate = null;
   let post2017FirstDate = null;
+  let pre2017Mode = null;
+  let pre2017Source = null;
   const ratioRecords = [];
 
   for (const [index, record] of records.entries()) {
@@ -174,13 +184,38 @@ function validateRecords(records) {
     if (record.date < SOURCE_SWITCH_DATE) {
       pre2017Count += 1;
       pre2017LastDate = record.date;
-      assert(
-        record.ratio_pct === null &&
-          record.denominator_market_cap_yi === null &&
-          record.market_cap_source === PRE_2017_SOURCE &&
-          record.market_cap_review_status === PRE_2017_REVIEW_STATUS,
-        "2017-01-03 前市值或比例必须为 N/A，且只能标记为待定交易所分段。",
-      );
+      if (record.market_cap_source === OFFICIAL_PRE2017_SOURCE) {
+        assert(
+          isFiniteNumber(record.denominator_market_cap_yi) && record.denominator_market_cap_yi > 0,
+          "2017-01-03 前官方分母必须为正数。",
+        );
+        assert(isFiniteNumber(record.ratio_pct) && record.ratio_pct >= 0, "2017-01-03 前官方比例无效。");
+        assert(
+          record.market_cap_review_status === OFFICIAL_PRE2017_REVIEW_STATUS,
+          "2017-01-03 前官方市值审查状态无效。",
+        );
+        const impliedRatio = (record.total_margin_yi / record.denominator_market_cap_yi) * 100;
+        assert(
+          Math.abs(record.ratio_pct - impliedRatio) <= 1e-6,
+          `第 ${index + 1} 条比例未与同日两融余额和市值分母一致。`,
+        );
+        pre2017Mode ??= "audited";
+        assert(pre2017Mode === "audited", "2017-01-03 前市值来源分段不得混用。");
+        ratioRecords.push(record);
+      } else {
+        assert(
+          record.ratio_pct === null &&
+            record.denominator_market_cap_yi === null &&
+            (record.market_cap_source === LEGACY_PRE2017_SOURCE ||
+              record.market_cap_source === PRE2017_UNAVAILABLE_SOURCE) &&
+            record.market_cap_review_status === PRE_2017_REVIEW_STATUS,
+          "2017-01-03 前市值或比例数据来源无效。",
+        );
+        pre2017Mode ??= "unavailable";
+        assert(pre2017Mode === "unavailable", "2017-01-03 前市值来源分段不得混用。");
+      }
+      pre2017Source ??= record.market_cap_source;
+      assert(pre2017Source === record.market_cap_source, "2017-01-03 前市值来源分段不得混用。");
       continue;
     }
 
@@ -228,6 +263,8 @@ function validateRecords(records) {
     pre2017Count,
     post2017Count,
     pre2017LastDate,
+    pre2017Mode,
+    pre2017Source,
     ratioRecords,
   };
 }
@@ -269,11 +306,72 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
   assert(payload.provenance.source_switch_date === SOURCE_SWITCH_DATE, "发布包市值来源切换日期无效。");
   assert(manifest.market_cap.source_switch_date === SOURCE_SWITCH_DATE, "发布清单市值来源切换日期无效。");
   assert(
-    typeof payload.provenance.ratio_scope_warning === "string" &&
-      payload.provenance.ratio_scope_warning.includes("未经交易所复核") &&
-      payload.provenance.ratio_scope_warning.includes("未经完整审计"),
-    "比例未审计口径提示无效。",
+    typeof manifest.description === "string" &&
+      manifest.description.includes("去杠杆压力代理") &&
+      manifest.description.includes("强平"),
+    "两融去杠杆风险披露无效。",
   );
+  const auditedPre2017 = recordSummary.pre2017Mode === "audited";
+  const officialSchema = auditedPre2017 ||
+    recordSummary.pre2017Source === PRE2017_UNAVAILABLE_SOURCE ||
+    Object.hasOwn(payload.provenance, "official_pre2017_chain_status") ||
+    Object.hasOwn(manifest.market_cap, "official_pre2017");
+  if (auditedPre2017) {
+    assert(
+      typeof payload.provenance.ratio_scope_warning === "string" &&
+        payload.provenance.ratio_scope_warning.includes("DFCF") &&
+        payload.provenance.ratio_scope_warning.includes("UNSUPPORTED_RATIO_CONTRACT") &&
+        payload.provenance.ratio_scope_warning.includes("严格证券类别匹配") &&
+        typeof manifest.market_cap.scope_definition === "string" &&
+        manifest.market_cap.scope_definition.includes("非 A 股") &&
+        manifest.market_cap.scope_definition.includes("东方财富") &&
+        manifest.market_cap.scope_definition.includes("未经交易所复核") &&
+        manifest.market_cap.scope_definition.includes("完整审计"),
+      "官方前段比例口径或后段未审计警示无效。",
+    );
+  } else {
+    assert(
+      typeof payload.provenance.ratio_scope_warning === "string" &&
+        payload.provenance.ratio_scope_warning.includes("未经交易所复核") &&
+        payload.provenance.ratio_scope_warning.includes("未经完整审计"),
+      "比例未审计口径提示无效。",
+    );
+  }
+  if (officialSchema) {
+    const officialPre2017 = manifest.market_cap.official_pre2017;
+    assert(isObject(officialPre2017), "官方前段市值元数据无效。");
+    assert(
+      isObject(officialPre2017.financial_evidence_audit) &&
+        officialPre2017.financial_evidence_audit.applicable === false &&
+        officialPre2017.financial_evidence_audit.status === "N/A" &&
+        officialPre2017.financial_evidence_audit.reason_code === "UNSUPPORTED_RATIO_CONTRACT",
+      "官方前段 financial-evidence-audit 适用性无效。",
+    );
+    if (auditedPre2017) {
+      assert(
+        payload.provenance.official_pre2017_chain_status === "available" &&
+          payload.provenance.official_pre2017_unavailable_reason === null &&
+          officialPre2017.available === true &&
+          officialPre2017.reason === null &&
+          typeof officialPre2017.table_sha256 === "string" &&
+          SHA256_PATTERN.test(officialPre2017.table_sha256) &&
+          officialPre2017.raw_chain_status === "pass",
+        "官方前段原始链审计元数据无效。",
+      );
+    } else {
+      assert(
+        payload.provenance.official_pre2017_chain_status === "unavailable" &&
+          typeof payload.provenance.official_pre2017_unavailable_reason === "string" &&
+          payload.provenance.official_pre2017_unavailable_reason.trim() &&
+          officialPre2017.available === false &&
+          typeof officialPre2017.reason === "string" &&
+          officialPre2017.reason.trim() &&
+          officialPre2017.table_sha256 === null &&
+          officialPre2017.raw_chain_status === "blocked",
+        "官方前段不可用元数据无效。",
+      );
+    }
+  }
   const payloadRatioRange = parseRatioDataRange(
     payload.provenance.ratio_data_range,
     "发布包比例数据范围",
@@ -322,8 +420,13 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
       payload.records.length - recordSummary.ratioRecords.length,
     "发布清单比例缺失记录数与实际 N/A 记录不一致。",
   );
+  const expectedRatioReviewStatus = officialSchema
+    ? auditedPre2017
+      ? AUDITED_MIXED_REVIEW_STATUS
+      : OFFICIAL_UNAVAILABLE_MIXED_REVIEW_STATUS
+    : LEGACY_MIXED_REVIEW_STATUS;
   assert(
-    manifest.market_cap.ratio_review_status === "mixed_pre2017_pending_eastmoney_vendor_unverified",
+    manifest.market_cap.ratio_review_status === expectedRatioReviewStatus,
     "发布清单比例审查状态无效。",
   );
   assert(Array.isArray(manifest.market_cap.source_segments) && manifest.market_cap.source_segments.length === 2, "市值来源分段必须恰好为两段。");
@@ -332,9 +435,9 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
     {
       start: recordSummary.firstDate,
       end: recordSummary.pre2017LastDate,
-      source: PRE_2017_SOURCE,
-      reviewStatus: PRE_2017_REVIEW_STATUS,
-      ratioAvailable: false,
+      source: auditedPre2017 ? OFFICIAL_PRE2017_SOURCE : payload.records[0].market_cap_source,
+      reviewStatus: auditedPre2017 ? OFFICIAL_PRE2017_REVIEW_STATUS : PRE_2017_REVIEW_STATUS,
+      ratioAvailable: auditedPre2017,
     },
     0,
   );
@@ -344,8 +447,10 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
       start: SOURCE_SWITCH_DATE,
       end: recordSummary.lastDate,
       source: POST_2017_SOURCE,
-      reviewStatus: POST_2017_REVIEW_STATUS,
-      ratioAvailable: true,
+      reviewStatus: recordSummary.ratioRecords.some((record) => record.date >= SOURCE_SWITCH_DATE)
+        ? POST_2017_REVIEW_STATUS
+        : PRE_2017_REVIEW_STATUS,
+      ratioAvailable: recordSummary.ratioRecords.some((record) => record.date >= SOURCE_SWITCH_DATE),
     },
     1,
   );

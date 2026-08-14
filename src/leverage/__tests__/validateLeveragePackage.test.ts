@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   makeManifestWithDfcfFlags,
   makeManifestWithPayloadHash,
+  makeOfficialPre2017ManifestText,
+  makeOfficialPre2017PayloadText,
+  makeOfficialPre2017UnavailableManifestText,
+  makeOfficialPre2017UnavailablePayloadText,
   makeManifestWithRatioUnavailable,
   makePayloadWithRatio,
   makeValidManifestText,
@@ -34,6 +38,69 @@ describe("validateLeveragePackage", () => {
     const result = await validateLeveragePackage(
       makeValidPayloadText(),
       makeValidManifestText(),
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("接受 2011–2016 官方原始链已审计分母，并将比例起点前移至同日 DFCF 记录", async () => {
+    const payloadText = makeOfficialPre2017PayloadText();
+    const result = await validateLeveragePackage(
+      payloadText,
+      makeOfficialPre2017ManifestText(payloadText),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.payload.provenance.ratio_data_range).toEqual({
+      start: "2011-08-03",
+      end: "2017-01-03",
+    });
+    expect(result.payload.records[0]).toMatchObject({
+      market_cap_source: "official_exchange_pre2017_raw_chain_audited",
+      market_cap_review_status: "official_exchange_pre2017_raw_chain_audited",
+      denominator_market_cap_yi: 10000,
+      ratio_pct: 1.8,
+    });
+  });
+
+  it("拒绝伪造为已审计的前段原始链元数据", async () => {
+    const payload = parseObject(makeOfficialPre2017PayloadText());
+    const payloadText = JSON.stringify(payload);
+    const manifest = parseObject(makeOfficialPre2017ManifestText(payloadText));
+    manifest.market_cap.official_pre2017.raw_chain_status = "blocked";
+
+    await expect(
+      validateLeveragePackage(payloadText, JSON.stringify(manifest)),
+    ).resolves.toEqual({ ok: false, reason: "比例未审计口径提示无效。" });
+  });
+
+  it("拒绝官方前段混入不可用来源，即使哈希与元数据已重算", async () => {
+    const payload = parseObject(makeOfficialPre2017PayloadText());
+    const changed = payload.records.find(
+      (record: JsonObject) => record.date === "2016-12-30",
+    );
+    if (changed === undefined) {
+      throw new Error("测试夹具缺少 2016-12-30 官方前段记录。");
+    }
+    changed.denominator_market_cap_yi = null;
+    changed.market_cap_source = "pre2017_official_unavailable";
+    changed.market_cap_review_status = "unavailable";
+    changed.ratio_pct = null;
+    const payloadText = JSON.stringify(payload);
+    const manifest = makeOfficialPre2017ManifestText(payloadText);
+
+    await expect(
+      validateLeveragePackage(payloadText, manifest),
+    ).resolves.toEqual({ ok: false, reason: "2017-01-03 前市值来源分段不得混用。" });
+  });
+
+  it("接受官方前段不可用的临时 QA 包，但不将其标为已审计前段", async () => {
+    const result = await validateLeveragePackage(
+      makeOfficialPre2017UnavailablePayloadText(),
+      makeOfficialPre2017UnavailableManifestText(),
     );
 
     expect(result.ok).toBe(true);
@@ -156,10 +223,13 @@ describe("validateLeveragePackage", () => {
 
   it("在比例不可用时拒绝非空比例", async () => {
     const payload = parseObject(makePayloadWithRatio());
-    payload.records[1].ratio_pct = 1.5;
+    payload.records[payload.records.length - 1].ratio_pct = 1.5;
     const payloadText = JSON.stringify(payload);
     const manifest = parseObject(makeManifestWithRatioUnavailable(payloadText));
     manifest.payload_sha256 = sha256(payloadText);
+    manifest.market_cap.source_segments[1].market_cap_review_status =
+      "eastmoney_vendor_unverified";
+    manifest.market_cap.source_segments[1].ratio_available = true;
 
     const result = await validateLeveragePackage(payloadText, JSON.stringify(manifest));
 
@@ -168,11 +238,16 @@ describe("validateLeveragePackage", () => {
 
   it("在比例可用时要求至少一条非空比例，但允许 pre-2017 空比例", async () => {
     const allNull = packageWith((payload) => {
-      payload.records[1].denominator_market_cap_yi = null;
-      payload.records[1].market_cap_source =
+      const post2017Record = payload.records[payload.records.length - 1];
+      post2017Record.denominator_market_cap_yi = null;
+      post2017Record.market_cap_source =
         "eastmoney_post2017_vendor_unverified";
-      payload.records[1].market_cap_review_status = "unavailable";
-      payload.records[1].ratio_pct = null;
+      post2017Record.market_cap_review_status = "unavailable";
+      post2017Record.ratio_pct = null;
+    }, (manifest) => {
+      manifest.market_cap.ratio_missing_records = 3;
+      manifest.market_cap.source_segments[1].market_cap_review_status = "unavailable";
+      manifest.market_cap.source_segments[1].ratio_available = false;
     });
 
     const result = await validateLeveragePackage(
@@ -185,8 +260,9 @@ describe("validateLeveragePackage", () => {
 
   it("接受 post-2017 未匹配市值日的厂商来源与 unavailable 状态", async () => {
     const packageWithPost2017Gap = packageWith((payload) => {
+      const post2017Record = payload.records[payload.records.length - 1];
       payload.records.push({
-        ...payload.records[1],
+        ...post2017Record,
         date: "2017-01-04",
         denominator_market_cap_yi: null,
         market_cap_review_status: "unavailable",
@@ -194,7 +270,8 @@ describe("validateLeveragePackage", () => {
         index_399006_close: 1990,
       });
     }, (manifest) => {
-      manifest.market_cap.ratio_missing_records = 2;
+      manifest.market_cap.ratio_missing_records = 3;
+      manifest.market_cap.source_segments[1].end = "2017-01-04";
     });
 
     const result = await validateLeveragePackage(
@@ -207,10 +284,10 @@ describe("validateLeveragePackage", () => {
 
   it("拒绝非空比例缺少正分母或厂商来源审查状态", async () => {
     const missingDenominator = packageWith((payload) => {
-      payload.records[1].denominator_market_cap_yi = 0;
+      payload.records[payload.records.length - 1].denominator_market_cap_yi = 0;
     });
     const missingReview = packageWith((payload) => {
-      payload.records[1].market_cap_review_status = null;
+      payload.records[payload.records.length - 1].market_cap_review_status = null;
     });
 
     await expect(
@@ -229,7 +306,7 @@ describe("validateLeveragePackage", () => {
 
   it("拒绝负数比例", async () => {
     const negativeRatio = packageWith((payload) => {
-      payload.records[1].ratio_pct = -0.01;
+      payload.records[payload.records.length - 1].ratio_pct = -0.01;
     });
 
     await expect(

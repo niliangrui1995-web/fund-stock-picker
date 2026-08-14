@@ -21,6 +21,6 @@ describe("resolveLeverageDateRange", () => {
         period: "all",
         customRange: { startDate: "2017-01-03", endDate: "2017-01-03" },
       }),
-    ).toEqual({ startDate: "2016-12-30", endDate: "2017-01-03" });
+    ).toEqual({ startDate: "2011-08-03", endDate: "2017-01-03" });
   });
 });

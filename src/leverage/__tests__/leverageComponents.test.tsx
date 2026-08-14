@@ -7,10 +7,27 @@ import { describe, expect, it } from "vitest";
 import { LeverageControls } from "../LeverageControls";
 import { LeverageDisclosure } from "../LeverageDisclosure";
 import type { LeverageDashboardPayload, LeverageManifest } from "../types";
-import { makeValidManifestText, makeValidPayloadText } from "./fixtures";
+import {
+  makeOfficialPre2017ManifestText,
+  makeOfficialPre2017PayloadText,
+  makeOfficialPre2017UnavailableManifestText,
+  makeOfficialPre2017UnavailablePayloadText,
+  makeValidManifestText,
+  makeValidPayloadText,
+} from "./fixtures";
 
 const payload = JSON.parse(makeValidPayloadText()) as LeverageDashboardPayload;
 const manifest = JSON.parse(makeValidManifestText(makeValidPayloadText())) as LeverageManifest;
+const auditedPayload = JSON.parse(makeOfficialPre2017PayloadText()) as LeverageDashboardPayload;
+const auditedManifest = JSON.parse(
+  makeOfficialPre2017ManifestText(makeOfficialPre2017PayloadText()),
+) as LeverageManifest;
+const officialUnavailablePayload = JSON.parse(
+  makeOfficialPre2017UnavailablePayloadText(),
+) as LeverageDashboardPayload;
+const officialUnavailableManifest = JSON.parse(
+  makeOfficialPre2017UnavailableManifestText(makeOfficialPre2017UnavailablePayloadText()),
+) as LeverageManifest;
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const publishedManifestPath = resolve(
   projectRoot,
@@ -21,7 +38,8 @@ const publishedManifestPath = resolve(
 
 function disclosureMarkupForSourceSegments(sourceSegments: unknown[]): string {
   const invalidManifest = JSON.parse(JSON.stringify(manifest)) as LeverageManifest;
-  invalidManifest.market_cap.source_segments = sourceSegments;
+  invalidManifest.market_cap.source_segments =
+    sourceSegments as LeverageManifest["market_cap"]["source_segments"];
   return renderToStaticMarkup(
     <LeverageDisclosure payload={payload} manifest={invalidManifest} />,
   );
@@ -82,6 +100,33 @@ describe("leverage dashboard components", () => {
     expect(markup).toContain(`SHA-256 ${manifest.payload_sha256.slice(0, 12)}…`);
   });
 
+  it("披露 2011–2016 官方原始链已审计前段，同时保留东方财富后段未审计警示", () => {
+    const markup = renderToStaticMarkup(
+      <LeverageDisclosure payload={auditedPayload} manifest={auditedManifest} />,
+    );
+
+    expect(markup).toContain("交易所官方历史原始链已审计");
+    expect(markup).toContain("2011-08-03 至 2016-12-30 的分母为交易所官方历史原始链");
+    expect(markup).toContain("UNSUPPORTED_RATIO_CONTRACT");
+    expect(markup).toContain("东方财富Choice厂商市值／未经交易所复核、未经完整审计");
+    expect(markup).toContain("前段官方原始链不改变后段的厂商未审计属性");
+    expect(markup).toContain("去杠杆压力代理");
+  });
+
+  it("官方前段临时不可用时不将其披露为已审计分母", () => {
+    const markup = renderToStaticMarkup(
+      <LeverageDisclosure
+        payload={officialUnavailablePayload}
+        manifest={officialUnavailableManifest}
+      />,
+    );
+
+    expect(markup).toContain("交易所历史市值段不可用（比例 N/A）");
+    expect(markup).toContain("2011–2016 年前段交易所官方市值链当前不可用（比例 N/A）");
+    expect(markup).not.toContain("前段为交易所官方原始链已审计分母");
+    expect(markup).toContain("东方财富Choice厂商未复核／未完整审计口径");
+  });
+
   it("按真实发布清单的 market_cap_source 字段显示两个市值来源分段", async () => {
     const publishedManifest = JSON.parse(
       await readFile(publishedManifestPath, "utf8"),
@@ -90,15 +135,16 @@ describe("leverage dashboard components", () => {
       <LeverageDisclosure payload={payload} manifest={publishedManifest} />,
     );
 
-    expect(publishedManifest.market_cap.source_segments).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ market_cap_source: "pre2017_official_pending" }),
-        expect.objectContaining({
-          market_cap_source: "eastmoney_post2017_vendor_unverified",
-        }),
-      ]),
+    const sources = publishedManifest.market_cap.source_segments.map(
+      (segment) => segment.market_cap_source,
     );
-    expect(markup).toContain("交易所历史市值段待准出（比例 N/A）");
+    expect(sources).toContain("eastmoney_post2017_vendor_unverified");
+    expect([
+      "official_exchange_pre2017_raw_chain_audited",
+      "pre2017_official_unavailable",
+      "pre2017_official_pending",
+    ]).toContain(sources[0]);
+    expect(markup).toMatch(/交易所官方历史原始链已审计|交易所历史市值段不可用|交易所历史市值段待准出/);
     expect(markup).toContain("东方财富Choice厂商市值／未经交易所复核、未经完整审计");
   });
 
