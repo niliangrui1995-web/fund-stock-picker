@@ -76,16 +76,16 @@ export function LeverageChart({ metric, derived }: LeverageChartProps) {
         ref={elementRef}
         className="leverage-chart-canvas"
         role="img"
-        aria-label="两融主指标与指数归一化走势图"
+        aria-label="融资余额与指数走势"
       />
       {derived.main.length === 0 && (
         <div className="leverage-chart-empty" role="status">
-          {derived.unavailableReason ?? "当前区间没有可绘制的两融数据。"}
+          {derived.unavailableReason ?? "当前区间暂无数据。"}
         </div>
       )}
       {derived.unavailableIndexCodes.length > 0 && (
         <p className="leverage-chart-note">
-          N/A 指数：{derived.unavailableIndexCodes.join("、")}；不影响主指标与其余可用指数。
+          暂无指数数据：{derived.unavailableIndexCodes.join("、")}
         </p>
       )}
       {derived.unavailableReason !== null && derived.indices.length === 0 && derived.main.length > 0 && (

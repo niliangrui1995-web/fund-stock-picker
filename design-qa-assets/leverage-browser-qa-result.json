@@ -1,6 +1,6 @@
 {
   "schema_version": "1",
-  "generated_at_beijing": "2026-08-14T13:50:22+08:00",
+  "generated_at_beijing": "2026-08-14T14:27:37+08:00",
   "command": "npm run qa:leverage",
   "status": "passed",
   "data_cutoff": "2026-08-13",
@@ -11,15 +11,15 @@
   "temp_parent": "D:\\",
   "normal_preview": {
     "host": "127.0.0.1",
-    "port": 51554
+    "port": 54917
   },
   "bad_preview": {
     "host": "127.0.0.1",
-    "port": 51555
+    "port": 54918
   },
   "ratio_unavailable_preview": {
     "host": "127.0.0.1",
-    "port": 51556
+    "port": 54919
   },
   "ratio_unavailable_package": {
     "reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
@@ -36,8 +36,8 @@
     "payload_sha256": "3ce10019c2057aba62b12e0280cbfd2cbd2f4b2f8dc03b2ef550080f854c25fb"
   },
   "build": {
-    "entry_chunk": "index-poaDz4YJ.js",
-    "leverage_async_chunk": "LeverageDashboard-DY0Kx-68.js",
+    "entry_chunk": "index-tryHRDEh.js",
+    "leverage_async_chunk": "LeverageDashboard-B6EqNm3o.js",
     "command": "node_modules/typescript/bin/tsc --noEmit + node_modules/vite/bin/vite.js build",
     "seo_generation": false
   },
@@ -57,8 +57,8 @@
         "/leverage",
         "/methodology"
       ],
-      "baseBeforeZoom": "共同基期 2016-08-15 = 100",
-      "baseAfterZoom": "共同基期 2016-08-15 = 100",
+      "baseBeforeZoom": "对比基准：2016-08-15 = 100",
+      "baseAfterZoom": "对比基准：2016-08-15 = 100",
       "zoomedTooltipDate": "2020-03-05",
       "manualBase": "2020-01-02",
       "ratioStart": "2011-08-03",
@@ -97,7 +97,7 @@
       }
     },
     "blocked": {
-      "text": "LEVERAGE RESEARCH\n两融数据不可用\n\n发布包 SHA-256 校验失败。\n\n数据截止日：N/A"
+      "text": "两融\n数据暂不可用\n\n请稍后刷新再试。\n\n数据截至：暂无"
     },
     "ratio_unavailable": {
       "frontendValidatorAccepted": true,
@@ -110,41 +110,41 @@
     },
     "offline": {
       "requestUrls": [
-        "http://127.0.0.1:51554/assets/LeverageDashboard-BPzPYERi.css",
-        "http://127.0.0.1:51554/assets/LeverageDashboard-DY0Kx-68.js",
-        "http://127.0.0.1:51554/assets/index-BzgicxBr.css",
-        "http://127.0.0.1:51554/assets/index-poaDz4YJ.js",
-        "http://127.0.0.1:51554/data/fund-stock-index-2026q2.json?v=2026q2",
-        "http://127.0.0.1:51554/data/leverage-dashboard.json",
-        "http://127.0.0.1:51554/data/leverage-dashboard.manifest.json",
-        "http://127.0.0.1:51554/leverage",
-        "http://127.0.0.1:51554/research"
+        "http://127.0.0.1:54917/assets/LeverageDashboard-B6EqNm3o.js",
+        "http://127.0.0.1:54917/assets/LeverageDashboard-C_EdC8qw.css",
+        "http://127.0.0.1:54917/assets/index-BzgicxBr.css",
+        "http://127.0.0.1:54917/assets/index-tryHRDEh.js",
+        "http://127.0.0.1:54917/data/fund-stock-index-2026q2.json?v=2026q2",
+        "http://127.0.0.1:54917/data/leverage-dashboard.json",
+        "http://127.0.0.1:54917/data/leverage-dashboard.manifest.json",
+        "http://127.0.0.1:54917/leverage",
+        "http://127.0.0.1:54917/research"
       ],
       "blockedHttpsRequests": []
     }
   },
   "screenshots": {
     "leverage-default-desktop.png": {
-      "sha256": "4abf5ade671e8642d6b1b586f6aa4f2a6ea0f3d256b7519cbae0bfca4e487fdb",
-      "bytes": 450163,
+      "sha256": "3f7e2f06b788b2907fae454c91e1452c9d444e5ddb7712848efda3607d5f64c9",
+      "bytes": 403364,
       "width": 1440,
       "height": 1024
     },
     "leverage-ratio-desktop.png": {
-      "sha256": "f61a81574151507d0a5300310ebd760c75568eed1fef1ca08af61b22f9f365dc",
-      "bytes": 393168,
+      "sha256": "a73367a5756a47e1cfcb1e7efd0f45fa4d0f1dd6da71133817b2d23d68b024c4",
+      "bytes": 398855,
       "width": 1440,
       "height": 1024
     },
     "leverage-mobile.png": {
-      "sha256": "553e9551c9665e13a69fd64b8d6b7835d94222037314db090dea9de3eacc67d9",
-      "bytes": 151688,
+      "sha256": "4d7d0bdfb5e5c2a3fa0ff0026000e6d03e387f3bf3b5f5fe31286e692df811ac",
+      "bytes": 112740,
       "width": 390,
       "height": 844
     },
     "leverage-blocked.png": {
-      "sha256": "020d0a3c3ecf34afa1ff9cf820cae89f87d3643d7d45f4f0c39c236e33c3d2ff",
-      "bytes": 123959,
+      "sha256": "e991707d368444ba0487da7616a0d17076cb8ad38fc4e45c98c4bb3c538b9c54",
+      "bytes": 105000,
       "width": 1440,
       "height": 1024
     }

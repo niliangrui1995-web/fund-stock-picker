@@ -48,28 +48,6 @@
   line-height: 1.75;
 }
 
-.leverage-header-badges {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 7px;
-  min-width: 190px;
-}
-
-.leverage-header-badges span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid rgba(71, 87, 200, 0.16);
-  border-radius: 999px;
-  background: rgba(71, 87, 200, 0.06);
-  color: #4050b6;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
 .leverage-controls {
   display: grid;
   grid-template-columns: minmax(300px, 1.15fr) minmax(280px, 1fr) minmax(240px, 0.85fr);
@@ -400,99 +378,87 @@
 }
 
 .leverage-disclosure {
-  padding: 18px;
+  align-self: start;
+  overflow: hidden;
   background:
     linear-gradient(180deg, rgba(246, 248, 255, 0.92), rgba(255, 255, 255, 0.96)),
     #ffffff;
 }
 
-.leverage-disclosure-heading {
+.leverage-disclosure details {
+  width: 100%;
+}
+
+.leverage-disclosure summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 13px;
-  border-bottom: 1px solid rgba(71, 85, 105, 0.12);
+  min-height: 54px;
+  padding: 0 16px;
+  color: var(--ink-strong);
+  cursor: pointer;
+  list-style: none;
 }
 
-.leverage-disclosure-heading span {
+.leverage-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.leverage-disclosure summary span {
   color: var(--ink-strong);
   font-size: 14px;
   font-weight: 800;
 }
 
-.leverage-disclosure-heading strong {
+.leverage-disclosure summary small {
   padding: 4px 6px;
   border-radius: 4px;
-  background: #eaf6f1;
-  color: #198362;
+  background: #f0f3f9;
+  color: #64748b;
   font-size: 10px;
   letter-spacing: 0.04em;
 }
 
-.leverage-disclosure-list {
-  margin: 15px 0 0;
+.leverage-disclosure summary small::after {
+  content: "⌄";
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 160ms ease;
 }
 
-.leverage-disclosure-list div {
-  display: grid;
-  gap: 4px;
-  padding: 10px 0;
-  border-bottom: 1px dashed rgba(71, 85, 105, 0.14);
+.leverage-disclosure details[open] summary small::after {
+  transform: rotate(180deg);
 }
 
-.leverage-disclosure-list dt {
-  color: #7d8aa0;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+.leverage-disclosure summary:focus-visible {
+  outline: 2px solid rgba(95, 70, 255, 0.58);
+  outline-offset: -2px;
 }
 
-.leverage-disclosure-list dd {
-  margin: 0;
-  color: #475569;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
+.leverage-disclosure details[open] summary {
+  border-bottom: 1px solid rgba(71, 85, 105, 0.12);
 }
 
-.leverage-disclosure-source-list {
-  display: grid;
-  gap: 5px;
+.leverage-disclosure-content {
+  padding: 14px 16px 16px;
 }
 
-.leverage-disclosure-notes {
-  margin-top: 14px;
-}
-
-.leverage-disclosure-notes p {
-  margin: 0 0 10px;
+.leverage-disclosure-content p {
+  margin: 0 0 9px;
   color: #6a778c;
   font-size: 11px;
-  line-height: 1.72;
+  line-height: 1.65;
 }
 
-.leverage-disclosure-notes p:last-child {
+.leverage-disclosure-content p:last-child {
   margin-bottom: 0;
-}
-
-.leverage-disclosure-notes p::before {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin: 0 7px 1px 0;
-  border-radius: 50%;
-  background: #7583d4;
-  content: "";
 }
 
 .leverage-disclosure-warning {
   color: #a05b2b !important;
-}
-
-.leverage-disclosure-warning::before {
-  background: #c8782f !important;
 }
 
 .leverage-dashboard-state {
@@ -556,11 +522,6 @@
     display: block;
     padding-top: 22px;
     padding-bottom: 20px;
-  }
-
-  .leverage-header-badges {
-    justify-content: flex-start;
-    margin-top: 14px;
   }
 
   .leverage-controls {

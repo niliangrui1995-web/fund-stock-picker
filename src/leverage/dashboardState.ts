@@ -17,28 +17,28 @@ export function getDashboardStateView(
   switch (state.kind) {
     case "idle":
       return {
-        heading: "两融面板尚未载入",
-        detail: "进入两融栏目后，将从本机静态发布包读取并校验数据。",
+        heading: "正在加载数据",
+        detail: "请稍候。",
         blocking: false,
       };
     case "loading":
       return {
-        heading: "正在校验两融发布包",
-        detail: "仅加载本机静态发布包，不访问外部行情接口。",
+        heading: "正在加载数据",
+        detail: "请稍候。",
         blocking: false,
       };
     case "ready":
       return {
-        heading: "两融发布包校验通过",
-        detail: "数据已通过前端完整性与口径门槛检查。",
+        heading: "数据已就绪",
+        detail: "正在展示最新数据。",
         blocking: false,
       };
     case "blocked":
       return {
-        heading: "两融数据不可用",
-        detail: state.reason,
+        heading: "数据暂不可用",
+        detail: "请稍后刷新再试。",
         blocking: true,
-        cutoffDate: state.cutoffDate ?? "N/A",
+        cutoffDate: state.cutoffDate ?? "暂无",
       };
   }
 }

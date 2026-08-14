@@ -431,9 +431,18 @@ function textContains(text, expected, label) {
 
 async function waitForReadyDashboard(page) {
   await page
-    .getByRole("heading", { name: "沪深融资余额观察台" })
+    .getByRole("heading", { name: "两融数据" })
     .waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(".leverage-chart-canvas").waitFor({ state: "visible", timeout: 30_000 });
+}
+
+async function openDataDisclosure(page) {
+  const details = page.locator(".leverage-disclosure details");
+  await details.waitFor({ state: "visible", timeout: 30_000 });
+  if (!(await details.evaluate((element) => element.open))) {
+    await page.locator(".leverage-disclosure summary").click();
+  }
+  return details;
 }
 
 async function moveToMidChartAndReadTooltip(page) {
@@ -490,33 +499,33 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
     );
 
     const chartHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(chartHead, "两市融资余额与指数走势", "默认主图标题");
-    textContains(chartHead, "共同基期", "默认主图基期标签");
-    const disclosure = await page.locator(".leverage-disclosure-list").innerText();
-    textContains(disclosure, "东方财富Choice厂商市值", "市值来源披露");
-    assertCondition(
-      [
-        "交易所官方历史原始链已审计",
-        "交易所历史市值段不可用",
-        "交易所历史市值段待准出",
-      ].some((text) => disclosure.includes(text)),
-      "前段市值披露无效。",
-    );
-
+    textContains(chartHead, "融资余额与指数", "默认主图标题");
+    textContains(chartHead, "对比基准", "默认主图基准标签");
     const baseBeforeZoom = await page.locator(".leverage-chart-panel-head em").innerText();
     const beforeZoom = await moveToMidChartAndReadTooltip(page);
-    textContains(beforeZoom.tooltip, "两市融资余额：", "默认图表提示框");
-    for (const code of ["000001", "399106", "399006"]) {
-      textContains(beforeZoom.tooltip, code, "默认图表提示框指数");
+    textContains(beforeZoom.tooltip, "融资余额：", "默认图表提示框");
+    for (const label of ["上证指数", "深证综指", "创业板指"]) {
+      textContains(beforeZoom.tooltip, label, "默认图表提示框指数");
     }
-    textContains(beforeZoom.tooltip, "原始收盘", "默认图表提示框原始收盘");
-    textContains(beforeZoom.tooltip, "归一化", "默认图表提示框归一化值");
-    textContains(beforeZoom.tooltip, "共同基期：", "默认图表提示框共同基期");
+    textContains(beforeZoom.tooltip, "收盘", "默认图表提示框收盘");
+    textContains(beforeZoom.tooltip, "对比值", "默认图表提示框对比值");
+    textContains(beforeZoom.tooltip, "对比基准：", "默认图表提示框对比基准");
 
     await page.screenshot({
       path: join(screenshotDirectory, "leverage-default-desktop.png"),
       animations: "disabled",
     });
+
+    assert.equal(
+      await page.locator(".leverage-disclosure details").evaluate((element) => element.open),
+      false,
+      "数据说明默认应收起。",
+    );
+    const disclosureDetails = await openDataDisclosure(page);
+    const disclosure = await disclosureDetails.innerText();
+    textContains(disclosure, "融资数据：东方财富；指数数据：通达信。", "数据来源说明");
+    textContains(disclosure, "市值来源：交易所历史数据（2011–2016）", "市值来源说明");
+    textContains(disclosure, "计算方式：融资余额 ÷ 沪深 A 股市值。", "比例计算说明");
 
     await page.mouse.move(
       beforeZoom.box.x + beforeZoom.box.width - 50,
@@ -548,16 +557,16 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
       .filter({ hasText: "2020-01-02" })
       .waitFor({ state: "visible", timeout: 10_000 });
     const manualRangeHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(manualRangeHead, "共同基期 2020-01-02 = 100", "手动日期后的共同基期");
+    textContains(manualRangeHead, "对比基准：2020-01-02 = 100", "手动日期后的对比基准");
     textContains(
       await page.locator(".leverage-control-period").innerText(),
-      "自定义区间",
+      "自定义",
       "手动日期后的观察区间",
     );
 
     await page.goto(`${baseUrl}/leverage?qa-leverage-ratio=1`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
-    const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
+    const ratioButton = page.getByRole("button", { name: "融资余额占市值" });
     assert.equal(await ratioButton.isDisabled(), false, "当前发布包比例模式应可用。");
     await ratioButton.click();
     await page.getByRole("button", { name: "全部", exact: true }).click();
@@ -566,17 +575,16 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
       .filter({ hasText: `${ratioRange.start} 至 ${ratioRange.end}` })
       .waitFor({ state: "visible", timeout: 10_000 });
     const ratioHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(ratioHead, `共同基期 ${ratioRange.start} = 100`, "比例主图共同基期");
+    textContains(ratioHead, `对比基准：${ratioRange.start} = 100`, "比例主图对比基准");
     textContains(await page.locator(".leverage-summary-primary").innerText(), "%", "比例摘要单位");
-    const ratioDisclosure = await page.locator(".leverage-disclosure").innerText();
-    textContains(ratioDisclosure, "东方财富Choice厂商口径", "比例厂商口径提示");
-    textContains(ratioDisclosure, "未经交易所复核", "比例未复核提示");
-    textContains(ratioDisclosure, "未经完整审计", "比例未完整审计提示");
     await page.locator(".leverage-workspace").scrollIntoViewIfNeeded();
     await page.screenshot({
       path: join(screenshotDirectory, "leverage-ratio-desktop.png"),
       animations: "disabled",
     });
+    const ratioDisclosure = await (await openDataDisclosure(page)).innerText();
+    textContains(ratioDisclosure, "市值来源：交易所历史数据（2011–2016）", "比例市值来源说明");
+    textContains(ratioDisclosure, "仅供趋势参考，不构成投资建议。", "比例使用说明");
 
     result.desktop = {
       independentPages: ["/research", "/leverage", "/methodology"],
@@ -663,10 +671,10 @@ async function runBlockedScenario(browser, result, badUrl) {
   const page = await context.newPage();
   try {
     await page.goto(`${badUrl}/leverage`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "两融数据不可用" }).waitFor({ state: "visible", timeout: 30_000 });
+    await page.getByRole("heading", { name: "数据暂不可用" }).waitFor({ state: "visible", timeout: 30_000 });
     const blockedText = await page.locator(".leverage-dashboard-state").innerText();
-    textContains(blockedText, "SHA-256", "坏包阻断原因");
-    textContains(blockedText, "数据截止日：N/A", "坏包截止日");
+    textContains(blockedText, "请稍后刷新再试。", "坏包阻断提示");
+    textContains(blockedText, "数据截至：暂无", "坏包截止日");
     assert.equal(await page.locator(".leverage-chart-canvas").count(), 0, "坏包时不得渲染图表。");
     await page.locator(".leverage-dashboard-state").evaluate((element) =>
       element.scrollIntoView({ block: "center" }),
@@ -693,24 +701,20 @@ async function runRatioUnavailableScenario(browser, result, baseUrl, dataCutoff,
     await page.goto(`${baseUrl}/leverage`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
 
-    const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
+    const ratioButton = page.getByRole("button", { name: "融资余额占市值" });
     assert.equal(await ratioButton.isDisabled(), true, "比例不可用包应禁用比例按钮。");
     const controlsText = await page.locator(".leverage-controls").innerText();
-    textContains(controlsText, "比例暂不可用：", "比例不可用控制提示");
-    textContains(controlsText, reason, "比例不可用控制原因");
+    textContains(controlsText, "暂无可用比例数据", "比例不可用控制提示");
 
-    const disclosureText = await page.locator(".leverage-disclosure").innerText();
-    textContains(disclosureText, "比例可用区间", "比例不可用披露区间");
-    textContains(disclosureText, "N/A", "比例不可用披露 N/A");
-    textContains(disclosureText, "比例模式已禁用：", "比例不可用披露状态");
-    textContains(disclosureText, reason, "比例不可用披露原因");
+    const disclosureText = await (await openDataDisclosure(page)).innerText();
+    textContains(disclosureText, "融资余额占市值：暂不可用。", "比例不可用披露状态");
 
     const chartHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(chartHead, "两市融资余额与指数走势", "比例不可用时余额主图标题");
+    textContains(chartHead, "融资余额与指数", "比例不可用时余额主图标题");
     textContains(chartHead, dataCutoff, "比例不可用时余额主图截止日");
     assert.equal(await page.locator(".leverage-chart-canvas").count(), 1, "比例不可用时余额图表未渲染。");
     const tooltip = await moveToMidChartAndReadTooltip(page);
-    textContains(tooltip.tooltip, "两市融资余额：", "比例不可用时余额图表提示框");
+    textContains(tooltip.tooltip, "融资余额：", "比例不可用时余额图表提示框");
 
     result.ratio_unavailable = {
       frontendValidatorAccepted: true,

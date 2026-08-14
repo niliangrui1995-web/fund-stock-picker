@@ -1,6 +1,7 @@
 import type { ChangeEvent } from "react";
 
 import type { LeverageDateRange, LeveragePeriod } from "./leverageDateRange";
+import { LEVERAGE_INDEX_LABELS, LEVERAGE_METRIC_LABELS } from "./leverageLabels";
 import type { LeverageIndexCode, LeverageMetric } from "./types";
 
 export type { LeveragePeriod } from "./leverageDateRange";
@@ -8,7 +9,6 @@ export type { LeveragePeriod } from "./leverageDateRange";
 interface LeverageControlsProps {
   metric: LeverageMetric;
   ratioAvailable: boolean;
-  ratioUnavailableReason: string | null;
   indexCodes: LeverageIndexCode[];
   unavailableIndexCodes: LeverageIndexCode[];
   period: LeveragePeriod;
@@ -23,9 +23,9 @@ interface LeverageControlsProps {
 }
 
 const INDEX_OPTIONS: Array<{ code: LeverageIndexCode; label: string }> = [
-  { code: "000001", label: "上证指数 000001" },
-  { code: "399106", label: "深证综指 399106" },
-  { code: "399006", label: "创业板指 399006" },
+  { code: "000001", label: LEVERAGE_INDEX_LABELS["000001"] },
+  { code: "399106", label: LEVERAGE_INDEX_LABELS["399106"] },
+  { code: "399006", label: LEVERAGE_INDEX_LABELS["399006"] },
 ];
 
 const PERIOD_OPTIONS: Array<{
@@ -63,7 +63,6 @@ function nextDateRange(
 export function LeverageControls({
   metric,
   ratioAvailable,
-  ratioUnavailableReason,
   indexCodes,
   unavailableIndexCodes,
   period,
@@ -77,39 +76,39 @@ export function LeverageControls({
   onDateRangeChange,
 }: LeverageControlsProps) {
   return (
-    <section className="leverage-controls" aria-label="两融图表控制项">
+    <section className="leverage-controls" aria-label="两融图表设置">
       <div className="leverage-control-group leverage-control-metric">
-        <span className="leverage-control-label">主指标</span>
-        <div className="leverage-segmented-control" role="group" aria-label="主指标">
+        <span className="leverage-control-label">查看</span>
+        <div className="leverage-segmented-control" role="group" aria-label="查看指标">
           <button
             type="button"
             className={metric === "margin" ? "is-active" : ""}
             aria-pressed={metric === "margin"}
             onClick={() => onMetricChange("margin")}
           >
-            两市融资余额（亿元）
+            {LEVERAGE_METRIC_LABELS.margin}
           </button>
           <button
             type="button"
             className={metric === "ratio" ? "is-active" : ""}
             aria-pressed={metric === "ratio"}
             disabled={!ratioAvailable}
-            title={ratioAvailable ? undefined : ratioUnavailableReason ?? "比例数据暂不可用"}
+            title={ratioAvailable ? undefined : "暂无可用比例数据"}
             onClick={() => onMetricChange("ratio")}
           >
-            沪深融资余额／沪深 A 股市值（%）
+            {LEVERAGE_METRIC_LABELS.ratio}
           </button>
         </div>
         {!ratioAvailable && (
           <p className="leverage-control-hint" role="status">
-            比例暂不可用：{ratioUnavailableReason ?? "发布包未提供可用比例记录。"}
+            暂无可用比例数据
           </p>
         )}
       </div>
 
       <div className="leverage-control-group">
-        <span className="leverage-control-label">叠加指数</span>
-        <div className="leverage-index-toggle-group" role="group" aria-label="叠加指数">
+        <span className="leverage-control-label">对比指数</span>
+        <div className="leverage-index-toggle-group" role="group" aria-label="对比指数">
           {INDEX_OPTIONS.map((option) => {
             const selected = indexCodes.includes(option.code);
             const unavailable = unavailableIndexCodes.includes(option.code);
@@ -125,7 +124,7 @@ export function LeverageControls({
                 />
                 <span className="leverage-toggle-mark" aria-hidden="true" />
                 <span>{option.label}</span>
-                {unavailable && <small>当前范围 N/A</small>}
+                {unavailable && <small>暂无数据</small>}
               </label>
             );
           })}
@@ -134,9 +133,9 @@ export function LeverageControls({
 
       <div className="leverage-control-group leverage-control-period">
         <span className="leverage-control-label">
-          观察区间 {period === "custom" && <em>自定义区间</em>}
+          时间范围 {period === "custom" && <em>自定义</em>}
         </span>
-        <div className="leverage-period-toggle-group" role="group" aria-label="观察区间">
+        <div className="leverage-period-toggle-group" role="group" aria-label="时间范围">
           {PERIOD_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -151,7 +150,7 @@ export function LeverageControls({
         </div>
         <div className="leverage-date-range" aria-label="手动日期范围">
           <label>
-            <span>起始</span>
+            <span>从</span>
             <input
               type="date"
               value={startDate}
@@ -164,7 +163,7 @@ export function LeverageControls({
           </label>
           <span className="leverage-date-separator" aria-hidden="true">至</span>
           <label>
-            <span>截止</span>
+            <span>到</span>
             <input
               type="date"
               value={endDate}
@@ -177,7 +176,7 @@ export function LeverageControls({
           </label>
         </div>
         <p className="leverage-control-hint">
-          手动日期会切换至自定义区间；点击预设会覆盖手动日期。
+          选择日期后进入自定义区间
         </p>
       </div>
     </section>

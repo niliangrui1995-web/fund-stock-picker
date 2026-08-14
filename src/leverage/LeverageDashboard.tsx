@@ -16,6 +16,7 @@ import {
   type LeveragePeriod,
 } from "./leverageDateRange";
 import { LeverageLoadLifecycle, isAbortError } from "./leverageLoadLifecycle";
+import { LEVERAGE_METRIC_LABELS } from "./leverageLabels";
 import { loadLeveragePackage } from "./leveragePackageLoader";
 import type {
   LeverageDashboardPayload,
@@ -122,7 +123,7 @@ export function LeverageDashboard() {
         lifecycle.clear(request.controller);
         setLoadState({
           kind: "blocked",
-          reason: "本机两融发布包读取失败，未展示未经校验的数据。",
+          reason: "数据读取失败。",
           cutoffDate: null,
         });
       });
@@ -131,8 +132,6 @@ export function LeverageDashboard() {
   }, [loadedPackage]);
 
   const ratioAvailable = loadedPackage?.payload.provenance.ratio_available ?? false;
-  const ratioUnavailableReason = loadedPackage?.payload.provenance.ratio_unavailable_reason ?? null;
-
   useEffect(() => {
     if (!ratioAvailable && metric === "ratio") {
       setMetric("margin");
@@ -195,10 +194,10 @@ export function LeverageDashboard() {
         className={`leverage-dashboard leverage-dashboard-state ${view.blocking ? "is-blocked" : ""}`}
         aria-live="polite"
       >
-        <span className="leverage-eyebrow">LEVERAGE RESEARCH</span>
+        <span className="leverage-eyebrow">两融</span>
         <h2>{view.heading}</h2>
         <p>{view.detail}</p>
-        {view.blocking && <small className="leverage-state-cutoff">数据截止日：{view.cutoffDate ?? "N/A"}</small>}
+        {view.blocking && <small className="leverage-state-cutoff">数据截至：{view.cutoffDate ?? "暂无"}</small>}
       </section>
     );
   }
@@ -207,22 +206,15 @@ export function LeverageDashboard() {
     <section className="leverage-dashboard" aria-labelledby="leverage-dashboard-title">
       <header className="leverage-dashboard-header">
         <div>
-          <span className="leverage-eyebrow">LEVERAGE RESEARCH</span>
-          <h2 id="leverage-dashboard-title">沪深融资余额观察台</h2>
-          <p>
-            DFCF 沪深共同日期序列；指数按当前窗口共同基期归一化，缩放不会改写基期。
-          </p>
-        </div>
-        <div className="leverage-header-badges" aria-label="数据状态">
-          <span>DFCF 厂商口径</span>
-          <span>本机离线包</span>
+          <span className="leverage-eyebrow">两融</span>
+          <h2 id="leverage-dashboard-title">两融数据</h2>
+          <p>融资余额与指数走势</p>
         </div>
       </header>
 
       <LeverageControls
         metric={metric}
         ratioAvailable={ratioAvailable}
-        ratioUnavailableReason={ratioUnavailableReason}
         indexCodes={indexCodes}
         unavailableIndexCodes={derived.unavailableIndexCodes}
         period={period}
@@ -245,7 +237,7 @@ export function LeverageDashboard() {
       />
 
       <div className="leverage-workspace">
-        <section className="leverage-chart-panel" aria-label="两融走势图">
+        <section className="leverage-chart-panel" aria-label="融资趋势图">
           <div className="leverage-chart-panel-head">
             <div>
               <span>
@@ -253,11 +245,11 @@ export function LeverageDashboard() {
               </span>
               <strong>
                 {metric === "margin"
-                  ? "两市融资余额与指数走势"
-                  : "沪深融资余额／沪深 A 股市值与指数走势"}
+                  ? `${LEVERAGE_METRIC_LABELS.margin}与指数`
+                  : `${LEVERAGE_METRIC_LABELS.ratio}与指数`}
               </strong>
             </div>
-            {derived.baseDate !== null && <em>共同基期 {derived.baseDate} = 100</em>}
+            {derived.baseDate !== null && <em>对比基准：{derived.baseDate} = 100</em>}
           </div>
           <LeverageChart metric={metric} derived={derived} />
         </section>

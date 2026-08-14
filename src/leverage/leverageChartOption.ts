@@ -1,4 +1,5 @@
 import type { DerivedSeries } from "./deriveLeverageSeries";
+import { LEVERAGE_INDEX_LABELS, LEVERAGE_METRIC_LABELS } from "./leverageLabels";
 import type { LeverageIndexCode, LeverageMetric } from "./types";
 
 type TimeValue = [string, number | null];
@@ -58,23 +59,17 @@ export interface LeverageTooltipRequest {
   date: string;
 }
 
-const INDEX_LABELS: Record<LeverageIndexCode, string> = {
-  "000001": "上证指数 000001",
-  "399106": "深证综指 399106",
-  "399006": "创业板指 399006",
-};
-
 function metricLabel(metric: LeverageMetric): string {
-  return metric === "margin" ? "两市融资余额" : "沪深融资余额／沪深 A 股市值";
+  return LEVERAGE_METRIC_LABELS[metric];
 }
 
 function formatFixed(value: number | null, digits = 2): string {
-  return value === null || !Number.isFinite(value) ? "N/A" : value.toFixed(digits);
+  return value === null || !Number.isFinite(value) ? "暂无" : value.toFixed(digits);
 }
 
 function formatMainValue(metric: LeverageMetric, value: number | null): string {
   const rendered = formatFixed(value);
-  if (rendered === "N/A") {
+  if (rendered === "暂无") {
     return rendered;
   }
 
@@ -127,12 +122,12 @@ export function formatLeverageTooltip({
   for (const indexSeries of derived.indices) {
     const point = indexSeries.points.find((candidate) => candidate.date === date);
     lines.push(
-      `${INDEX_LABELS[indexSeries.code]}：原始收盘 ${formatFixed(point?.rawClose ?? null)}；归一化 ${formatFixed(point?.normalized ?? null)}`,
+      `${LEVERAGE_INDEX_LABELS[indexSeries.code]}：收盘 ${formatFixed(point?.rawClose ?? null)}；对比值 ${formatFixed(point?.normalized ?? null)}`,
     );
   }
 
   if (derived.baseDate !== null) {
-    lines.push(`共同基期：${derived.baseDate} = 100`);
+    lines.push(`对比基准：${derived.baseDate} = 100`);
   }
 
   return lines.join("<br/>");
@@ -141,7 +136,7 @@ export function formatLeverageTooltip({
 function numberAxisFormatter(metric: LeverageMetric): (value: number) => string {
   return (value) => {
     if (!Number.isFinite(value)) {
-      return "N/A";
+      return "暂无";
     }
     return metric === "margin" ? value.toFixed(0) : `${value.toFixed(1)}%`;
   };
@@ -176,7 +171,7 @@ export function buildLeverageChartOption({
   for (const indexSeries of derived.indices) {
     series.push({
       type: "line",
-      name: INDEX_LABELS[indexSeries.code],
+      name: LEVERAGE_INDEX_LABELS[indexSeries.code],
       yAxisIndex: 1,
       data: indexSeries.points.map((point) => [point.date, point.normalized]),
       showSymbol: false,
@@ -190,7 +185,7 @@ export function buildLeverageChartOption({
   const yAxis: LeverageChartOption["yAxis"] = [
     {
       type: "value",
-      name: metric === "margin" ? "两市融资余额（亿元）" : "沪深融资余额／沪深 A 股市值（%）",
+      name: metric === "margin" ? "融资余额（亿元）" : "融资余额占市值（%）",
       position: "left",
       splitLine: { lineStyle: { color: "rgba(71, 85, 105, 0.12)" } },
       axisLine: { show: true, lineStyle: { color: "#64748b" } },
@@ -201,7 +196,7 @@ export function buildLeverageChartOption({
   if (derived.indices.length > 0) {
     yAxis.push({
       type: "value",
-      name: "指数归一化（共同基期=100）",
+      name: "指数（基准=100）",
       position: "right",
       splitLine: { lineStyle: { color: "transparent" } },
       axisLine: { show: true, lineStyle: { color: "#64748b" } },

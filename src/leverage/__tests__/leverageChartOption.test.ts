@@ -33,13 +33,13 @@ describe("leverage chart option", () => {
     });
 
     expect(option.yAxis).toHaveLength(2);
-    expect(option.yAxis[0]).toMatchObject({ name: "两市融资余额（亿元）", position: "left" });
-    expect(option.yAxis[1]).toMatchObject({ name: "指数归一化（共同基期=100）", position: "right" });
+    expect(option.yAxis[0]).toMatchObject({ name: "融资余额（亿元）", position: "left" });
+    expect(option.yAxis[1]).toMatchObject({ name: "指数（基准=100）", position: "right" });
     expect(option.xAxis).toMatchObject({ type: "time" });
     expect(option.xAxis).not.toHaveProperty("data");
     expect(option.series).toEqual([
       expect.objectContaining({
-        name: "两市融资余额",
+        name: "融资余额",
         yAxisIndex: 0,
         data: [
           ["2017-01-03", 182],
@@ -48,7 +48,7 @@ describe("leverage chart option", () => {
         connectNulls: false,
       }),
       expect.objectContaining({
-        name: "上证指数 000001",
+        name: "上证指数",
         yAxisIndex: 1,
         lineStyle: { width: 1.6, type: "solid" },
         data: [
@@ -69,7 +69,7 @@ describe("leverage chart option", () => {
     const ratioOption = buildLeverageChartOption({ metric: "ratio", derived: withoutIndices });
 
     expect(marginOption.yAxis).toHaveLength(1);
-    expect(ratioOption.yAxis[0]).toMatchObject({ name: "沪深融资余额／沪深 A 股市值（%）" });
+    expect(ratioOption.yAxis[0]).toMatchObject({ name: "融资余额占市值（%）" });
     expect(ratioOption.series[0]).toMatchObject({
       data: [
         ["2017-01-03", 182],
@@ -79,7 +79,7 @@ describe("leverage chart option", () => {
     });
   });
 
-  it("提示框同时展示主指标、原始收盘、归一化值与共同基期，缺失值显示 N/A", () => {
+  it("提示框用简洁标签展示主指标、收盘和对比值", () => {
     const tooltip = formatLeverageTooltip({
       metric: "margin",
       derived: {
@@ -97,8 +97,8 @@ describe("leverage chart option", () => {
       date: "2017-01-04",
     });
 
-    expect(tooltip).toContain("两市融资余额：180.00 亿元");
-    expect(tooltip).toContain("上证指数 000001：原始收盘 N/A；归一化 N/A");
-    expect(tooltip).toContain("共同基期：2017-01-03 = 100");
+    expect(tooltip).toContain("融资余额：180.00 亿元");
+    expect(tooltip).toContain("上证指数：收盘 暂无；对比值 暂无");
+    expect(tooltip).toContain("对比基准：2017-01-03 = 100");
   });
 });

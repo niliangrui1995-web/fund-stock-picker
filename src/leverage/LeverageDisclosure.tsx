@@ -24,7 +24,7 @@ interface MarketCapSourceSegment {
 function ratioRangeText(payload: LeverageDashboardPayload): string {
   const range = payload.provenance.ratio_data_range;
   if (range === null || range.start === null || range.end === null) {
-    return "N/A";
+    return "";
   }
   return `${range.start} 至 ${range.end}`;
 }
@@ -62,46 +62,14 @@ function isMarketCapSource(
   return MARKET_CAP_SOURCES.some((source) => source === value);
 }
 
-function formatMarketCapSource(segment: MarketCapSourceSegment): string {
-  const descriptions: Record<MarketCapSourceSegment["marketCapSource"], string> = {
-    official_exchange_pre2017_raw_chain_audited:
-      "交易所官方历史原始链已审计（分母启用；聚合比例仍非正式财务比例）",
-    pre2017_official_unavailable: "交易所历史市值段不可用（比例 N/A）",
-    pre2017_official_pending: "交易所历史市值段待准出（比例 N/A）",
-    eastmoney_post2017_vendor_unverified:
-      "东方财富Choice厂商市值／未经交易所复核、未经完整审计",
-  };
-  const description = descriptions[segment.marketCapSource];
-  return `${segment.start} 至 ${segment.end}：${description}`;
-}
-
-function marketCapSourceText(manifest: LeverageManifest): string[] {
-  const segments = manifest.market_cap.source_segments
+function marketCapSourceSegments(manifest: LeverageManifest): MarketCapSourceSegment[] {
+  return manifest.market_cap.source_segments
     .map(asSourceSegment)
     .filter((segment): segment is MarketCapSourceSegment => segment !== null);
-  return segments.length > 0
-    ? segments.map(formatMarketCapSource)
-    : ["N/A"];
-}
-
-function marketCapReviewText(manifest: LeverageManifest): string {
-  const eligibility = manifest.market_cap.reporting_eligible ? "正式报告资格：是" : "正式报告资格：否";
-  if (manifest.market_cap.ratio_review_status === "mixed_official_pre2017_raw_chain_audited_eastmoney_vendor_unverified") {
-    return `2011–2016 年前段为交易所官方原始链已审计分母；2017-01-03 起仍为东方财富Choice厂商未复核／未完整审计口径；${eligibility}`;
-  }
-  if (manifest.market_cap.ratio_review_status === "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified") {
-    return `2011–2016 年前段交易所官方市值链当前不可用（比例 N/A）；2017-01-03 起仍为东方财富Choice厂商未复核／未完整审计口径；${eligibility}`;
-  }
-  if (manifest.market_cap.ratio_review_status === "mixed_pre2017_pending_eastmoney_vendor_unverified") {
-    return `2017 年前交易所历史市值段待准出；2017-01-03 起为东方财富Choice厂商未复核／未完整审计口径；${eligibility}`;
-  }
-  return `${manifest.market_cap.ratio_review_status || "N/A"}；${eligibility}`;
 }
 
 function hasAuditedPre2017Segment(manifest: LeverageManifest): boolean {
-  return manifest.market_cap.source_segments
-    .map(asSourceSegment)
-    .filter((segment): segment is MarketCapSourceSegment => segment !== null)
+  return marketCapSourceSegments(manifest)
     .some(
       (segment) =>
         segment.marketCapSource === "official_exchange_pre2017_raw_chain_audited" &&
@@ -110,73 +78,44 @@ function hasAuditedPre2017Segment(manifest: LeverageManifest): boolean {
     );
 }
 
+function marketCapSourceSummary(manifest: LeverageManifest): string {
+  const segments = marketCapSourceSegments(manifest);
+  if (hasAuditedPre2017Segment(manifest)) {
+    return "市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。";
+  }
+  if (segments.some((segment) => segment.marketCapSource === "pre2017_official_unavailable")) {
+    return "市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。";
+  }
+  return "市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。";
+}
+
 export function LeverageDisclosure({ payload, manifest }: LeverageDisclosureProps) {
   const ratioAvailable = payload.provenance.ratio_available;
-  const payloadHash = manifest.payload_sha256.slice(0, 12);
-  const sourceSegments = marketCapSourceText(manifest);
-  const auditedPre2017 = hasAuditedPre2017Segment(manifest);
+  const ratioRange = ratioRangeText(payload);
+  const fullRange = `${manifest.data_range.start} 至 ${manifest.data_range.end}`;
 
   return (
-    <aside className="leverage-disclosure" aria-label="数据口径与风险披露">
-      <div className="leverage-disclosure-heading">
-        <span>数据口径</span>
-        <strong>离线静态包</strong>
-      </div>
-
-      <dl className="leverage-disclosure-list">
-        <div>
-          <dt>两融余额</dt>
-          <dd>DFCF 厂商口径／未经交易所复核</dd>
-        </div>
-        <div>
-          <dt>指数收盘</dt>
-          <dd>本地 TDX 当前数据，非交易所官方统计</dd>
-        </div>
-        <div>
-          <dt>完整数据范围</dt>
-          <dd>{manifest.data_range.start} 至 {manifest.data_range.end}</dd>
-        </div>
-        <div>
-          <dt>比例可用区间</dt>
-          <dd>{ratioAvailable ? ratioRangeText(payload) : "N/A"}</dd>
-        </div>
-        <div>
-          <dt>市值分母来源</dt>
-          <dd className="leverage-disclosure-source-list">
-            {sourceSegments.map((source) => <span key={source}>{source}</span>)}
-          </dd>
-        </div>
-        <div>
-          <dt>审查状态</dt>
-          <dd>{marketCapReviewText(manifest)}</dd>
-        </div>
-        <div>
-          <dt>发布包校验</dt>
-          <dd>SHA-256 {payloadHash}…</dd>
-        </div>
-      </dl>
-
-      <div className="leverage-disclosure-notes">
-        <p>
-          {auditedPre2017
-            ? "2011-08-03 至 2016-12-30 的分母为交易所官方历史原始链，已通过哈希、日期与 Decimal 审计；该聚合比例仍为 UNSUPPORTED_RATIO_CONTRACT，不能称为正式财务比例。"
-            : "比例仅自 2017-01-03 起采用东方财富Choice厂商口径，未经交易所复核／完整审计；2011–2016 年比例为 N/A。"}
-        </p>
-        <p>
-          2017-01-03 起分母仍为东方财富Choice厂商口径，未经交易所复核、未经完整审计；前段官方原始链不改变后段的厂商未审计属性。
-        </p>
-        <p>
-          分子为 DFCF 厂商两融余额；分子可能包含非 A 股融资标的；本指标仅作描述性比例展示，不代表资产类别完全匹配的估值口径。
-        </p>
-        <p>
-          融资余额升降仅反映杠杆使用或去杠杆压力代理，不能据此证明强制平仓、爆仓、市场底或必然反弹。
-        </p>
-        {!ratioAvailable && (
+    <aside className="leverage-disclosure" aria-label="数据说明">
+      <details>
+        <summary>
+          <span>数据说明</span>
+          <small>来源与范围</small>
+        </summary>
+        <div className="leverage-disclosure-content">
+          <p>融资数据：东方财富；指数数据：通达信。</p>
+          <p>数据范围：{fullRange}。</p>
+          {ratioAvailable && ratioRange !== "" && ratioRange !== fullRange && (
+            <p>比例范围：{ratioRange}。</p>
+          )}
+          {!ratioAvailable && <p>融资余额占市值：暂不可用。</p>}
+          <p>{marketCapSourceSummary(manifest)}</p>
+          <p>计算方式：融资余额 ÷ 沪深 A 股市值。</p>
           <p className="leverage-disclosure-warning">
-            比例模式已禁用：{payload.provenance.ratio_unavailable_reason ?? "发布包未给出可用比例。"}
+            融资余额变化用于观察市场杠杆，不代表涨跌判断。
           </p>
-        )}
-      </div>
+          <p className="leverage-disclosure-warning">仅供趋势参考，不构成投资建议。</p>
+        </div>
+      </details>
     </aside>
   );
 }

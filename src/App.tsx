@@ -1020,12 +1020,10 @@ function EmptyState({ loading, error }: { loading: boolean; error: string | null
 function LeverageModuleFallback() {
   return (
     <div className="leverage-entry-card" role="status" aria-live="polite">
-      <span className="leverage-entry-kicker">LEVERAGE RESEARCH</span>
+      <span className="leverage-entry-kicker">两融</span>
       <span className="leverage-entry-copy">
-        <span className="leverage-entry-title">正在加载两融模块</span>
-        <span className="leverage-entry-description">
-          仅读取本机代码和静态发布包，不访问外部行情、图片或数据接口。
-        </span>
+        <span className="leverage-entry-title">正在加载数据</span>
+        <span className="leverage-entry-description">请稍候。</span>
       </span>
     </div>
   );
@@ -1323,7 +1321,7 @@ export function App() {
   const isAppLoading = loading && !error;
   const disclaimerText =
     page === "leverage"
-      ? "本页面基于 DFCF、东方财富Choice及本地 TDX 数据整理，仅供信息展示和研究参考，不构成任何投资建议、交易指令、收益承诺或市场判断。各数据口径、覆盖范围与审计状态以页面披露为准。"
+      ? "数据仅供趋势参考，不构成投资建议。"
       : "本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。";
 
   return (
@@ -1359,7 +1357,7 @@ export function App() {
         <div className="topbar-meta">
           <span>
             <CalendarDays size={16} />
-            {data?.meta.report ?? fundQuarter.report}
+            {page === "leverage" ? "市场数据" : data?.meta.report ?? fundQuarter.report}
           </span>
           <span>
             <Database size={16} />
@@ -1368,7 +1366,7 @@ export function App() {
                 ? `${numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount)} 海外标的`
                 : "载入中"
               : page === "leverage"
-                ? "两融市场观察"
+                ? "融资与指数"
                 : "基金持仓口径"}
           </span>
         </div>
@@ -1610,7 +1608,7 @@ export function App() {
       )}
 
       {page === "leverage" && (
-        <section className="leverage-section" aria-label="两融研究">
+        <section className="leverage-section" aria-label="两融数据">
           <Suspense fallback={<LeverageModuleFallback />}>
             <LazyLeverageDashboard />
           </Suspense>

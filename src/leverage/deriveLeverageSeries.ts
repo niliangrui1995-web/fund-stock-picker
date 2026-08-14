@@ -152,7 +152,7 @@ export function deriveLeverageSeries(request: DeriveRequest): DerivedSeries {
       indices: [],
       unavailableIndexCodes,
       baseDate: null,
-      unavailableReason: "所选指数在当前范围没有共同可用基期。",
+      unavailableReason: "所选指数暂无可比数据。",
     };
   }
 

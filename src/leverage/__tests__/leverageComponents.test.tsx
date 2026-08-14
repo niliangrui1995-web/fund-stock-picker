@@ -45,8 +45,8 @@ function disclosureMarkupForSourceSegments(sourceSegments: unknown[]): string {
   );
 }
 
-function expectUnavailableSourceSegments(markup: string): void {
-  expect(markup).toContain('leverage-disclosure-source-list"><span>N/A</span>');
+function expectFallbackMarketCapSummary(markup: string): void {
+  expect(markup).toContain("市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。");
 }
 
 describe("leverage dashboard components", () => {
@@ -54,7 +54,6 @@ describe("leverage dashboard components", () => {
     const controlProps: React.ComponentProps<typeof LeverageControls> = {
       metric: "margin" as const,
       ratioAvailable: false,
-      ratioUnavailableReason: "当前发布包没有可用比例记录。",
       indexCodes: ["399006"],
       unavailableIndexCodes: ["399006"],
       period: "custom",
@@ -71,49 +70,42 @@ describe("leverage dashboard components", () => {
       <LeverageControls {...controlProps} />,
     );
 
-    expect(markup).toContain("沪深融资余额／沪深 A 股市值（%）");
+    expect(markup).toContain("融资余额占市值");
     expect(markup).toContain("disabled");
-    expect(markup).toContain("当前发布包没有可用比例记录。");
+    expect(markup).toContain("暂无可用比例数据");
     expect(markup).toContain('type="checkbox"');
-    expect(markup).toContain("当前范围 N/A");
+    expect(markup).toContain("暂无数据");
     expect(markup).toContain('type="date"');
-    expect(markup).toContain("自定义区间");
-    expect(markup).toContain("手动日期会切换至自定义区间");
+    expect(markup).toContain("自定义");
+    expect(markup).toContain("选择日期后进入自定义区间");
   });
 
-  it("披露固定说明 DFCF 厂商口径、2011-2016 比例 N/A 与分子分母范围差异", () => {
+  it("将数据来源与使用边界收拢为可展开的客户说明", () => {
     const markup = renderToStaticMarkup(
       <LeverageDisclosure payload={payload} manifest={manifest} />,
     );
 
-    expect(markup).toContain("DFCF 厂商口径／未经交易所复核");
-    expect(markup).toContain("2011–2016 年比例为 N/A");
-    expect(markup).toContain("市值分母来源");
-    expect(markup).toContain("交易所历史市值段待准出（比例 N/A）");
-    expect(markup).toContain("东方财富Choice厂商市值");
-    expect(markup).toContain("审查状态");
-    expect(markup).toContain("正式报告资格：否");
-    expect(markup).toContain("完整数据范围");
-    expect(markup).toContain(
-      "分子可能包含非 A 股融资标的；本指标仅作描述性比例展示，不代表资产类别完全匹配的估值口径。",
-    );
-    expect(markup).toContain(`SHA-256 ${manifest.payload_sha256.slice(0, 12)}…`);
+    expect(markup).toContain("<details");
+    expect(markup).not.toContain("<details open");
+    expect(markup).toContain("数据说明");
+    expect(markup).toContain("融资数据：东方财富；指数数据：通达信。");
+    expect(markup).toContain("市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。");
+    expect(markup).toContain("融资余额变化用于观察市场杠杆，不代表涨跌判断。");
+    expect(markup).not.toContain("DFCF 厂商口径／未经交易所复核");
+    expect(markup).not.toContain("SHA-256");
   });
 
-  it("披露 2011–2016 官方原始链已审计前段，同时保留东方财富后段未审计警示", () => {
+  it("用简洁日期分段说明已就绪的历史市值来源", () => {
     const markup = renderToStaticMarkup(
       <LeverageDisclosure payload={auditedPayload} manifest={auditedManifest} />,
     );
 
-    expect(markup).toContain("交易所官方历史原始链已审计");
-    expect(markup).toContain("2011-08-03 至 2016-12-30 的分母为交易所官方历史原始链");
-    expect(markup).toContain("UNSUPPORTED_RATIO_CONTRACT");
-    expect(markup).toContain("东方财富Choice厂商市值／未经交易所复核、未经完整审计");
-    expect(markup).toContain("前段官方原始链不改变后段的厂商未审计属性");
-    expect(markup).toContain("去杠杆压力代理");
+    expect(markup).toContain("市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。");
+    expect(markup).not.toContain("UNSUPPORTED_RATIO_CONTRACT");
+    expect(markup).not.toContain("未经完整审计");
   });
 
-  it("官方前段临时不可用时不将其披露为已审计分母", () => {
+  it("早期市值不可用时使用客户可理解的提示", () => {
     const markup = renderToStaticMarkup(
       <LeverageDisclosure
         payload={officialUnavailablePayload}
@@ -121,13 +113,11 @@ describe("leverage dashboard components", () => {
       />,
     );
 
-    expect(markup).toContain("交易所历史市值段不可用（比例 N/A）");
-    expect(markup).toContain("2011–2016 年前段交易所官方市值链当前不可用（比例 N/A）");
-    expect(markup).not.toContain("前段为交易所官方原始链已审计分母");
-    expect(markup).toContain("东方财富Choice厂商未复核／未完整审计口径");
+    expect(markup).toContain("市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。");
+    expect(markup).not.toContain("交易所历史市值段不可用");
   });
 
-  it("按真实发布清单的 market_cap_source 字段显示两个市值来源分段", async () => {
+  it("按真实发布清单简洁展示两段市值来源", async () => {
     const publishedManifest = JSON.parse(
       await readFile(publishedManifestPath, "utf8"),
     ) as LeverageManifest;
@@ -144,11 +134,10 @@ describe("leverage dashboard components", () => {
       "pre2017_official_unavailable",
       "pre2017_official_pending",
     ]).toContain(sources[0]);
-    expect(markup).toMatch(/交易所官方历史原始链已审计|交易所历史市值段不可用|交易所历史市值段待准出/);
-    expect(markup).toContain("东方财富Choice厂商市值／未经交易所复核、未经完整审计");
+    expect(markup).toMatch(/市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。|市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。|市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。/);
   });
 
-  it("仅 legacy source 字段而没有 market_cap_source 时保持 N/A", () => {
+  it("仅 legacy source 字段而没有 market_cap_source 时不显示未验证来源", () => {
     const markup = disclosureMarkupForSourceSegments([
       {
         source: "unverified_legacy_source",
@@ -157,11 +146,11 @@ describe("leverage dashboard components", () => {
       },
     ]);
 
-    expectUnavailableSourceSegments(markup);
+    expectFallbackMarketCapSummary(markup);
     expect(markup).not.toContain("unverified_legacy_source");
   });
 
-  it("未知 market_cap_source 时保持 N/A，不显示未验证来源", () => {
+  it("未知 market_cap_source 时不显示未验证来源", () => {
     const markup = disclosureMarkupForSourceSegments([
       {
         market_cap_source: "unverified_market_cap_source",
@@ -170,18 +159,18 @@ describe("leverage dashboard components", () => {
       },
     ]);
 
-    expectUnavailableSourceSegments(markup);
+    expectFallbackMarketCapSummary(markup);
     expect(markup).not.toContain("unverified_market_cap_source");
   });
 
-  it("null、字符串和数组等非对象市值来源分段时保持 N/A", () => {
+  it("非对象市值来源分段时使用安全的客户提示", () => {
     const markup = disclosureMarkupForSourceSegments([
       null,
       "unverified_source_segment",
       ["eastmoney_post2017_vendor_unverified"],
     ]);
 
-    expectUnavailableSourceSegments(markup);
+    expectFallbackMarketCapSummary(markup);
     expect(markup).not.toContain("unverified_source_segment");
   });
 
