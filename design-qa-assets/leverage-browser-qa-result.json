@@ -1,0 +1,201 @@
+{
+  "schema_version": "1",
+  "generated_at_beijing": "2026-08-14T09:51:26+08:00",
+  "command": "npm run qa:leverage",
+  "status": "passed",
+  "data_cutoff": "2026-08-12",
+  "temp_parent": "D:\\",
+  "normal_preview": {
+    "host": "127.0.0.1",
+    "port": 50070
+  },
+  "bad_preview": {
+    "host": "127.0.0.1",
+    "port": 50071
+  },
+  "ratio_unavailable_preview": {
+    "host": "127.0.0.1",
+    "port": 50072
+  },
+  "ratio_unavailable_package": {
+    "reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
+    "data_cutoff": "2026-08-12",
+    "ratio_available": false,
+    "all_ratio_pct_null": true,
+    "ratio_data_range": {
+      "start": null,
+      "end": null
+    },
+    "manifest_reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
+    "payload_records": 3649,
+    "ratio_missing_records": 3649,
+    "payload_sha256": "b9ac301ca13bc9981993dccaac73fe5605b8c12f4e044869ee7dd83e30e2987d"
+  },
+  "build": {
+    "entry_chunk": "index-C_L0yBlX.js",
+    "leverage_async_chunk": "LeverageDashboard-ylScgtYk.js",
+    "command": "node_modules/typescript/bin/tsc --noEmit + node_modules/vite/bin/vite.js build",
+    "seo_generation": false
+  },
+  "formal_data_sha256_before": {
+    "leverage-dashboard.json": "a17d24243ee5e519c3e2b4c013e13b36ab1c265e93b49482302b3d99c8333fdd",
+    "leverage-dashboard.manifest.json": "ca1460d0ff9e060d0cc6bf8cbffd33663b581c3b39ed598496b350c83d42ddd8"
+  },
+  "formal_data_sha256_after": {
+    "leverage-dashboard.json": "a17d24243ee5e519c3e2b4c013e13b36ab1c265e93b49482302b3d99c8333fdd",
+    "leverage-dashboard.manifest.json": "ca1460d0ff9e060d0cc6bf8cbffd33663b581c3b39ed598496b350c83d42ddd8"
+  },
+  "formal_data_unchanged": true,
+  "scenarios": {
+    "desktop": {
+      "baseBeforeZoom": "共同基期 2016-08-12 = 100",
+      "baseAfterZoom": "共同基期 2016-08-12 = 100",
+      "zoomedTooltipDate": "2020-03-05",
+      "manualBase": "2020-01-02",
+      "ratioStart": "2017-01-03",
+      "dataCutoff": "2026-08-12"
+    },
+    "mobile": {
+      "navigationMetrics": {
+        "scrollWidth": 350,
+        "clientWidth": 350,
+        "overflowX": "auto"
+      },
+      "buttonMetrics": [
+        {
+          "text": "研究",
+          "clientWidth": 66,
+          "scrollWidth": 66,
+          "height": 44
+        },
+        {
+          "text": "两融",
+          "clientWidth": 66,
+          "scrollWidth": 66,
+          "height": 44
+        },
+        {
+          "text": "方法论",
+          "clientWidth": 81,
+          "scrollWidth": 81,
+          "height": 44
+        }
+      ],
+      "viewportMetrics": {
+        "documentWidth": 390,
+        "viewportWidth": 390
+      }
+    },
+    "blocked": {
+      "text": "LEVERAGE RESEARCH\n两融数据不可用\n\n发布包 SHA-256 校验失败。\n\n数据截止日：N/A"
+    },
+    "ratio_unavailable": {
+      "frontendValidatorAccepted": true,
+      "ratioButtonDisabled": true,
+      "reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
+      "disclosureRange": "N/A",
+      "defaultMetric": "margin",
+      "marginChartRendered": true,
+      "dataCutoff": "2026-08-12"
+    },
+    "offline": {
+      "requestUrls": [
+        "http://127.0.0.1:50070/",
+        "http://127.0.0.1:50070/assets/LeverageDashboard-BPzPYERi.css",
+        "http://127.0.0.1:50070/assets/LeverageDashboard-ylScgtYk.js",
+        "http://127.0.0.1:50070/assets/index-C_L0yBlX.js",
+        "http://127.0.0.1:50070/assets/index-hi9N1fYx.css",
+        "http://127.0.0.1:50070/data/fund-stock-index-2026q2.json?v=2026q2",
+        "http://127.0.0.1:50070/data/leverage-dashboard.json",
+        "http://127.0.0.1:50070/data/leverage-dashboard.manifest.json",
+        "http://127.0.0.1:50070/stock-logos/000660.png",
+        "http://127.0.0.1:50070/stock-logos/00148.png",
+        "http://127.0.0.1:50070/stock-logos/005930.png",
+        "http://127.0.0.1:50070/stock-logos/00700.png",
+        "http://127.0.0.1:50070/stock-logos/00883.png",
+        "http://127.0.0.1:50070/stock-logos/00981.png",
+        "http://127.0.0.1:50070/stock-logos/01109.png",
+        "http://127.0.0.1:50070/stock-logos/01347.png",
+        "http://127.0.0.1:50070/stock-logos/01801.png",
+        "http://127.0.0.1:50070/stock-logos/01888.png",
+        "http://127.0.0.1:50070/stock-logos/06869.png",
+        "http://127.0.0.1:50070/stock-logos/06990.png",
+        "http://127.0.0.1:50070/stock-logos/09988.png",
+        "http://127.0.0.1:50070/stock-logos/2308.png",
+        "http://127.0.0.1:50070/stock-logos/2330.png",
+        "http://127.0.0.1:50070/stock-logos/2345.png",
+        "http://127.0.0.1:50070/stock-logos/2454.png",
+        "http://127.0.0.1:50070/stock-logos/285a.png",
+        "http://127.0.0.1:50070/stock-logos/5706.png",
+        "http://127.0.0.1:50070/stock-logos/6501.png",
+        "http://127.0.0.1:50070/stock-logos/6981.png",
+        "http://127.0.0.1:50070/stock-logos/8035.png",
+        "http://127.0.0.1:50070/stock-logos/aapl.png",
+        "http://127.0.0.1:50070/stock-logos/amat.png",
+        "http://127.0.0.1:50070/stock-logos/amd.png",
+        "http://127.0.0.1:50070/stock-logos/amzn.png",
+        "http://127.0.0.1:50070/stock-logos/asml.png",
+        "http://127.0.0.1:50070/stock-logos/avgo.png",
+        "http://127.0.0.1:50070/stock-logos/cohr.png",
+        "http://127.0.0.1:50070/stock-logos/dlr.png",
+        "http://127.0.0.1:50070/stock-logos/eqix.png",
+        "http://127.0.0.1:50070/stock-logos/glw.png",
+        "http://127.0.0.1:50070/stock-logos/goog.png",
+        "http://127.0.0.1:50070/stock-logos/googl.png",
+        "http://127.0.0.1:50070/stock-logos/intc.png",
+        "http://127.0.0.1:50070/stock-logos/klac.png",
+        "http://127.0.0.1:50070/stock-logos/lite.png",
+        "http://127.0.0.1:50070/stock-logos/lly.png",
+        "http://127.0.0.1:50070/stock-logos/lrcx.png",
+        "http://127.0.0.1:50070/stock-logos/meta.png",
+        "http://127.0.0.1:50070/stock-logos/mrvl.png",
+        "http://127.0.0.1:50070/stock-logos/msft.png",
+        "http://127.0.0.1:50070/stock-logos/mu.png",
+        "http://127.0.0.1:50070/stock-logos/nvda.png",
+        "http://127.0.0.1:50070/stock-logos/sndk.png",
+        "http://127.0.0.1:50070/stock-logos/stx.png",
+        "http://127.0.0.1:50070/stock-logos/ter.png",
+        "http://127.0.0.1:50070/stock-logos/tsla.png",
+        "http://127.0.0.1:50070/stock-logos/tsm.png",
+        "http://127.0.0.1:50070/stock-logos/wdc.png"
+      ],
+      "blockedHttpsRequests": []
+    }
+  },
+  "screenshots": {
+    "leverage-default-desktop.png": {
+      "sha256": "3fc1159bb9c073008240b77322574e47e8094ad28ee77e07ff209b7a5e42046e",
+      "bytes": 447183,
+      "width": 1440,
+      "height": 1024
+    },
+    "leverage-ratio-desktop.png": {
+      "sha256": "5c37ec9ed021b7f300e82b4f71708948897af69d218f07fc410c72be95092104",
+      "bytes": 376305,
+      "width": 1440,
+      "height": 1024
+    },
+    "leverage-mobile.png": {
+      "sha256": "014f51dfeae364126c72c5a0d481f9cade2791fc4f9ab541d8993ae61dd3d138",
+      "bytes": 154770,
+      "width": 390,
+      "height": 844
+    },
+    "leverage-blocked.png": {
+      "sha256": "4f3a41348ac0659f2c0c8031a3bc565d7a49b7a3c803505d244bc9a3e2387e6d",
+      "bytes": 208523,
+      "width": 1440,
+      "height": 1024
+    }
+  },
+  "cleanup": {
+    "servers_closed": true,
+    "temporary_root_removed": true
+  },
+  "failure": null,
+  "browser": {
+    "engine": "Playwright Chromium",
+    "executable": "D:\\vcp_hunter\\基金持仓\\node_modules\\playwright-core\\.local-browsers\\chromium-1234\\chrome-win64\\chrome.exe",
+    "availability_policy": "preprovisioned_local_only_no_automatic_download"
+  }
+}

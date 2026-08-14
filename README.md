@@ -137,6 +137,27 @@ npm run verify-live-release
 
 该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件、线上首页 `/` 及其首页脚本资产，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`GLW`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，首页 AI 战报卡片已挂出当前配置热点，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。发布校验也会检查申购限额快照新鲜度：距离配置的季度截止日满 5 天会显示 `[WARN]`，满 10 天会显示 `[FAIL]` 并阻断发布校验。
 
+## 离线两融
+
+顶部“研究｜两融｜方法论”中的“两融”栏目按首次进入时按需代码加载；首次进入前显示可点击的本机入口卡“打开两融市场观察”，点击入口卡或顶部“两融”后才加载图表模块，并仅从本机静态发布包读取数据：
+
+```text
+public/data/leverage-dashboard.json
+public/data/leverage-dashboard.manifest.json
+```
+
+页面可在“两市融资余额（亿元）”与“沪深融资余额／沪深 A 股市值（%）”间切换，并可叠加 `000001`、`399106`、`399006` 的归一化走势。运行本地校验：
+
+```powershell
+npm run verify:leverage
+npm run test:leverage
+npm run verify:leverage:build
+```
+
+校验会核对原始 UTF-8 发布包的 SHA-256、记录数、严格升序日期、DFCF-only 审计标记以及市值来源分段。`npm run verify:leverage:build` 会在 `D:\vcp_hunter` 下创建并删除临时构建目录，执行生产 TypeScript 检查和 Vite 打包，确认两融/ECharts 是异步 chunk；它不调用项目的 SEO 生成链，也不写 `config/`、`public/seo/`、`robots.txt`、`sitemap.xml` 或 OG 产物。融资余额从 `2011-08-03` 起完整展示；比例仅在与分母精确同日的 `2017-01-03` 起展示，后续若单日市值缺失则该日仍为 `N/A`，不补值、不移日。此前交易所市值分段未通过，比例固定为 `N/A`；之后分母为东方财富 Choice 厂商口径，未经交易所复核和完整审计，不能称为严格沪深 A 股市值。融资余额变化仅作去杠杆压力代理，不据此证明强制平仓、市场底或必然反弹。
+
+这两份 JSON 由 `D:\vcp_hunter\产业链投研` 的发布流程原子写入，不应在本项目手工改写；网页不会请求 DFCF、交易所、TDX、外部图片或其他外部行情接口。股票图标仅尝试本地 `stock-logos/` 文件，读取失败时使用页面内文本占位。
+
 ## 数据生成
 
 当前前端读取路径由季度配置派生：

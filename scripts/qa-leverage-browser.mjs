@@ -1,0 +1,878 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { createServer } from "node:http";
+import {
+  access,
+  copyFile,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { constants as fileSystemConstants } from "node:fs";
+import {
+  basename,
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { verifyLeverageDashboard } from "./verify-leverage-dashboard.mjs";
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const tempParent = resolve(projectRoot, "..", "..");
+const tempPrefix = "_tmp_leverage_qa_";
+const formalDataDirectory = resolve(projectRoot, "public", "data");
+const screenshotDirectory = resolve(projectRoot, "design-qa-assets");
+const resultPath = join(screenshotDirectory, "leverage-browser-qa-result.json");
+const qaScrollTop = 3960;
+const sourceSwitchDate = "2017-01-03";
+const ratioUnavailableReason = "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。";
+const dataFiles = [
+  "leverage-dashboard.json",
+  "leverage-dashboard.manifest.json",
+];
+const screenshotFiles = [
+  "leverage-default-desktop.png",
+  "leverage-ratio-desktop.png",
+  "leverage-mobile.png",
+  "leverage-blocked.png",
+];
+const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const mimeTypes = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+};
+
+function assertCondition(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+function describeError(error) {
+  return error instanceof Error ? error.message : "未知错误。";
+}
+
+function timestampBeijing() {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${fields.year}-${fields.month}-${fields.day}T${fields.hour}:${fields.minute}:${fields.second}+08:00`;
+}
+
+function isWithinDirectory(directory, candidate) {
+  const pathFromDirectory = relative(directory, candidate);
+  return (
+    pathFromDirectory.length > 0 &&
+    !pathFromDirectory.startsWith("..") &&
+    !isAbsolute(pathFromDirectory)
+  );
+}
+
+function isSafeTemporaryRoot(directory) {
+  return (
+    dirname(directory) === tempParent &&
+    basename(directory).startsWith(tempPrefix) &&
+    isWithinDirectory(tempParent, directory)
+  );
+}
+
+function assertSafeTemporaryDescendant(root, candidate) {
+  assertCondition(isSafeTemporaryRoot(root), "临时 QA 根目录不在允许范围内。");
+  assertCondition(isWithinDirectory(root, candidate), "临时 QA 子路径越出允许目录。");
+}
+
+async function fileSha256(path) {
+  const text = await readFile(path);
+  return createHash("sha256").update(text).digest("hex");
+}
+
+async function snapshotFormalData() {
+  const hashes = {};
+  for (const filename of dataFiles) {
+    const path = join(formalDataDirectory, filename);
+    const details = await stat(path);
+    assertCondition(details.isFile(), `正式发布包不是文件：${filename}`);
+    hashes[filename] = await fileSha256(path);
+  }
+  return hashes;
+}
+
+async function readFormalDataCutoff() {
+  const manifestPath = join(formalDataDirectory, "leverage-dashboard.manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const cutoff = manifest?.data_range?.end;
+  assertCondition(
+    typeof cutoff === "string" && /^\d{4}-\d{2}-\d{2}$/.test(cutoff),
+    "正式发布清单 data_range.end 无效。",
+  );
+  return cutoff;
+}
+
+function assertEqualObject(actual, expected, message) {
+  assert.deepEqual(actual, expected, message);
+}
+
+function runNodeProgram(program, args, options = {}) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, [program, ...args], {
+      cwd: projectRoot,
+      env: options.env ?? process.env,
+      stdio: "inherit",
+    });
+    child.once("error", rejectPromise);
+    child.once("exit", (code) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+      rejectPromise(new Error(`命令执行失败（退出码 ${code ?? "未知"}）。`));
+    });
+  });
+}
+
+async function verifyBuildOutput(directory) {
+  const assetsDirectory = join(directory, "assets");
+  const assets = await readdir(assetsDirectory, { withFileTypes: true });
+  const assetNames = assets.filter((entry) => entry.isFile()).map((entry) => entry.name);
+  const entryName = assetNames.find((name) => /^index-.*\.js$/.test(name));
+  const leverageName = assetNames.find((name) => /^LeverageDashboard-.*\.js$/.test(name));
+
+  assertCondition(entryName !== undefined, "临时 QA 构建缺少主入口 JavaScript chunk。");
+  assertCondition(leverageName !== undefined, "临时 QA 构建缺少独立两融异步 chunk。");
+
+  const entryText = await readFile(join(assetsDirectory, entryName), "utf8");
+  assertCondition(
+    entryText.includes(leverageName),
+    "临时 QA 构建主入口未以动态 import 引用两融异步 chunk。",
+  );
+  return { entryName, leverageName };
+}
+
+async function copyFormalDataToPreview(previewDirectory, expectedHashes) {
+  const previewDataDirectory = join(previewDirectory, "data");
+  assertSafeTemporaryDescendant(temporaryRoot, previewDataDirectory);
+  await mkdir(previewDataDirectory, { recursive: true });
+  for (const filename of dataFiles) {
+    const source = join(formalDataDirectory, filename);
+    const target = join(previewDataDirectory, filename);
+    assertSafeTemporaryDescendant(temporaryRoot, target);
+    await copyFile(source, target);
+    assertCondition(
+      (await fileSha256(target)) === expectedHashes[filename],
+      `临时预览中的 ${filename} 与正式发布包哈希不一致。`,
+    );
+  }
+}
+
+async function mutateBadManifest(badDirectory) {
+  const manifestPath = join(badDirectory, "data", "leverage-dashboard.manifest.json");
+  assertSafeTemporaryDescendant(temporaryRoot, manifestPath);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  assertCondition(
+    typeof manifest.payload_sha256 === "string" && /^[a-f0-9]{64}$/.test(manifest.payload_sha256),
+    "坏包副本原 payload_sha256 无效。",
+  );
+  manifest.payload_sha256 = "0".repeat(64);
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return manifest.payload_sha256;
+}
+
+async function createRatioUnavailablePackage(previewDirectory) {
+  const payloadPath = join(previewDirectory, "data", "leverage-dashboard.json");
+  const manifestPath = join(previewDirectory, "data", "leverage-dashboard.manifest.json");
+  assertSafeTemporaryDescendant(temporaryRoot, payloadPath);
+  assertSafeTemporaryDescendant(temporaryRoot, manifestPath);
+
+  const payload = JSON.parse(await readFile(payloadPath, "utf8"));
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  assertCondition(Array.isArray(payload?.records) && payload.records.length > 0, "比例不可用临时包记录为空。");
+  assertCondition(
+    payload?.provenance !== null && typeof payload.provenance === "object",
+    "比例不可用临时包缺少 provenance。",
+  );
+  assertCondition(
+    manifest?.market_cap !== null && typeof manifest.market_cap === "object",
+    "比例不可用临时包缺少 market_cap。",
+  );
+
+  for (const record of payload.records) {
+    assertCondition(record !== null && typeof record === "object", "比例不可用临时包存在无效记录。");
+    record.denominator_market_cap_yi = null;
+    record.ratio_pct = null;
+    if (record.date >= sourceSwitchDate) {
+      record.market_cap_review_status = "unavailable";
+    }
+  }
+
+  const emptyRatioRange = { start: null, end: null };
+  payload.provenance.ratio_available = false;
+  payload.provenance.ratio_unavailable_reason = ratioUnavailableReason;
+  payload.provenance.ratio_data_range = emptyRatioRange;
+  manifest.market_cap.ratio_available = false;
+  manifest.market_cap.reason = ratioUnavailableReason;
+  manifest.market_cap.ratio_data_range = emptyRatioRange;
+  manifest.market_cap.ratio_missing_records = payload.records.length;
+
+  const payloadText = `${JSON.stringify(payload, null, 2)}\n`;
+  manifest.payload_sha256 = createHash("sha256").update(payloadText, "utf8").digest("hex");
+  const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
+  const summary = verifyLeverageDashboard(payloadText, manifestText);
+  assertCondition(summary.ratioAvailable === false, "比例不可用临时包仍被标记为可用。");
+  assertCondition(summary.ratioMissingRecords === summary.recordCount, "比例不可用临时包缺失统计不完整。");
+  assertCondition(payload.records.every((record) => record.ratio_pct === null), "比例不可用临时包仍含比例数值。");
+  assert.deepEqual(payload.provenance.ratio_data_range, emptyRatioRange, "比例不可用 payload 日期范围无效。");
+  assert.deepEqual(manifest.market_cap.ratio_data_range, emptyRatioRange, "比例不可用 manifest 日期范围无效。");
+  assertCondition(
+    payload.provenance.ratio_unavailable_reason === manifest.market_cap.reason,
+    "比例不可用临时包的 payload 与 manifest 原因不一致。",
+  );
+
+  await writeFile(payloadPath, payloadText, "utf8");
+  await writeFile(manifestPath, manifestText, "utf8");
+  return {
+    reason: ratioUnavailableReason,
+    data_cutoff: summary.lastDate,
+    ratio_available: false,
+    all_ratio_pct_null: true,
+    ratio_data_range: emptyRatioRange,
+    manifest_reason: manifest.market_cap.reason,
+    payload_records: summary.recordCount,
+    ratio_missing_records: summary.ratioMissingRecords,
+    payload_sha256: manifest.payload_sha256,
+  };
+}
+
+function requestPathForStaticRoot(root, requestUrl) {
+  const url = new URL(requestUrl ?? "/", "http://127.0.0.1");
+  const decoded = decodeURIComponent(url.pathname);
+  const requested = decoded === "/" ? "index.html" : decoded.replace(/^\/+/, "");
+  const target = resolve(root, requested);
+  if (!isWithinDirectory(root, target)) {
+    return null;
+  }
+  return target;
+}
+
+async function startStaticServer(root) {
+  const resolvedRoot = resolve(root);
+  assertSafeTemporaryDescendant(temporaryRoot, resolvedRoot);
+  const server = createServer(async (request, response) => {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      response.writeHead(405, { Allow: "GET, HEAD" });
+      response.end();
+      return;
+    }
+
+    try {
+      const target = requestPathForStaticRoot(resolvedRoot, request.url);
+      if (target === null) {
+        response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Forbidden");
+        return;
+      }
+      const details = await stat(target);
+      if (!details.isFile()) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Not Found");
+        return;
+      }
+      const extension = extname(target).toLowerCase();
+      const headers = {
+        "Content-Type": mimeTypes[extension] ?? "application/octet-stream",
+        "Cache-Control": "no-store",
+      };
+      response.writeHead(200, headers);
+      if (request.method === "HEAD") {
+        response.end();
+        return;
+      }
+      response.end(await readFile(target));
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : null;
+      if (code === "ENOENT") {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Not Found");
+        return;
+      }
+      response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end("Internal Server Error");
+    }
+  });
+
+  await new Promise((resolvePromise, rejectPromise) => {
+    server.once("error", rejectPromise);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", rejectPromise);
+      resolvePromise();
+    });
+  });
+  const address = server.address();
+  assertCondition(address !== null && typeof address !== "string", "本机静态服务未返回端口。");
+  return {
+    server,
+    url: `http://127.0.0.1:${address.port}`,
+  };
+}
+
+async function closeServer(server) {
+  await new Promise((resolvePromise, rejectPromise) => {
+    server.close((error) => (error ? rejectPromise(error) : resolvePromise()));
+  });
+}
+
+async function ensureChromium() {
+  // 固定到本工作树 node_modules，避免继承用户机器上某个手工安装的浏览器缓存。
+  process.env.PLAYWRIGHT_BROWSERS_PATH = "0";
+  let chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch {
+    throw new Error(
+      "未发现本工作树的 Playwright 依赖。QA runner 为离线验收，不会自动下载依赖或浏览器；请由用户或受控环境预先准备本地 Playwright Chromium 后再运行 npm run qa:leverage。",
+    );
+  }
+  const executablePath = chromium.executablePath();
+  try {
+    await access(executablePath, fileSystemConstants.F_OK);
+  } catch {
+    throw new Error(
+      "未发现本工作树的 Playwright Chromium。QA runner 为离线验收，不会自动下载浏览器；请由用户或受控环境预先准备本地 Chromium 后再运行 npm run qa:leverage。",
+    );
+  }
+  return { chromium, executablePath };
+}
+
+function textContains(text, expected, label) {
+  assertCondition(text.includes(expected), `${label}应包含“${expected}”，实际为：“${text}”。`);
+}
+
+async function waitForReadyDashboard(page) {
+  await page
+    .getByRole("heading", { name: "沪深融资余额观察台" })
+    .waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator(".leverage-chart-canvas").waitFor({ state: "visible", timeout: 30_000 });
+}
+
+async function moveToMidChartAndReadTooltip(page) {
+  const chart = page.locator(".leverage-chart-canvas");
+  await chart.scrollIntoViewIfNeeded();
+  const box = await chart.boundingBox();
+  assertCondition(box !== null, "两融图表未获得可用边界框。");
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.45);
+  await page.waitForTimeout(300);
+  return { chart, box, tooltip: await chart.innerText() };
+}
+
+async function runDesktopScenario(browser, result, baseUrl, dataCutoff) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1024 },
+    deviceScaleFactor: 1,
+    colorScheme: "light",
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("button", { name: "打开两融市场观察" })
+      .waitFor({ state: "visible", timeout: 30_000 });
+    await page.getByRole("button", { name: "两融", exact: true }).click();
+    await waitForReadyDashboard(page);
+
+    const indexCheckboxes = page.locator(".leverage-index-toggle input[type=checkbox]");
+    assert.equal(await indexCheckboxes.count(), 3, "默认页应提供三只可选叠加指数。");
+    assert.deepEqual(
+      await indexCheckboxes.evaluateAll((elements) => elements.map((element) => element.checked)),
+      [true, true, true],
+      "默认应叠加上证指数、深证综指和创业板指。",
+    );
+
+    const chartHead = await page.locator(".leverage-chart-panel-head").innerText();
+    textContains(chartHead, "两市融资余额与指数走势", "默认主图标题");
+    textContains(chartHead, "共同基期", "默认主图基期标签");
+    const disclosure = await page.locator(".leverage-disclosure-list").innerText();
+    textContains(disclosure, "东方财富Choice厂商市值", "市值来源披露");
+    textContains(disclosure, "交易所历史市值段待准出", "前段市值披露");
+
+    const baseBeforeZoom = await page.locator(".leverage-chart-panel-head em").innerText();
+    const beforeZoom = await moveToMidChartAndReadTooltip(page);
+    textContains(beforeZoom.tooltip, "两市融资余额：", "默认图表提示框");
+    for (const code of ["000001", "399106", "399006"]) {
+      textContains(beforeZoom.tooltip, code, "默认图表提示框指数");
+    }
+    textContains(beforeZoom.tooltip, "原始收盘", "默认图表提示框原始收盘");
+    textContains(beforeZoom.tooltip, "归一化", "默认图表提示框归一化值");
+    textContains(beforeZoom.tooltip, "共同基期：", "默认图表提示框共同基期");
+
+    await page.screenshot({
+      path: join(screenshotDirectory, "leverage-default-desktop.png"),
+      animations: "disabled",
+    });
+
+    await page.mouse.move(
+      beforeZoom.box.x + beforeZoom.box.width - 50,
+      beforeZoom.box.y + beforeZoom.box.height - 10,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      beforeZoom.box.x + 700,
+      beforeZoom.box.y + beforeZoom.box.height - 10,
+      { steps: 24 },
+    );
+    await page.mouse.up();
+    await page.waitForTimeout(350);
+    const afterZoom = await moveToMidChartAndReadTooltip(page);
+    const baseAfterZoom = await page.locator(".leverage-chart-panel-head em").innerText();
+    assert.notEqual(
+      afterZoom.tooltip.split("\n")[0],
+      beforeZoom.tooltip.split("\n")[0],
+      "dataZoom 后图表中点应对应另一日期，以证明缩放交互实际生效。",
+    );
+    assert.equal(baseAfterZoom, baseBeforeZoom, "dataZoom 不得改写共同基期。");
+
+    const dateInputs = page.locator(".leverage-date-range input[type=date]");
+    assert.equal(await dateInputs.count(), 2, "应提供起止两个手动日期控件。");
+    await dateInputs.nth(0).fill("2020-01-02");
+    await dateInputs.nth(0).press("Tab");
+    await page
+      .locator(".leverage-chart-panel-head em")
+      .filter({ hasText: "2020-01-02" })
+      .waitFor({ state: "visible", timeout: 10_000 });
+    const manualRangeHead = await page.locator(".leverage-chart-panel-head").innerText();
+    textContains(manualRangeHead, "共同基期 2020-01-02 = 100", "手动日期后的共同基期");
+    textContains(
+      await page.locator(".leverage-control-period").innerText(),
+      "自定义区间",
+      "手动日期后的观察区间",
+    );
+
+    await page.goto(`${baseUrl}/?qa-leverage-ratio=1#leverage`, { waitUntil: "domcontentloaded" });
+    await waitForReadyDashboard(page);
+    const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
+    assert.equal(await ratioButton.isDisabled(), false, "当前发布包比例模式应可用。");
+    await ratioButton.click();
+    await page
+      .locator(".leverage-chart-panel-head")
+      .filter({ hasText: `${sourceSwitchDate} 至 ${dataCutoff}` })
+      .waitFor({ state: "visible", timeout: 10_000 });
+    const ratioHead = await page.locator(".leverage-chart-panel-head").innerText();
+    textContains(ratioHead, `共同基期 ${sourceSwitchDate} = 100`, "比例主图共同基期");
+    textContains(await page.locator(".leverage-summary-primary").innerText(), "%", "比例摘要单位");
+    const ratioDisclosure = await page.locator(".leverage-disclosure").innerText();
+    textContains(ratioDisclosure, "东方财富Choice厂商口径", "比例厂商口径提示");
+    textContains(ratioDisclosure, "未经交易所复核", "比例未复核提示");
+    textContains(ratioDisclosure, "未经完整审计", "比例未完整审计提示");
+    await page.locator(".leverage-workspace").scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: join(screenshotDirectory, "leverage-ratio-desktop.png"),
+      animations: "disabled",
+    });
+
+    result.desktop = {
+      baseBeforeZoom,
+      baseAfterZoom,
+      zoomedTooltipDate: afterZoom.tooltip.split("\n")[0] ?? "N/A",
+      manualBase: "2020-01-02",
+      ratioStart: sourceSwitchDate,
+      dataCutoff,
+    };
+  } finally {
+    await context.close();
+  }
+}
+
+async function runMobileScenario(browser, result, baseUrl) {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 1,
+    isMobile: true,
+    hasTouch: true,
+    colorScheme: "light",
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${baseUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await waitForReadyDashboard(page);
+
+    const navigation = page.locator(".topbar-nav");
+    const navigationMetrics = await navigation.evaluate((element) => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      overflowX: getComputedStyle(element).overflowX,
+    }));
+    assert.equal(navigationMetrics.overflowX, "auto", "移动端导航应允许横向滚动。");
+    assert(
+      navigationMetrics.scrollWidth >= navigationMetrics.clientWidth,
+      "移动端导航滚动区域尺寸无效。",
+    );
+    const navButtons = page.locator(".topbar-nav button");
+    assert.equal(await navButtons.count(), 3, "移动端导航应保留研究、两融、方法论。");
+    for (const expectedName of ["研究", "两融", "方法论"]) {
+      await page.getByRole("button", { name: expectedName, exact: true }).waitFor({ state: "visible" });
+    }
+    const buttonMetrics = await navButtons.evaluateAll((elements) =>
+      elements.map((element) => ({
+        text: element.textContent?.trim(),
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        height: element.getBoundingClientRect().height,
+      })),
+    );
+    for (const metric of buttonMetrics) {
+      assert(metric.clientWidth >= metric.scrollWidth, `${metric.text}文本在移动端被截断。`);
+      assert(metric.height >= 44, `${metric.text}移动端触控高度不足 44px。`);
+    }
+    const viewportMetrics = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    }));
+    assert(
+      viewportMetrics.documentWidth <= viewportMetrics.viewportWidth,
+      "移动端页面出现横向溢出。",
+    );
+    await page.evaluate((top) => window.scrollTo({ top, behavior: "instant" }), qaScrollTop);
+    await page.waitForTimeout(150);
+    await page.screenshot({
+      path: join(screenshotDirectory, "leverage-mobile.png"),
+      animations: "disabled",
+    });
+    result.mobile = { navigationMetrics, buttonMetrics, viewportMetrics };
+  } finally {
+    await context.close();
+  }
+}
+
+async function runBlockedScenario(browser, result, badUrl) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1024 },
+    deviceScaleFactor: 1,
+    colorScheme: "light",
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${badUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: "两融数据不可用" }).waitFor({ state: "visible", timeout: 30_000 });
+    const blockedText = await page.locator(".leverage-dashboard-state").innerText();
+    textContains(blockedText, "SHA-256", "坏包阻断原因");
+    textContains(blockedText, "数据截止日：N/A", "坏包截止日");
+    assert.equal(await page.locator(".leverage-chart-canvas").count(), 0, "坏包时不得渲染图表。");
+    await page.locator(".leverage-dashboard-state").evaluate((element) =>
+      element.scrollIntoView({ block: "center" }),
+    );
+    await page.waitForTimeout(120);
+    await page.screenshot({
+      path: join(screenshotDirectory, "leverage-blocked.png"),
+      animations: "disabled",
+    });
+    result.blocked = { text: blockedText };
+  } finally {
+    await context.close();
+  }
+}
+
+async function runRatioUnavailableScenario(browser, result, baseUrl, dataCutoff, reason) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1024 },
+    deviceScaleFactor: 1,
+    colorScheme: "light",
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${baseUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await waitForReadyDashboard(page);
+
+    const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
+    assert.equal(await ratioButton.isDisabled(), true, "比例不可用包应禁用比例按钮。");
+    const controlsText = await page.locator(".leverage-controls").innerText();
+    textContains(controlsText, "比例暂不可用：", "比例不可用控制提示");
+    textContains(controlsText, reason, "比例不可用控制原因");
+
+    const disclosureText = await page.locator(".leverage-disclosure").innerText();
+    textContains(disclosureText, "比例可用区间", "比例不可用披露区间");
+    textContains(disclosureText, "N/A", "比例不可用披露 N/A");
+    textContains(disclosureText, "比例模式已禁用：", "比例不可用披露状态");
+    textContains(disclosureText, reason, "比例不可用披露原因");
+
+    const chartHead = await page.locator(".leverage-chart-panel-head").innerText();
+    textContains(chartHead, "两市融资余额与指数走势", "比例不可用时余额主图标题");
+    textContains(chartHead, dataCutoff, "比例不可用时余额主图截止日");
+    assert.equal(await page.locator(".leverage-chart-canvas").count(), 1, "比例不可用时余额图表未渲染。");
+    const tooltip = await moveToMidChartAndReadTooltip(page);
+    textContains(tooltip.tooltip, "两市融资余额：", "比例不可用时余额图表提示框");
+
+    result.ratio_unavailable = {
+      frontendValidatorAccepted: true,
+      ratioButtonDisabled: true,
+      reason,
+      disclosureRange: "N/A",
+      defaultMetric: "margin",
+      marginChartRendered: true,
+      dataCutoff,
+    };
+  } finally {
+    await context.close();
+  }
+}
+
+async function runOfflineScenario(browser, result, baseUrl) {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1024 },
+    deviceScaleFactor: 1,
+    colorScheme: "light",
+  });
+  const requests = [];
+  const blockedHttpsRequests = [];
+  context.on("request", (request) => requests.push(request.url()));
+  await context.route("https://**/*", async (route) => {
+    blockedHttpsRequests.push(route.request().url());
+    await route.abort();
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
+    await page
+      .getByRole("button", { name: "打开两融市场观察" })
+      .waitFor({ state: "visible", timeout: 30_000 });
+    await page.goto(`${baseUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await waitForReadyDashboard(page);
+    assert.equal(blockedHttpsRequests.length, 0, "离线场景不应尝试任何 HTTPS 外部资源。");
+    assert(
+      requests.every((url) => url.startsWith(baseUrl)),
+      `离线场景出现非本机请求：${requests.join("，")}`,
+    );
+    result.offline = {
+      requestUrls: [...new Set(requests)].sort(),
+      blockedHttpsRequests,
+    };
+  } finally {
+    await context.close();
+  }
+}
+
+async function readPngEvidence() {
+  const evidence = {};
+  for (const filename of screenshotFiles) {
+    const path = join(screenshotDirectory, filename);
+    const bytes = await readFile(path);
+    assertCondition(bytes.subarray(0, 8).equals(pngSignature), `${filename} 的 PNG 签名无效。`);
+    assertCondition(bytes.length >= 24, `${filename} 文件长度不足。`);
+    evidence[filename] = {
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      bytes: bytes.length,
+      width: bytes.readUInt32BE(16),
+      height: bytes.readUInt32BE(20),
+    };
+  }
+  return evidence;
+}
+
+let temporaryRoot = null;
+let normalServer = null;
+let badServer = null;
+let ratioUnavailableServer = null;
+let browser = null;
+let sourceDataBefore = null;
+let sourceDataAfter = null;
+let terminalError = null;
+const result = {
+  schema_version: "1",
+  generated_at_beijing: timestampBeijing(),
+  command: "npm run qa:leverage",
+  status: "running",
+  data_cutoff: null,
+  temp_parent: tempParent,
+  normal_preview: null,
+  bad_preview: null,
+  ratio_unavailable_preview: null,
+  ratio_unavailable_package: null,
+  build: null,
+  formal_data_sha256_before: null,
+  formal_data_sha256_after: null,
+  formal_data_unchanged: false,
+  scenarios: {},
+  screenshots: null,
+  cleanup: {
+    servers_closed: false,
+    temporary_root_removed: false,
+  },
+  failure: null,
+};
+
+try {
+  await mkdir(screenshotDirectory, { recursive: true });
+  sourceDataBefore = await snapshotFormalData();
+  result.formal_data_sha256_before = sourceDataBefore;
+  result.data_cutoff = await readFormalDataCutoff();
+
+  temporaryRoot = await mkdtemp(join(tempParent, tempPrefix));
+  assertCondition(isSafeTemporaryRoot(temporaryRoot), "临时 QA 目录不在 D:\\vcp_hunter 范围内。");
+  const normalDirectory = join(temporaryRoot, "normal");
+  const badDirectory = join(temporaryRoot, "bad");
+  const ratioUnavailableDirectory = join(temporaryRoot, "ratio-unavailable");
+  assertSafeTemporaryDescendant(temporaryRoot, normalDirectory);
+  assertSafeTemporaryDescendant(temporaryRoot, badDirectory);
+  assertSafeTemporaryDescendant(temporaryRoot, ratioUnavailableDirectory);
+
+  await runNodeProgram(resolve(projectRoot, "node_modules", "typescript", "bin", "tsc"), ["--noEmit"]);
+  await runNodeProgram(resolve(projectRoot, "node_modules", "vite", "bin", "vite.js"), [
+    "build",
+    "--outDir",
+    normalDirectory,
+    "--emptyOutDir",
+  ]);
+  const chunks = await verifyBuildOutput(normalDirectory);
+  await copyFormalDataToPreview(normalDirectory, sourceDataBefore);
+  await cp(normalDirectory, badDirectory, { recursive: true, errorOnExist: true });
+  await cp(normalDirectory, ratioUnavailableDirectory, { recursive: true, errorOnExist: true });
+  await mutateBadManifest(badDirectory);
+  result.ratio_unavailable_package = await createRatioUnavailablePackage(ratioUnavailableDirectory);
+  assert.equal(
+    result.ratio_unavailable_package.data_cutoff,
+    result.data_cutoff,
+    "比例不可用临时包截止日与正式 manifest 不一致。",
+  );
+  assertEqualObject(
+    await Promise.all(dataFiles.map((filename) => fileSha256(join(normalDirectory, "data", filename)))).then((hashes) =>
+      Object.fromEntries(dataFiles.map((filename, index) => [filename, hashes[index]])),
+    ),
+    sourceDataBefore,
+    "坏包副本创建后正常临时发布包发生了变化。",
+  );
+
+  normalServer = await startStaticServer(normalDirectory);
+  badServer = await startStaticServer(badDirectory);
+  ratioUnavailableServer = await startStaticServer(ratioUnavailableDirectory);
+  result.normal_preview = { host: "127.0.0.1", port: Number(new URL(normalServer.url).port) };
+  result.bad_preview = { host: "127.0.0.1", port: Number(new URL(badServer.url).port) };
+  result.ratio_unavailable_preview = {
+    host: "127.0.0.1",
+    port: Number(new URL(ratioUnavailableServer.url).port),
+  };
+  result.build = {
+    entry_chunk: chunks.entryName,
+    leverage_async_chunk: chunks.leverageName,
+    command: "node_modules/typescript/bin/tsc --noEmit + node_modules/vite/bin/vite.js build",
+    seo_generation: false,
+  };
+
+  const playwright = await ensureChromium();
+  browser = await playwright.chromium.launch({ headless: true });
+  result.browser = {
+    engine: "Playwright Chromium",
+    executable: playwright.executablePath,
+    availability_policy: "preprovisioned_local_only_no_automatic_download",
+  };
+  await runDesktopScenario(browser, result.scenarios, normalServer.url, result.data_cutoff);
+  await runMobileScenario(browser, result.scenarios, normalServer.url);
+  await runBlockedScenario(browser, result.scenarios, badServer.url);
+  await runRatioUnavailableScenario(
+    browser,
+    result.scenarios,
+    ratioUnavailableServer.url,
+    result.data_cutoff,
+    result.ratio_unavailable_package.reason,
+  );
+  await runOfflineScenario(browser, result.scenarios, normalServer.url);
+  result.screenshots = await readPngEvidence();
+  result.status = "passed";
+} catch (error) {
+  terminalError = error;
+  result.status = "failed";
+  result.failure = describeError(error);
+} finally {
+  if (browser !== null) {
+    try {
+      await browser.close();
+    } catch (error) {
+      terminalError ??= error;
+      result.status = "failed";
+      result.failure ??= `浏览器关闭失败：${describeError(error)}`;
+    }
+  }
+  try {
+    if (normalServer !== null) {
+      await closeServer(normalServer.server);
+    }
+    if (badServer !== null) {
+      await closeServer(badServer.server);
+    }
+    if (ratioUnavailableServer !== null) {
+      await closeServer(ratioUnavailableServer.server);
+    }
+    result.cleanup.servers_closed = true;
+  } catch (error) {
+    terminalError ??= error;
+    result.status = "failed";
+    result.failure ??= `本机服务关闭失败：${describeError(error)}`;
+  }
+  try {
+    sourceDataAfter = await snapshotFormalData();
+    result.formal_data_sha256_after = sourceDataAfter;
+    result.formal_data_unchanged = sourceDataBefore !== null &&
+      JSON.stringify(sourceDataBefore) === JSON.stringify(sourceDataAfter);
+    assertCondition(result.formal_data_unchanged, "QA 运行前后正式 public/data 的 SHA-256 发生变化。");
+  } catch (error) {
+    terminalError ??= error;
+    result.status = "failed";
+    result.failure ??= describeError(error);
+  }
+  try {
+    if (temporaryRoot !== null) {
+      assertCondition(isSafeTemporaryRoot(temporaryRoot), "拒绝删除未验证的临时 QA 目录。");
+      await rm(temporaryRoot, { recursive: true, force: true });
+      try {
+        await access(temporaryRoot, fileSystemConstants.F_OK);
+        throw new Error("临时 QA 目录删除后仍存在。");
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+          result.cleanup.temporary_root_removed = true;
+        } else {
+          throw error;
+        }
+      }
+    }
+  } catch (error) {
+    terminalError ??= error;
+    result.status = "failed";
+    result.failure ??= `临时 QA 目录清理失败：${describeError(error)}`;
+  }
+  if (result.status === "passed" && (!result.formal_data_unchanged || !result.cleanup.temporary_root_removed)) {
+    terminalError ??= new Error("QA 清理或正式数据哈希状态不完整。");
+    result.status = "failed";
+    result.failure ??= describeError(terminalError);
+  }
+  await writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
+}
+
+if (terminalError !== null || result.status !== "passed") {
+  console.error(`两融浏览器离线 QA 失败：${result.failure ?? describeError(terminalError)}`);
+  console.error(`结构化结果：${resultPath}`);
+  process.exitCode = 1;
+} else {
+  console.log("两融浏览器离线 QA 通过：已完成临时构建、坏包阻断、比例不可用、离线边界和清理验证。");
+  console.log(`结构化结果：${resultPath}`);
+}

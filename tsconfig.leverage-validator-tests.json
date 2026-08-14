@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/leverage/types.ts",
+    "src/leverage/validateLeveragePackage.ts",
+    "src/leverage/__tests__/fixtures.ts",
+    "src/leverage/__tests__/validateLeveragePackage.test.ts"
+  ],
+  "exclude": []
+}

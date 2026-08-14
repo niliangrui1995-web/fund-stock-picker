@@ -12,11 +12,18 @@ import {
   X,
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
 
 type AccessMode = "offExchange" | "onExchange";
+type PageSection = "research" | "leverage" | "methodology";
+
+const LazyLeverageDashboard = lazy(() =>
+  import("./leverage/LeverageDashboard").then(({ LeverageDashboard }) => ({
+    default: LeverageDashboard,
+  })),
+);
 
 type FundRecord = {
   fundCode: string;
@@ -138,6 +145,17 @@ function getInitialSelectedCode() {
   return getInitialSearchParam("stock") || null;
 }
 
+function getInitialPageSection(): PageSection {
+  if (typeof window === "undefined") {
+    return "research";
+  }
+
+  const section = window.location.hash.replace(/^#/, "");
+  return section === "leverage" || section === "methodology" || section === "research"
+    ? section
+    : "research";
+}
+
 function getInitialSearchParam(name: string) {
   if (typeof window === "undefined") {
     return "";
@@ -150,72 +168,12 @@ function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
 
-function financialLogoSymbol(code: string, name = "") {
-  const normalized = code.trim().toUpperCase();
-
-  if (/^\d{5}$/.test(normalized)) {
-    return `${normalized.replace(/^0(?=\d{4}$)/, "")}.HK`;
-  }
-  if (/^\d{4}\.(T|JP)$/.test(normalized)) {
-    return normalized.replace(/\.JP$/, ".T");
-  }
-  if (/^\d{6}\.(KS|KQ)$/.test(normalized)) {
-    return normalized;
-  }
-  if (/^\d{4}$/.test(normalized)) {
-    if (/台积电|台積電|台湾|臺灣/.test(name)) return `${normalized}.TW`;
-    return `${normalized}.T`;
-  }
-  if (/^\d{6}$/.test(normalized) && koreanStockNamePattern.test(name)) {
-    return `${normalized}.KS`;
-  }
-  return normalized;
-}
-
-function remoteStockLogoUrl(code: string, name = "") {
-  return `https://financialmodelingprep.com/image-stock/${encodeURIComponent(financialLogoSymbol(code, name))}.png`;
-}
-
-function eodLogoPath(code: string, name = "") {
-  const normalized = code.trim().toUpperCase();
-
-  if (/^\d{5}$/.test(normalized)) {
-    return `HK/${normalized.replace(/^0(?=\d{4}$)/, "")}.png`;
-  }
-  if (/^\d{4}\.(T|JP)$/.test(normalized)) {
-    return `TSE/${normalized.slice(0, 4)}.png`;
-  }
-  if (/^\d{6}\.(KS|KQ)$/.test(normalized)) {
-    return `KO/${normalized.slice(0, 6)}.png`;
-  }
-  if (/^\d{4}$/.test(normalized)) {
-    if (/台积电|台積電|台湾|臺灣/.test(name)) return `TW/${normalized}.png`;
-    return `TSE/${normalized}.png`;
-  }
-  if (/^\d{6}$/.test(normalized) && koreanStockNamePattern.test(name)) {
-    return `KO/${normalized}.png`;
-  }
-  if (/^[A-Z]{1,5}([.-][A-Z]{1,2})?$/.test(normalized)) {
-    return `US/${normalized}.png`;
-  }
-  return "";
-}
-
-function eodStockLogoUrl(code: string, name = "") {
-  const logoPath = eodLogoPath(code, name);
-  return logoPath ? `https://eodhd.com/img/logos/${logoPath}` : "";
-}
-
 function localStockLogoUrl(code: string) {
   return `stock-logos/${normalizeStockCode(code).toLowerCase()}.png`;
 }
 
-function stockLogoSources(code: string, name = "") {
-  return Array.from(
-    new Set(
-      [localStockLogoUrl(code), remoteStockLogoUrl(code, name), eodStockLogoUrl(code, name)].filter(Boolean),
-    ),
-  );
+export function stockLogoSources(code: string) {
+  return [localStockLogoUrl(code)];
 }
 
 function stockMarketBucket(code: string, name = ""): MarketBucket {
@@ -316,7 +274,7 @@ function StockLogo({
   name: string;
   size?: "sm" | "lg";
 }) {
-  const sources = useMemo(() => stockLogoSources(code, name), [code, name]);
+  const sources = useMemo(() => stockLogoSources(code), [code]);
   const [sourceIndex, setSourceIndex] = useState(0);
   const [failed, setFailed] = useState(false);
   const src = sources[sourceIndex];
@@ -1061,6 +1019,20 @@ function EmptyState({ loading, error }: { loading: boolean; error: string | null
   );
 }
 
+function LeverageModuleFallback() {
+  return (
+    <div className="leverage-entry-card" role="status" aria-live="polite">
+      <span className="leverage-entry-kicker">LEVERAGE RESEARCH</span>
+      <span className="leverage-entry-copy">
+        <span className="leverage-entry-title">正在加载两融模块</span>
+        <span className="leverage-entry-description">
+          仅读取本机代码和静态发布包，不访问外部行情、图片或数据接口。
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
@@ -1191,7 +1163,10 @@ export function App() {
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<"research" | "methodology">("research");
+  const [activeSection, setActiveSection] = useState<PageSection>(getInitialPageSection);
+  const [leverageVisited, setLeverageVisited] = useState(
+    () => getInitialPageSection() === "leverage",
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -1231,6 +1206,24 @@ export function App() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    function syncSectionFromHash() {
+      const sectionId = getInitialPageSection();
+      setActiveSection(sectionId);
+
+      if (sectionId === "leverage") {
+        setLeverageVisited(true);
+        window.requestAnimationFrame(() => {
+          document.getElementById("leverage")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+    }
+
+    syncSectionFromHash();
+    window.addEventListener("hashchange", syncSectionFromHash);
+    return () => window.removeEventListener("hashchange", syncSectionFromHash);
   }, []);
 
   const matches = useMemo(() => findMatches(data?.stocks ?? [], query), [data, query]);
@@ -1316,7 +1309,20 @@ export function App() {
     setAccessMode(mode);
   }
 
-  function scrollToPageSection(sectionId: "research" | "methodology") {
+  function openLeverage() {
+    setActiveSection("leverage");
+    setLeverageVisited(true);
+    window.requestAnimationFrame(() => {
+      document.getElementById("leverage")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function scrollToPageSection(sectionId: PageSection) {
+    if (sectionId === "leverage") {
+      openLeverage();
+      return;
+    }
+
     setActiveSection(sectionId);
     document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -1355,6 +1361,14 @@ export function App() {
             onClick={() => scrollToPageSection("research")}
           >
             研究
+          </button>
+          <button
+            type="button"
+            className={activeSection === "leverage" ? "active" : ""}
+            aria-current={activeSection === "leverage" ? "page" : undefined}
+            onClick={() => scrollToPageSection("leverage")}
+          >
+            两融
           </button>
           <button
             type="button"
@@ -1607,6 +1621,24 @@ export function App() {
             <EmptyState loading={false} error={error} />
           )}
         </section>
+      </section>
+
+      <section id="leverage" className="leverage-section" aria-label="两融研究">
+        {leverageVisited ? (
+          <Suspense fallback={<LeverageModuleFallback />}>
+            <LazyLeverageDashboard />
+          </Suspense>
+        ) : (
+          <button type="button" className="leverage-entry-card" onClick={openLeverage}>
+            <span className="leverage-entry-kicker">LEVERAGE RESEARCH</span>
+            <span className="leverage-entry-copy">
+              <span className="leverage-entry-title">打开两融市场观察</span>
+              <span className="leverage-entry-description">
+                按需加载本机静态数据包与图表模块，不访问外部行情、图片或数据接口。
+              </span>
+            </span>
+          </button>
+        )}
       </section>
 
       <section id="methodology" className="methodology-section" aria-labelledby="methodology-title">
