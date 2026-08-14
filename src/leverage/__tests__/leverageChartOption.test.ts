@@ -50,6 +50,7 @@ describe("leverage chart option", () => {
       expect.objectContaining({
         name: "上证指数 000001",
         yAxisIndex: 1,
+        lineStyle: { width: 1.6, type: "solid" },
         data: [
           ["2017-01-03", 100],
           ["2017-01-04", 99.66777409],

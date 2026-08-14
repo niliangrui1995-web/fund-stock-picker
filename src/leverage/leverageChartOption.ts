@@ -182,7 +182,7 @@ export function buildLeverageChartOption({
       showSymbol: false,
       connectNulls: false,
       sampling: "lttb",
-      lineStyle: { width: 1.6, type: "dashed" },
+      lineStyle: { width: 1.6, type: "solid" },
       emphasis: { focus: "series" },
     });
   }
