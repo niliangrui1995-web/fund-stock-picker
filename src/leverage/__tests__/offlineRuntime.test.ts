@@ -11,7 +11,7 @@ describe("本机离线运行边界", () => {
   it("股票图标只使用本地文件，失效后由组件文本占位，不尝试外网回退", () => {
     const sources = stockLogoSources("NVDA");
 
-    expect(sources).toEqual(["stock-logos/nvda.png"]);
+    expect(sources).toEqual(["/stock-logos/nvda.png"]);
     expect(sources.every((source) => !/^https?:\/\//.test(source))).toBe(true);
   });
 

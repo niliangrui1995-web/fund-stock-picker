@@ -39,6 +39,7 @@ const sourceSwitchDate = "2017-01-03";
 const officialUnavailableMixedReviewStatus =
   "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
 const ratioUnavailableReason = "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。";
+const appPagePaths = new Set(["/research", "/leverage", "/methodology"]);
 const dataFiles = [
   "leverage-dashboard.json",
   "leverage-dashboard.manifest.json",
@@ -323,6 +324,10 @@ async function createRatioUnavailablePackage(previewDirectory) {
 function requestPathForStaticRoot(root, requestUrl) {
   const url = new URL(requestUrl ?? "/", "http://127.0.0.1");
   const decoded = decodeURIComponent(url.pathname);
+  const canonicalPath = decoded.replace(/\/+$/, "") || "/";
+  if (appPagePaths.has(canonicalPath)) {
+    return resolve(root, "index.html");
+  }
   const requested = decoded === "/" ? "index.html" : decoded.replace(/^\/+/, "");
   const target = resolve(root, requested);
   if (!isWithinDirectory(root, target)) {
@@ -449,12 +454,32 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
   });
   const page = await context.newPage();
   try {
-    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
-    await page
-      .getByRole("button", { name: "打开两融市场观察" })
-      .waitFor({ state: "visible", timeout: 30_000 });
-    await page.getByRole("button", { name: "两融", exact: true }).click();
+    await page.goto(`${baseUrl}/research`, { waitUntil: "domcontentloaded" });
+    await page.locator(".search-zone").waitFor({ state: "visible", timeout: 30_000 });
+    assert.equal(await page.locator(".leverage-dashboard").count(), 0, "研究页不应渲染两融面板。");
+    assert.equal(
+      await page.getByRole("link", { name: "研究", exact: true }).getAttribute("aria-current"),
+      "page",
+      "研究页导航状态无效。",
+    );
+
+    await page.goto(`${baseUrl}/methodology`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: "基金持仓穿透口径" }).waitFor({ state: "visible", timeout: 30_000 });
+    assert.equal(await page.locator(".search-zone").count(), 0, "方法论页不应渲染研究面板。");
+    assert.equal(
+      await page.getByRole("link", { name: "方法论", exact: true }).getAttribute("aria-current"),
+      "page",
+      "方法论页导航状态无效。",
+    );
+
+    await page.goto(`${baseUrl}/leverage`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
+    assert.equal(new URL(page.url()).pathname, "/leverage", "两融页直达路径无效。");
+    assert.equal(
+      await page.getByRole("link", { name: "两融", exact: true }).getAttribute("aria-current"),
+      "page",
+      "两融页导航状态无效。",
+    );
 
     const indexCheckboxes = page.locator(".leverage-index-toggle input[type=checkbox]");
     assert.equal(await indexCheckboxes.count(), 3, "默认页应提供三只可选叠加指数。");
@@ -530,7 +555,7 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
       "手动日期后的观察区间",
     );
 
-    await page.goto(`${baseUrl}/?qa-leverage-ratio=1#leverage`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${baseUrl}/leverage?qa-leverage-ratio=1`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
     const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
     assert.equal(await ratioButton.isDisabled(), false, "当前发布包比例模式应可用。");
@@ -554,6 +579,7 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
     });
 
     result.desktop = {
+      independentPages: ["/research", "/leverage", "/methodology"],
       baseBeforeZoom,
       baseAfterZoom,
       zoomedTooltipDate: afterZoom.tooltip.split("\n")[0] ?? "N/A",
@@ -577,7 +603,7 @@ async function runMobileScenario(browser, result, baseUrl) {
   });
   const page = await context.newPage();
   try {
-    await page.goto(`${baseUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${baseUrl}/leverage`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
 
     const navigation = page.locator(".topbar-nav");
@@ -591,12 +617,12 @@ async function runMobileScenario(browser, result, baseUrl) {
       navigationMetrics.scrollWidth >= navigationMetrics.clientWidth,
       "移动端导航滚动区域尺寸无效。",
     );
-    const navButtons = page.locator(".topbar-nav button");
-    assert.equal(await navButtons.count(), 3, "移动端导航应保留研究、两融、方法论。");
+    const navLinks = page.locator(".topbar-nav a");
+    assert.equal(await navLinks.count(), 3, "移动端导航应保留研究、两融、方法论。");
     for (const expectedName of ["研究", "两融", "方法论"]) {
-      await page.getByRole("button", { name: expectedName, exact: true }).waitFor({ state: "visible" });
+      await page.getByRole("link", { name: expectedName, exact: true }).waitFor({ state: "visible" });
     }
-    const buttonMetrics = await navButtons.evaluateAll((elements) =>
+    const buttonMetrics = await navLinks.evaluateAll((elements) =>
       elements.map((element) => ({
         text: element.textContent?.trim(),
         clientWidth: element.clientWidth,
@@ -636,7 +662,7 @@ async function runBlockedScenario(browser, result, badUrl) {
   });
   const page = await context.newPage();
   try {
-    await page.goto(`${badUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${badUrl}/leverage`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "两融数据不可用" }).waitFor({ state: "visible", timeout: 30_000 });
     const blockedText = await page.locator(".leverage-dashboard-state").innerText();
     textContains(blockedText, "SHA-256", "坏包阻断原因");
@@ -664,7 +690,7 @@ async function runRatioUnavailableScenario(browser, result, baseUrl, dataCutoff,
   });
   const page = await context.newPage();
   try {
-    await page.goto(`${baseUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${baseUrl}/leverage`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
 
     const ratioButton = page.getByRole("button", { name: "沪深融资余额／沪深 A 股市值（%）" });
@@ -715,11 +741,9 @@ async function runOfflineScenario(browser, result, baseUrl) {
   });
   const page = await context.newPage();
   try {
-    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
-    await page
-      .getByRole("button", { name: "打开两融市场观察" })
-      .waitFor({ state: "visible", timeout: 30_000 });
-    await page.goto(`${baseUrl}/#leverage`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${baseUrl}/research`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("link", { name: "两融", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
+    await page.goto(`${baseUrl}/leverage`, { waitUntil: "domcontentloaded" });
     await waitForReadyDashboard(page);
     assert.equal(blockedHttpsRequests.length, 0, "离线场景不应尝试任何 HTTPS 外部资源。");
     assert(

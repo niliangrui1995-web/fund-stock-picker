@@ -49,7 +49,7 @@ final result: passed
 
 ## 结论
 
-通过。可从工作树直接执行 `npm run qa:leverage` 完整复跑；不依赖已手工启动的服务、环境变量、线上参考站或外部数据源。两融正式发布包在浏览器端校验后渲染；篡改临时副本的 `payload_sha256` 会阻断图表而不会显示旧值或未校验数据。
+通过。可从工作树直接执行 `npm run qa:leverage` 完整复跑；不依赖已手工启动的服务、环境变量、线上参考站或外部数据源。浏览器会分别直达 `/research`、`/leverage`、`/methodology`，确认三个栏目互为独立页面。两融正式发布包在浏览器端校验后渲染；篡改临时副本的 `payload_sha256` 会阻断图表而不会显示旧值或未校验数据。
 
 ## 测试条件
 
@@ -66,12 +66,12 @@ final result: passed
 ## 结果与证据
 
 - 默认余额页：默认选择三只指数 `000001`、`399106`、`399006`；主图左轴为两市融资余额、右轴为共同基期归一化指数。提示框显示当日融资余额、每只指数的原始收盘、归一化值和共同基期。截图：[leverage-default-desktop.png](design-qa-assets/leverage-default-desktop.png)。
-- 比例页：比例主图从 `2017-01-03` 起绘制；清楚披露东方财富Choice厂商口径、未经交易所复核、未经完整审计，且 `2011–2016` 比例为 `N/A`。截图：[leverage-ratio-desktop.png](design-qa-assets/leverage-ratio-desktop.png)。
-- 基期规则：默认共同基期 `2016-08-12 = 100`。实际拖动 dataZoom 后，图表中点提示日期由 `2021-07-16` 变为 `2020-03-05`，共同基期保持不变；手动将起始日期改为 `2020-01-02` 后，观察区间变为“自定义区间”，共同基期重设为 `2020-01-02 = 100`。
-- 移动端：三项导航均存在、`overflow-x: auto`、按钮高度均为 `44px`，`clientWidth >= scrollWidth`，页面宽度 `390px` 没有横向溢出；控件和摘要无截断。截图：[leverage-mobile.png](design-qa-assets/leverage-mobile.png)。
+- 比例页：比例主图按正式包当前可用范围绘制；`2011-08-03` 至 `2016-12-30` 分母为交易所官方历史原始链已审计口径，`2017-01-03` 起为东方财富Choice厂商口径、未经交易所复核和完整审计。截图：[leverage-ratio-desktop.png](design-qa-assets/leverage-ratio-desktop.png)。
+- 基期规则：默认共同基期随当前观察区间动态确定。实际拖动 dataZoom 后，图表中点会变化而共同基期保持不变；手动修改起始日期后，观察区间变为“自定义区间”，共同基期重设为该起始日期。具体日期见结构化结果。
+- 移动端：三项导航链接均存在、`overflow-x: auto`、链接高度均为至少 `44px`，`clientWidth >= scrollWidth`，页面宽度 `390px` 没有横向溢出；控件和摘要无截断。截图：[leverage-mobile.png](design-qa-assets/leverage-mobile.png)。
 - 坏包阻断：临时 manifest 的哈希被篡改为 64 个 `0` 后，显示“发布包 SHA-256 校验失败。”和“数据截止日：N/A”，且 `.leverage-chart-canvas` 数量为 0。截图：[leverage-blocked.png](design-qa-assets/leverage-blocked.png)。
 - 比例不可用：合法临时包通过前端 validator 后，比例按钮处于 disabled，控件和披露同时显示 `N/A` 与非空原因；默认融资余额模式和图表仍正常渲染。该场景的包哈希、记录数、缺失统计、原因与浏览器断言写入结构化结果。
-- 离线边界：浏览器拦截全部 `https://*` 请求；正常主页和 `#leverage` 仍可用。runner 断言实际请求全部属于本次动态分配的 `127.0.0.1` 正常预览，具体端口与请求清单见 [leverage-browser-qa-result.json](design-qa-assets/leverage-browser-qa-result.json)；无 CDN、远程字体、远程图片或外部 API 请求。
+- 离线边界：浏览器拦截全部 `https://*` 请求；正常研究页和 `/leverage` 仍可用。runner 断言实际请求全部属于本次动态分配的 `127.0.0.1` 正常预览，具体端口与请求清单见 [leverage-browser-qa-result.json](design-qa-assets/leverage-browser-qa-result.json)；无 CDN、远程字体、远程图片或外部 API 请求。
 
 ## 截图完整性
 

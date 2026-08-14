@@ -15,16 +15,16 @@ describe("loadLeveragePackage", () => {
       fetchImpl,
       validate,
       signal: controller.signal,
-      payloadUrl: "data/leverage-dashboard.json",
-      manifestUrl: "data/leverage-dashboard.manifest.json",
+      payloadUrl: "/data/leverage-dashboard.json",
+      manifestUrl: "/data/leverage-dashboard.manifest.json",
     });
 
     expect(result).toEqual({ ok: false, reason: "测试校验失败" });
-    expect(fetchImpl).toHaveBeenNthCalledWith(1, "data/leverage-dashboard.json", {
+    expect(fetchImpl).toHaveBeenNthCalledWith(1, "/data/leverage-dashboard.json", {
       cache: "no-cache",
       signal: controller.signal,
     });
-    expect(fetchImpl).toHaveBeenNthCalledWith(2, "data/leverage-dashboard.manifest.json", {
+    expect(fetchImpl).toHaveBeenNthCalledWith(2, "/data/leverage-dashboard.manifest.json", {
       cache: "no-cache",
       signal: controller.signal,
     });

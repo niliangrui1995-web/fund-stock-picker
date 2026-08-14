@@ -154,7 +154,7 @@ a {
   min-width: 0;
 }
 
-.topbar-nav button {
+.topbar-nav a {
   display: inline-flex;
   align-items: center;
   padding: 0 30px;
@@ -164,21 +164,22 @@ a {
   color: #94a3b8;
   font-size: 15px;
   font-weight: 600;
+  text-decoration: none;
   transition: all 0.25s var(--ease);
 }
 
-.topbar-nav button:hover {
+.topbar-nav a:hover {
   background: rgba(255, 255, 255, 0.03);
   color: #ffffff;
 }
 
-.topbar-nav button.active {
+.topbar-nav a.active {
   position: relative;
   background: rgba(255, 255, 255, 0.02);
   color: #ffffff;
 }
 
-.topbar-nav button.active::after {
+.topbar-nav a.active::after {
   position: absolute;
   right: 24px;
   bottom: 0;
@@ -242,21 +243,6 @@ a {
     radial-gradient(circle at top right, rgba(71, 87, 200, 0.1), transparent 35%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 253, 0.96));
   box-shadow: var(--shadow-card);
-}
-
-button.leverage-entry-card {
-  cursor: pointer;
-}
-
-button.leverage-entry-card:hover {
-  border-color: rgba(71, 87, 200, 0.45);
-  box-shadow: 0 16px 32px rgba(34, 45, 77, 0.12);
-  transform: translateY(-1px);
-}
-
-button.leverage-entry-card:focus-visible {
-  outline: 3px solid rgba(71, 87, 200, 0.4);
-  outline-offset: 3px;
 }
 
 .leverage-entry-kicker {
@@ -2110,7 +2096,7 @@ tbody tr:last-child td {
     scrollbar-width: thin;
   }
 
-  .topbar-nav button {
+  .topbar-nav a {
     flex: 0 0 auto;
     min-height: 52px;
     padding: 0 20px;
@@ -2194,12 +2180,12 @@ tbody tr:last-child td {
     min-height: 44px;
   }
 
-  .topbar-nav button {
+  .topbar-nav a {
     min-height: 44px;
     padding: 0 18px;
   }
 
-  .topbar-nav button.active::after {
+  .topbar-nav a.active::after {
     right: 16px;
     left: 16px;
   }

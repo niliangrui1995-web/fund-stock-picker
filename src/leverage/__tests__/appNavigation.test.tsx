@@ -7,7 +7,7 @@ vi.mock("../LeverageDashboard", async () => {
   const { createElement } = await import("react");
   return {
     LeverageDashboard: () =>
-      createElement("div", { "data-testid": "loaded-leverage-dashboard" }, "两融按需模块已加载"),
+      createElement("div", { "data-testid": "loaded-leverage-dashboard" }, "两融独立页面已加载"),
   };
 });
 
@@ -36,14 +36,21 @@ async function flushReactWork() {
   });
 }
 
-function navigationButton(label: string) {
-  const button = Array.from(container.querySelectorAll(".topbar-nav button")).find(
+async function renderAt(path: string) {
+  window.history.replaceState(null, "", path);
+  await act(async () => root.render(<App />));
+  await flushReactWork();
+  await flushReactWork();
+}
+
+function navigationLink(label: string) {
+  const link = Array.from(container.querySelectorAll<HTMLAnchorElement>(".topbar-nav a")).find(
     (element) => element.textContent === label,
   );
-  if (button === undefined) {
-    throw new Error(`未找到导航按钮：${label}`);
+  if (link === undefined) {
+    throw new Error(`未找到导航链接：${label}`);
   }
-  return button;
+  return link;
 }
 
 beforeEach(() => {
@@ -51,11 +58,6 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="test-root"></div>';
   container = document.querySelector("#test-root") as HTMLDivElement;
   root = createRoot(container);
-  Element.prototype.scrollIntoView = vi.fn();
-  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-    callback(0);
-    return 1;
-  });
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({
@@ -71,73 +73,49 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-describe("页面栏目导航", () => {
-  it("在研究后插入两融锚点，并在首次进入前仅显示本机入口卡", async () => {
-    await act(async () => root.render(<App />));
-    await flushReactWork();
+describe("独立页面导航", () => {
+  it("/research 只呈现研究页，并提供三个真实页面链接", async () => {
+    await renderAt("/research");
 
-    const markup = container.innerHTML;
-    const researchPosition = markup.indexOf(">研究<");
-    const leveragePosition = markup.indexOf(">两融<");
-    const methodologyPosition = markup.indexOf(">方法论<");
-
-    expect(researchPosition).toBeGreaterThanOrEqual(0);
-    expect(leveragePosition).toBeGreaterThan(researchPosition);
-    expect(methodologyPosition).toBeGreaterThan(leveragePosition);
-    expect(markup.indexOf('id="leverage"')).toBeLessThan(markup.indexOf('id="methodology"'));
-    expect(container.querySelector(".leverage-entry-card")).not.toBeNull();
-    expect(container.querySelector("button.leverage-entry-card")?.textContent).toContain("打开两融市场观察");
+    expect(container.querySelector('[data-page="research"]')).not.toBeNull();
+    expect(container.querySelector(".search-zone")).not.toBeNull();
+    expect(container.querySelector(".methodology-section")).toBeNull();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(navigationLink("研究").getAttribute("href")).toBe("/research");
+    expect(navigationLink("两融").getAttribute("href")).toBe("/leverage");
+    expect(navigationLink("方法论").getAttribute("href")).toBe("/methodology");
+    expect(navigationLink("研究").getAttribute("aria-current")).toBe("page");
+    expect(navigationLink("两融").hasAttribute("aria-current")).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("点击入口卡后按需加载，并平滑滚动到两融锚点", async () => {
-    await act(async () => root.render(<App />));
-    await flushReactWork();
+  it("/leverage 只按需加载两融页面，不读取基金持仓数据", async () => {
+    await renderAt("/leverage");
 
-    const entryCard = container.querySelector("button.leverage-entry-card");
-    expect(entryCard).not.toBeNull();
-    await act(async () => {
-      entryCard?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    await flushReactWork();
-    await flushReactWork();
-
+    expect(container.querySelector('[data-page="leverage"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    expect(container.querySelector(".search-zone")).toBeNull();
+    expect(container.querySelector(".methodology-section")).toBeNull();
+    expect(navigationLink("两融").getAttribute("aria-current")).toBe("page");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("初始 #leverage 按需加载面板", async () => {
-    window.history.replaceState(null, "", "/#leverage");
+  it("/methodology 只呈现方法论页面，不读取基金持仓数据", async () => {
+    await renderAt("/methodology");
 
-    await act(async () => root.render(<App />));
-    await flushReactWork();
-    await flushReactWork();
-
-    expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
-    expect(container.querySelector(".leverage-entry-card")).toBeNull();
+    expect(container.querySelector('[data-page="methodology"]')).not.toBeNull();
+    expect(container.querySelector(".methodology-section")).not.toBeNull();
+    expect(container.querySelector(".search-zone")).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(navigationLink("方法论").getAttribute("aria-current")).toBe("page");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("点击两融后加载，离开后回访仍保留已加载实例", async () => {
-    await act(async () => root.render(<App />));
-    await flushReactWork();
+  it("兼容旧 #leverage 书签并规范到 /leverage", async () => {
+    await renderAt("/#leverage");
 
-    await act(async () => {
-      navigationButton("两融").dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    await flushReactWork();
-    await flushReactWork();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
-
-    await act(async () => {
-      navigationButton("方法论").dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    await flushReactWork();
-    expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
-
-    await act(async () => {
-      navigationButton("两融").dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    await flushReactWork();
-    expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
+    expect(window.location.pathname).toBe("/leverage");
+    expect(window.location.hash).toBe("");
   });
 });

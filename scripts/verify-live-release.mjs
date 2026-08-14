@@ -10,6 +10,7 @@ const LIVE_ORIGIN = (process.env.LIVE_RELEASE_ORIGIN || DEFAULT_LIVE_ORIGIN).rep
 const CACHE_BUST = process.env.LIVE_RELEASE_CACHE_BUST || Date.now().toString();
 const RELEASE_CHECK_PATH = "seo/quarter-release-check.json";
 const HOMEPAGE_PATH = "/";
+const INDEPENDENT_PAGE_PATHS = ["/research", "/leverage", "/methodology"];
 const HOTSPOTS_PATH = path.join(ROOT, "config", "ai-battle-hotspots.json");
 const INDEX_HTML_PATH = path.join(ROOT, "index.html");
 const PURCHASE_LIMIT_META_FIELDS = [
@@ -548,6 +549,15 @@ async function main() {
     addCheck("live homepage / is reachable", true);
   } catch (error) {
     addCheck("live homepage / is reachable", false, error.message);
+  }
+
+  for (const pagePath of INDEPENDENT_PAGE_PATHS) {
+    try {
+      await fetchText(liveUrl(pagePath), `live independent page ${pagePath}`);
+      addCheck(`live independent page ${pagePath} is reachable`, true);
+    } catch (error) {
+      addCheck(`live independent page ${pagePath} is reachable`, false, error.message);
+    }
   }
 
   if (homepageHtml) {

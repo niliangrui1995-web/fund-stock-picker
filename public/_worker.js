@@ -10,6 +10,7 @@ const SMTP_PORT = 465;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const feedbackAttempts = new Map();
+const APP_PAGE_PATHS = new Set(["/research", "/leverage", "/methodology"]);
 
 function jsonResponse(payload, init = {}) {
   return new Response(JSON.stringify(payload), {
@@ -374,6 +375,25 @@ function legacyStockPageRedirect(url) {
   return Response.redirect(target.toString(), 302);
 }
 
+function appPageCanonicalRedirect(request, url) {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (!APP_PAGE_PATHS.has(url.pathname.replace(/\/+$/, ""))) return null;
+  if (!url.pathname.endsWith("/")) return null;
+
+  const target = new URL(url);
+  target.pathname = url.pathname.replace(/\/+$/, "");
+  return Response.redirect(target.toString(), 308);
+}
+
+function appPageShellRequest(request, url) {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (!APP_PAGE_PATHS.has(url.pathname)) return null;
+
+  const target = new URL(url);
+  target.pathname = "/";
+  return new Request(target, request);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -387,6 +407,16 @@ export default {
     const stockRedirect = legacyStockPageRedirect(url);
     if (stockRedirect) {
       return stockRedirect;
+    }
+
+    const pageRedirect = appPageCanonicalRedirect(request, url);
+    if (pageRedirect) {
+      return pageRedirect;
+    }
+
+    const appShellRequest = appPageShellRequest(request, url);
+    if (appShellRequest) {
+      return env.ASSETS.fetch(appShellRequest);
     }
 
     return env.ASSETS.fetch(request);

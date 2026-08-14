@@ -135,11 +135,11 @@ npm run preview
 npm run verify-live-release
 ```
 
-该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件、线上首页 `/` 及其首页脚本资产，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`GLW`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，首页 AI 战报卡片已挂出当前配置热点，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。发布校验也会检查申购限额快照新鲜度：距离配置的季度截止日满 5 天会显示 `[WARN]`，满 10 天会显示 `[FAIL]` 并阻断发布校验。
+该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件、线上首页 `/`、独立页面 `/research`、`/leverage`、`/methodology` 及首页脚本资产，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`GLW`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，首页 AI 战报卡片已挂出当前配置热点，三个栏目可直接访问，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。发布校验也会检查申购限额快照新鲜度：距离配置的季度截止日满 5 天会显示 `[WARN]`，满 10 天会显示 `[FAIL]` 并阻断发布校验。
 
 ## 离线两融
 
-顶部“研究｜两融｜方法论”中的“两融”栏目按首次进入时按需代码加载；首次进入前显示可点击的本机入口卡“打开两融市场观察”，点击入口卡或顶部“两融”后才加载图表模块，并仅从本机静态发布包读取数据：
+顶部“研究｜两融｜方法论”已拆为三个独立页面：`/research`、`/leverage`、`/methodology`。两融图表仅在打开 `/leverage` 时按需代码加载，并仅从本机静态发布包读取数据：
 
 ```text
 public/data/leverage-dashboard.json

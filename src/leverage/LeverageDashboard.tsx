@@ -32,8 +32,8 @@ interface LoadedLeveragePackage {
 }
 
 const DEFAULT_INDEX_CODES: LeverageIndexCode[] = ["000001", "399106", "399006"];
-const LEVERAGE_PAYLOAD_URL = "data/leverage-dashboard.json";
-const LEVERAGE_MANIFEST_URL = "data/leverage-dashboard.manifest.json";
+const LEVERAGE_PAYLOAD_URL = "/data/leverage-dashboard.json";
+const LEVERAGE_MANIFEST_URL = "/data/leverage-dashboard.manifest.json";
 
 function recordForDate(records: LeverageRecord[], date: string | undefined): LeverageRecord | null {
   if (date === undefined) {

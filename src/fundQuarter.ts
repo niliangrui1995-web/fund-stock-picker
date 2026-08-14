@@ -32,7 +32,7 @@ function buildQuarterConfig(config: RawQuarterConfig) {
     cutoffDate: cutoffDateByQuarter[config.quarter as 1 | 2 | 3 | 4],
     dataPath,
     dataFileName,
-    dataUrl: `${dataPath}?v=${slug}`,
+    dataUrl: `/${dataPath}?v=${slug}`,
     releaseCheckUrl: `seo/quarter-release-check.json?v=${slug}`,
   };
 }

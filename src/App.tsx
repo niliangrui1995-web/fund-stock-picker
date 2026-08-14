@@ -15,9 +15,9 @@ import type { FormEvent, ReactNode } from "react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
+import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
 
 type AccessMode = "offExchange" | "onExchange";
-type PageSection = "research" | "leverage" | "methodology";
 
 const LazyLeverageDashboard = lazy(() =>
   import("./leverage/LeverageDashboard").then(({ LeverageDashboard }) => ({
@@ -145,15 +145,13 @@ function getInitialSelectedCode() {
   return getInitialSearchParam("stock") || null;
 }
 
-function getInitialPageSection(): PageSection {
+function getInitialPage(): AppPage {
   if (typeof window === "undefined") {
     return "research";
   }
 
-  const section = window.location.hash.replace(/^#/, "");
-  return section === "leverage" || section === "methodology" || section === "research"
-    ? section
-    : "research";
+  const routePage = pageFromPathname(window.location.pathname);
+  return routePage === "research" ? pageFromLegacyHash(window.location.hash) ?? routePage : routePage;
 }
 
 function getInitialSearchParam(name: string) {
@@ -169,7 +167,7 @@ function normalize(input: string) {
 }
 
 function localStockLogoUrl(code: string) {
-  return `stock-logos/${normalizeStockCode(code).toLowerCase()}.png`;
+  return `/stock-logos/${normalizeStockCode(code).toLowerCase()}.png`;
 }
 
 export function stockLogoSources(code: string) {
@@ -1157,16 +1155,14 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
 }
 
 export function App() {
+  const page = getInitialPage();
+  const isResearchPage = page === "research";
   const [data, setData] = useState<FundStockIndex | null>(null);
   const [query, setQuery] = useState(getInitialQuery);
   const [selectedCode, setSelectedCode] = useState<string | null>(getInitialSelectedCode);
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<PageSection>(getInitialPageSection);
-  const [leverageVisited, setLeverageVisited] = useState(
-    () => getInitialPageSection() === "leverage",
-  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -1180,9 +1176,14 @@ export function App() {
   } | null>(null);
 
   useEffect(() => {
+    if (!isResearchPage) {
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
-    // 使用相对路径，防止部署在子目录时请求到根目录的 404 错误
+    // 使用站点根路径，防止独立路由把数据误解析为 /research/data/...。
     fetch(FUND_STOCK_DATA_URL, { cache: "no-cache" })
       .then((response) => {
         if (!response.ok) {
@@ -1206,24 +1207,17 @@ export function App() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isResearchPage]);
 
   useEffect(() => {
-    function syncSectionFromHash() {
-      const sectionId = getInitialPageSection();
-      setActiveSection(sectionId);
-
-      if (sectionId === "leverage") {
-        setLeverageVisited(true);
-        window.requestAnimationFrame(() => {
-          document.getElementById("leverage")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-      }
+    if (typeof window === "undefined" || pageFromPathname(window.location.pathname) !== "research") {
+      return;
     }
 
-    syncSectionFromHash();
-    window.addEventListener("hashchange", syncSectionFromHash);
-    return () => window.removeEventListener("hashchange", syncSectionFromHash);
+    const legacyPage = pageFromLegacyHash(window.location.hash);
+    if (legacyPage) {
+      window.history.replaceState(null, "", `${appPagePath(legacyPage)}${window.location.search}`);
+    }
   }, []);
 
   const matches = useMemo(() => findMatches(data?.stocks ?? [], query), [data, query]);
@@ -1309,24 +1303,6 @@ export function App() {
     setAccessMode(mode);
   }
 
-  function openLeverage() {
-    setActiveSection("leverage");
-    setLeverageVisited(true);
-    window.requestAnimationFrame(() => {
-      document.getElementById("leverage")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
-  function scrollToPageSection(sectionId: PageSection) {
-    if (sectionId === "leverage") {
-      openLeverage();
-      return;
-    }
-
-    setActiveSection(sectionId);
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   const fundHoldingsMap = data?.fundHoldings ?? {};
 
   useEffect(() => {
@@ -1345,39 +1321,40 @@ export function App() {
   // 修复 UI 锁定 Bug：只有在真正处于 loading 且没有发生加载错误时，才显示骨架屏。
   // 如果加载失败，解除 isAppLoading，进入 EmptyState 显示红色的错误载入面板，方便用户排查。
   const isAppLoading = loading && !error;
+  const disclaimerText =
+    page === "leverage"
+      ? "本页面基于 DFCF、东方财富Choice及本地 TDX 数据整理，仅供信息展示和研究参考，不构成任何投资建议、交易指令、收益承诺或市场判断。各数据口径、覆盖范围与审计状态以页面披露为准。"
+      : "本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。";
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-page={page}>
       <header className="topbar">
         <div className="brand-mark">
           <span>出海钱眼</span>
           基金持仓穿透
         </div>
         <nav className="topbar-nav" aria-label="当前功能区">
-          <button
-            type="button"
-            className={activeSection === "research" ? "active" : ""}
-            aria-current={activeSection === "research" ? "page" : undefined}
-            onClick={() => scrollToPageSection("research")}
+          <a
+            href={appPagePath("research")}
+            className={page === "research" ? "active" : ""}
+            aria-current={page === "research" ? "page" : undefined}
           >
             研究
-          </button>
-          <button
-            type="button"
-            className={activeSection === "leverage" ? "active" : ""}
-            aria-current={activeSection === "leverage" ? "page" : undefined}
-            onClick={() => scrollToPageSection("leverage")}
+          </a>
+          <a
+            href={appPagePath("leverage")}
+            className={page === "leverage" ? "active" : ""}
+            aria-current={page === "leverage" ? "page" : undefined}
           >
             两融
-          </button>
-          <button
-            type="button"
-            className={activeSection === "methodology" ? "active" : ""}
-            aria-current={activeSection === "methodology" ? "page" : undefined}
-            onClick={() => scrollToPageSection("methodology")}
+          </a>
+          <a
+            href={appPagePath("methodology")}
+            className={page === "methodology" ? "active" : ""}
+            aria-current={page === "methodology" ? "page" : undefined}
           >
             方法论
-          </button>
+          </a>
         </nav>
         <div className="topbar-meta">
           <span>
@@ -1386,14 +1363,20 @@ export function App() {
           </span>
           <span>
             <Database size={16} />
-            {data
-              ? `${numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount)} 海外标的`
-              : "载入中"}
+            {page === "research"
+              ? data
+                ? `${numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount)} 海外标的`
+                : "载入中"
+              : page === "leverage"
+                ? "两融市场观察"
+                : "基金持仓口径"}
           </span>
         </div>
       </header>
 
-      <section id="research" className="search-zone">
+      {page === "research" && (
+      <>
+      <section className="search-zone" aria-label="基金持仓研究">
         <div className="command-panel">
           <div className="panel-status">
             <span>全球股票 / 指数 / ETF</span>
@@ -1623,25 +1606,19 @@ export function App() {
         </section>
       </section>
 
-      <section id="leverage" className="leverage-section" aria-label="两融研究">
-        {leverageVisited ? (
+      </>
+      )}
+
+      {page === "leverage" && (
+        <section className="leverage-section" aria-label="两融研究">
           <Suspense fallback={<LeverageModuleFallback />}>
             <LazyLeverageDashboard />
           </Suspense>
-        ) : (
-          <button type="button" className="leverage-entry-card" onClick={openLeverage}>
-            <span className="leverage-entry-kicker">LEVERAGE RESEARCH</span>
-            <span className="leverage-entry-copy">
-              <span className="leverage-entry-title">打开两融市场观察</span>
-              <span className="leverage-entry-description">
-                按需加载本机静态数据包与图表模块，不访问外部行情、图片或数据接口。
-              </span>
-            </span>
-          </button>
-        )}
-      </section>
+        </section>
+      )}
 
-      <section id="methodology" className="methodology-section" aria-labelledby="methodology-title">
+      {page === "methodology" && (
+      <section className="methodology-section" aria-labelledby="methodology-title">
         <div className="methodology-head">
           <span>方法论</span>
           <h2 id="methodology-title">基金持仓穿透口径</h2>
@@ -1672,12 +1649,11 @@ export function App() {
           </article>
         </div>
       </section>
+      )}
 
       <footer className="compliance-disclaimer">
         <strong>免责声明</strong>
-        <p>
-          本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。
-        </p>
+        <p>{disclaimerText}</p>
       </footer>
 
       {hoveredFund && (
