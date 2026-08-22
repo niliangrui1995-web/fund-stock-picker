@@ -33,6 +33,7 @@ function buildQuarterConfig(config: RawQuarterConfig) {
     dataPath,
     dataFileName,
     dataUrl: `/${dataPath}?v=${slug}`,
+    holdingsUrl: `/data/fund-holdings-${slug}.json?v=${slug}`,
     releaseCheckUrl: `seo/quarter-release-check.json?v=${slug}`,
   };
 }

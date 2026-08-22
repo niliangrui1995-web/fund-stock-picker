@@ -62,6 +62,10 @@ class FundQuarterConfig:
         return Path("public") / "data" / f"fund-stock-index-{self.slug}.json"
 
     @property
+    def fund_holdings_json_relative(self) -> Path:
+        return Path("public") / "data" / f"fund-holdings-{self.slug}.json"
+
+    @property
     def overseas_ai_workbook_relative(self) -> Path:
         return Path("outputs") / f"overseas_ai_exposure_{self.slug}.xlsx"
 
@@ -92,6 +96,10 @@ class FundQuarterConfig:
     @property
     def fund_stock_index_json(self) -> Path:
         return self.root / self.fund_stock_index_json_relative
+
+    @property
+    def fund_holdings_json(self) -> Path:
+        return self.root / self.fund_holdings_json_relative
 
     @property
     def overseas_ai_workbook(self) -> Path:

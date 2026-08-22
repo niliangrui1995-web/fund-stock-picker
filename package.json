@@ -16,7 +16,8 @@
     "test:leverage:validator": "vitest run src/leverage/__tests__/validateLeveragePackage.test.ts && tsc -p tsconfig.leverage-validator-tests.json --noEmit",
     "verify:leverage": "node scripts/verify-leverage-dashboard.mjs",
     "verify:leverage:build": "node scripts/verify-leverage-build.mjs",
-    "qa:leverage": "node scripts/qa-leverage-browser.mjs"
+    "qa:leverage": "node scripts/qa-leverage-browser.mjs",
+    "qa:research": "node scripts/qa-research-browser.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

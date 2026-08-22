@@ -11,8 +11,8 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import type { FormEvent, ReactNode } from "react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
 import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
@@ -99,7 +99,15 @@ type FundStockIndex = {
   };
   popularStocks: PopularStock[];
   stocks: StockRecord[];
-  fundHoldings?: Record<string, HoldingRecord[]>;
+};
+
+type FundHoldingsPayload = {
+  meta: {
+    report: string;
+    generatedAt: string;
+    fundCount?: number;
+  };
+  fundHoldings: Record<string, HoldingRecord[]>;
 };
 
 const popularMarketFilters = [
@@ -132,6 +140,50 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
 const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
+// 悬浮卡明细数据（约 2MB）不在首屏加载：仅在非省流量、非慢网时利用空闲时间预取，
+// 首次失败时下次悬浮再重试，避免阻塞首屏交互。
+const FUND_HOLDINGS_URL = fundQuarter.holdingsUrl;
+const STOCK_SEARCH_LIST_ID = "stock-search-suggestions";
+let fundHoldingsCache: Promise<Record<string, HoldingRecord[]>> | null = null;
+
+function shouldPrefetchFundHoldings() {
+  if (typeof navigator === "undefined") return false;
+
+  const connection = (navigator as Navigator & {
+    connection?: { saveData?: boolean; effectiveType?: string };
+  }).connection;
+
+  return !connection?.saveData && connection?.effectiveType !== "slow-2g" && connection?.effectiveType !== "2g";
+}
+
+function getDialogFocusableElements(container: HTMLElement | null) {
+  if (!container) return [];
+
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => element.getAttribute("aria-hidden") !== "true" && element.getClientRects().length > 0);
+}
+
+function loadFundHoldings() {
+  if (!fundHoldingsCache) {
+    fundHoldingsCache = fetch(FUND_HOLDINGS_URL)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`基金持仓明细请求失败 (HTTP ${response.status})`);
+        }
+        return response.json() as Promise<FundHoldingsPayload>;
+      })
+      .then((payload) => payload.fundHoldings ?? {})
+      .catch((fetchError: Error) => {
+        fundHoldingsCache = null; // 允许下次悬浮时重试
+        console.warn("【FundTrace 持仓明细预取失败】:", fetchError.message);
+        return {} as Record<string, HoldingRecord[]>;
+      });
+  }
+  return fundHoldingsCache;
+}
 const aiBattleHotspots = aiBattleHotspotsData as AiBattleHotspot[];
 const homepageQuickHotspots = aiBattleHotspots.filter((hotspot) => hotspot.homepageQuickEntry);
 
@@ -166,12 +218,34 @@ function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
 
+// 当前季度数据中这些代码没有同名本地图标文件；直接使用文字占位，避免每个首次渲染都产生 404。
+// 个别文件使用供应商后缀命名，保留显式映射以继续显示已有品牌图标。
+const localLogoFileAliases: Record<string, string> = {
+  "285a": "285ajp",
+  "6981": "mur",
+};
+const missingLocalLogoCodes = new Set([
+  "06809", "02476", "02637", "02285", "02507", "03277", "stx", "00317", "6976", "09973", "00546", "01330",
+  "02525", "03320", "09630", "09637", "2327", "dnli", "oric", "stm", "umc", "eras", "02602", "00165",
+  "00363", "00506", "00668", "00894", "01038", "01405", "01456", "01688", "01836", "02171", "02629", "02768",
+  "02877", "03296", "03661", "07630", "07666", "08046", "09936", "09980", "3110", "5706", "6098", "6857",
+  "8002", "8031", "adi", "alab", "algm", "aphs", "asmlna", "be", "bhe", "bhp", "cyd", "cytk", "eqr",
+  "eurob", "fcx", "form", "hy9hgf", "inga", "invh", "jp3236330001", "krys", "lt", "mchp", "nbis", "nesn",
+  "nok", "nxpi", "otp", "petr4", "rblx", "ryn", "smci", "smsn", "ucg", "vicr", "vn000000vhm0", "wy",
+  "mrna", "exe", "rvmd", "ar", "cag", "cnx", "dino", "dk", "parr", "01448", "orka", "prax", "rytm",
+  "tech", "twst", "vktx", "cah", "dhlgy", "dva", "mc", "rvty", "00023", "00659", "01929", "06808",
+  "09678", "barc", "cof", "de", "ker", "rcl", "rms", "roiv", "spcx", "ual", "wmb",
+]);
+
 function localStockLogoUrl(code: string) {
-  return `/stock-logos/${normalizeStockCode(code).toLowerCase()}.png`;
+  const normalizedCode = normalizeStockCode(code).toLowerCase();
+  const filename = localLogoFileAliases[normalizedCode] ?? normalizedCode;
+  return missingLocalLogoCodes.has(normalizedCode) ? null : `/stock-logos/${filename}.png`;
 }
 
 export function stockLogoSources(code: string) {
-  return [localStockLogoUrl(code)];
+  const localUrl = localStockLogoUrl(code);
+  return localUrl ? [localUrl] : [];
 }
 
 function stockMarketBucket(code: string, name = ""): MarketBucket {
@@ -235,6 +309,15 @@ type HoldingRecord = {
   ratioPercent: number;
   marketValueWan?: number | null;
   sharesWan?: number;
+};
+
+type FundDetailsTarget = {
+  fundCode: string;
+  fundVariantCodes?: string[];
+  fundName: string;
+  x: number;
+  y: number;
+  isDialog?: boolean;
 };
 
 function normalizeStockCode(code: string) {
@@ -309,7 +392,9 @@ function StockLogo({
       <img
         alt={`${name} 品牌图标`}
         src={src}
-        loading="lazy"
+        loading={size === "lg" ? "eager" : "lazy"}
+        fetchPriority={size === "lg" ? "high" : "auto"}
+        decoding="async"
         referrerPolicy="no-referrer"
         onError={() => {
           if (sourceIndex < sources.length - 1) {
@@ -328,7 +413,9 @@ function FundHoldingsHoverCard({
   fundVariantCodes,
   fundName,
   holdings,
+  holdingsReady,
   currentSearchStockCode,
+  isDialogRequested,
   x,
   y,
   onClose,
@@ -337,7 +424,9 @@ function FundHoldingsHoverCard({
   fundVariantCodes?: string[];
   fundName: string;
   holdings: HoldingRecord[];
+  holdingsReady?: boolean;
   currentSearchStockCode: string | null;
+  isDialogRequested?: boolean;
   x: number;
   y: number;
   onClose: () => void;
@@ -359,6 +448,10 @@ function FundHoldingsHoverCard({
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
   const isMobilePanel = viewportWidth <= 720;
+  const isDialog = isMobilePanel || isDialogRequested;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
   const cardWidth = Math.min(368, viewportWidth - 24);
   const rowCount = Math.min(holdings.length, 10);
   const estimatedHeight = 226 + rowCount * 40 + (currentHolding ? 48 : 0);
@@ -379,12 +472,57 @@ function FundHoldingsHoverCard({
         left: `${cardLeft}px`,
         top: `${cardTop}px`,
         zIndex: 9999,
-        pointerEvents: "none" as const,
+        pointerEvents: isDialog ? "auto" as const : "none" as const,
       };
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isDialog) return;
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      (closeButtonRef.current ?? cardRef.current)?.focus();
+    });
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getDialogFocusableElements(cardRef.current);
+      if (!focusableElements.length) {
+        event.preventDefault();
+        cardRef.current?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDialog]);
 
   return (
     <>
-      {isMobilePanel && (
+      {isDialog && (
         <button
           type="button"
           className="fund-holdings-backdrop"
@@ -393,14 +531,17 @@ function FundHoldingsHoverCard({
         />
       )}
       <div
+        ref={cardRef}
         className={`fund-holdings-hover-card ${isMobilePanel ? "mobile-panel" : ""}`}
-        role={isMobilePanel ? "dialog" : undefined}
-        aria-modal={isMobilePanel ? true : undefined}
+        role={isDialog ? "dialog" : undefined}
+        aria-modal={isDialog ? true : undefined}
+        aria-labelledby={isDialog ? "fund-holdings-title" : undefined}
+        tabIndex={isDialog ? -1 : undefined}
         style={cardStyle}
       >
       <div className="hover-card-header">
         <div className="hover-card-fund-info">
-          <div className="hover-card-fund-name" title={fundName}>
+          <div id={isDialog ? "fund-holdings-title" : undefined} className="hover-card-fund-name" title={fundName}>
             {fundName}
           </div>
           <div className="hover-card-meta-line">
@@ -408,14 +549,17 @@ function FundHoldingsHoverCard({
             <strong className="hover-card-fund-codes">{fundCodes.join(" / ")}</strong>
           </div>
         </div>
-        <button
-          type="button"
-          className="hover-card-close"
-          aria-label="关闭基金持仓卡片"
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
+        {isDialog && (
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="hover-card-close"
+            aria-label="关闭基金持仓卡片"
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
       
       <div className="hover-card-body">
@@ -474,6 +618,8 @@ function FundHoldingsHoverCard({
                 </div>
               );
             })
+          ) : !holdingsReady ? (
+            <p className="no-holdings-msg no-holdings-loading">持仓明细加载中…</p>
           ) : (
             <p className="no-holdings-msg">该基金暂无持仓记录</p>
           )}
@@ -561,12 +707,12 @@ function ResultTable({
   funds,
   accessMode,
   onHoverFund,
+  onOpenFund,
 }: {
   funds: FundRecord[];
   accessMode: AccessMode;
-  onHoverFund: (
-    fund: { fundCode: string; fundVariantCodes?: string[]; fundName: string; x: number; y: number } | null,
-  ) => void;
+  onHoverFund: (fund: FundDetailsTarget | null) => void;
+  onOpenFund: (fund: FundDetailsTarget, trigger: HTMLButtonElement) => void;
 }) {
   const maxVal = useMemo(() => Math.max(...funds.map((f) => f.marketValueWan ?? 0), 1), [funds]);
   const maxRatio = useMemo(() => Math.max(...funds.map(f => f.ratioPercent), 1), [funds]);
@@ -580,8 +726,12 @@ function ResultTable({
   }
 
   return (
-    <div className="table-wrap">
-      <table>
+    <>
+      <p id="direct-holdings-scroll-hint" className="table-scroll-hint">
+        表格可左右滑动查看全部指标
+      </p>
+      <div className="table-wrap">
+      <table aria-describedby="direct-holdings-scroll-hint">
         <thead>
           <tr>
             <th>排名</th>
@@ -607,8 +757,11 @@ function ResultTable({
                 <td>
                   <span className={`rank rank-${index + 1}`}>{index + 1}</span>
                 </td>
-                <td
-                  onMouseEnter={(e) => {
+                <td className="fund-holdings-cell">
+                  <button
+                    type="button"
+                    className="fund-holdings-action"
+                    onMouseEnter={(e) => {
                     if (!supportsHoverPointer()) return;
                     onHoverFund({
                       fundCode: fund.fundCode,
@@ -618,7 +771,7 @@ function ResultTable({
                       y: e.clientY,
                     });
                   }}
-                  onMouseMove={(e) => {
+                    onMouseMove={(e) => {
                     if (!supportsHoverPointer()) return;
                     onHoverFund({
                       fundCode: fund.fundCode,
@@ -628,46 +781,34 @@ function ResultTable({
                       y: e.clientY,
                     });
                   }}
-                  onMouseLeave={() => {
+                    onMouseLeave={() => {
                     if (!supportsHoverPointer()) return;
                     onHoverFund(null);
-                  }}
-                  onClick={(e) => {
-                    onHoverFund({
+                    }}
+                    onClick={(e) => {
+                    onOpenFund({
                       fundCode: fund.fundCode,
                       fundVariantCodes: fund.fundVariantCodes,
                       fundName,
                       x: e.clientX,
                       y: e.clientY,
-                    });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" && e.key !== " ") return;
-                    e.preventDefault();
-                    onHoverFund({
-                      fundCode: fund.fundCode,
-                      fundVariantCodes: fund.fundVariantCodes,
-                      fundName,
-                      x: 24,
-                      y: 24,
-                    });
-                  }}
-                  tabIndex={0}
-                  aria-label={`查看 ${fundName} 前十大持仓`}
-                  style={{ cursor: "help" }}
-                >
-                  <div className="fund-name" title={fund.fundName}>{fundName}</div>
-                  <div className="fund-code">
-                    <span className="fund-code-list">{fundCodes.join(" / ")}</span>
-                  </div>
-                  <div className="fund-trade-row">
-                    {fund.dailyPurchaseLimit ? (
-                      <span className="trade-limit">日限 {fund.dailyPurchaseLimit}</span>
-                    ) : null}
-                    {fund.minPurchase ? (
-                      <span className="trade-limit">起购 {fund.minPurchase}</span>
-                    ) : null}
-                  </div>
+                    }, e.currentTarget);
+                    }}
+                    aria-label={`查看 ${fundName} 前十大持仓`}
+                  >
+                    <div className="fund-name" title={fund.fundName}>{fundName}</div>
+                    <div className="fund-code">
+                      <span className="fund-code-list">{fundCodes.join(" / ")}</span>
+                    </div>
+                    <div className="fund-trade-row">
+                      {fund.dailyPurchaseLimit ? (
+                        <span className="trade-limit">日限 {fund.dailyPurchaseLimit}</span>
+                      ) : null}
+                      {fund.minPurchase ? (
+                        <span className="trade-limit">起购 {fund.minPurchase}</span>
+                      ) : null}
+                    </div>
+                  </button>
                 </td>
                 <td>
                   <span className="fund-type-badge">{fund.fundType || "未分类"}</span>
@@ -714,18 +855,19 @@ function ResultTable({
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 
 function IndirectExposureTable({
   exposures,
   onHoverFund,
+  onOpenFund,
 }: {
   exposures: IndirectExposureRecord[];
-  onHoverFund: (
-    fund: { fundCode: string; fundVariantCodes?: string[]; fundName: string; x: number; y: number } | null,
-  ) => void;
+  onHoverFund: (fund: FundDetailsTarget | null) => void;
+  onOpenFund: (fund: FundDetailsTarget, trigger: HTMLButtonElement) => void;
 }) {
   const maxRawRatio = useMemo(() => Math.max(...exposures.map((f) => f.ratioPercent), 1), [exposures]);
   const maxEstimatedRatio = useMemo(
@@ -749,8 +891,11 @@ function IndirectExposureTable({
       <p className="indirect-note">
         这里展示基金持有的海外个股杠杆 ETF / ETP / ETN 等产品。原占净值来自基金披露，估算暴露按产品杠杆倍数折算，仅作方向性穿透。
       </p>
+      <p id="indirect-holdings-scroll-hint" className="table-scroll-hint">
+        表格可左右滑动查看全部指标
+      </p>
       <div className="table-wrap indirect-table-wrap">
-        <table>
+        <table aria-describedby="indirect-holdings-scroll-hint">
           <thead>
             <tr>
               <th>排名</th>
@@ -778,10 +923,13 @@ function IndirectExposureTable({
                   <td>
                     <span className={`rank rank-${index + 1}`}>{index + 1}</span>
                   </td>
-                  <td
-                    onMouseEnter={(e) => {
-                      if (!supportsHoverPointer()) return;
-                      onHoverFund({
+                  <td className="fund-holdings-cell">
+                    <button
+                      type="button"
+                      className="fund-holdings-action"
+                      onMouseEnter={(e) => {
+                    if (!supportsHoverPointer()) return;
+                    onHoverFund({
                         fundCode: fund.fundCode,
                         fundVariantCodes: fund.fundVariantCodes,
                         fundName,
@@ -789,9 +937,9 @@ function IndirectExposureTable({
                         y: e.clientY,
                       });
                     }}
-                    onMouseMove={(e) => {
-                      if (!supportsHoverPointer()) return;
-                      onHoverFund({
+                      onMouseMove={(e) => {
+                    if (!supportsHoverPointer()) return;
+                    onHoverFund({
                         fundCode: fund.fundCode,
                         fundVariantCodes: fund.fundVariantCodes,
                         fundName,
@@ -799,38 +947,26 @@ function IndirectExposureTable({
                         y: e.clientY,
                       });
                     }}
-                    onMouseLeave={() => {
-                      if (!supportsHoverPointer()) return;
-                      onHoverFund(null);
-                    }}
-                    onClick={(e) => {
-                      onHoverFund({
+                      onMouseLeave={() => {
+                    if (!supportsHoverPointer()) return;
+                    onHoverFund(null);
+                      }}
+                      onClick={(e) => {
+                      onOpenFund({
                         fundCode: fund.fundCode,
                         fundVariantCodes: fund.fundVariantCodes,
                         fundName,
                         x: e.clientX,
                         y: e.clientY,
-                      });
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter" && e.key !== " ") return;
-                      e.preventDefault();
-                      onHoverFund({
-                        fundCode: fund.fundCode,
-                        fundVariantCodes: fund.fundVariantCodes,
-                        fundName,
-                        x: 24,
-                        y: 24,
-                      });
-                    }}
-                    tabIndex={0}
-                    aria-label={`查看 ${fundName} 前十大持仓`}
-                    style={{ cursor: "help" }}
-                  >
-                    <div className="fund-name" title={fund.fundName}>{fundName}</div>
-                    <div className="fund-code">
-                      <span className="fund-code-list">{fundCodes.join(" / ")}</span>
-                    </div>
+                      }, e.currentTarget);
+                      }}
+                      aria-label={`查看 ${fundName} 前十大持仓`}
+                    >
+                      <div className="fund-name" title={fund.fundName}>{fundName}</div>
+                      <div className="fund-code">
+                        <span className="fund-code-list">{fundCodes.join(" / ")}</span>
+                      </div>
+                    </button>
                   </td>
                   <td>
                     <div className="indirect-product-name" title={fund.sourceName}>{fund.sourceName}</div>
@@ -1035,19 +1171,59 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const [website, setWebsite] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorText, setErrorText] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  const statusRef = useRef(status);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     if (!open) return;
 
+    const focusFrame = window.requestAnimationFrame(() => {
+      (closeButtonRef.current ?? dialogRef.current)?.focus();
+    });
+
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && status !== "submitting") {
-        onClose();
+      if (event.key === "Escape" && statusRef.current !== "submitting") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getDialogFocusableElements(dialogRef.current);
+      if (!focusableElements.length) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose, status]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -1091,13 +1267,26 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
         aria-label="关闭意见反馈"
         onClick={() => status !== "submitting" && onClose()}
       />
-      <section className="feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+      <section
+        ref={dialogRef}
+        className="feedback-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="feedback-title"
+        tabIndex={-1}
+      >
         <div className="feedback-dialog-header">
           <div>
             <p className="eyeline">FEEDBACK</p>
             <h2 id="feedback-title">意见反馈</h2>
           </div>
-          <button type="button" className="feedback-close" aria-label="关闭意见反馈" onClick={onClose}>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="feedback-close"
+            aria-label="关闭意见反馈"
+            onClick={onClose}
+          >
             <X size={18} />
           </button>
         </div>
@@ -1161,17 +1350,24 @@ export function App() {
   const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
+  const [hotspotsExpanded, setHotspotsExpanded] = useState(false);
+  const [resultFocusRequest, setResultFocusRequest] = useState<"initial" | "selection" | null>(
+    () => (getInitialSelectedCode() || getInitialQuery() ? "initial" : null),
+  );
+  const searchPanelRef = useRef<HTMLDivElement>(null);
+  const resultTitleRef = useRef<HTMLHeadingElement>(null);
+  const fundDetailsTriggerRef = useRef<HTMLElement | null>(null);
+  const pendingFundDetailsFocusRef = useRef<HTMLElement | null>(null);
+  const feedbackTriggerRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fundHoldingsMap, setFundHoldingsMap] = useState<Record<string, HoldingRecord[]>>({});
+  const [fundHoldingsReady, setFundHoldingsReady] = useState(false);
   
   // Track hovered fund information for Hover Card portal display
-  const [hoveredFund, setHoveredFund] = useState<{
-    fundCode: string;
-    fundVariantCodes?: string[];
-    fundName: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [hoveredFund, setHoveredFund] = useState<FundDetailsTarget | null>(null);
 
   useEffect(() => {
     if (!isResearchPage) {
@@ -1181,8 +1377,9 @@ export function App() {
 
     let mounted = true;
 
-    // 使用站点根路径，防止独立路由把数据误解析为 /research/data/...。
-    fetch(FUND_STOCK_DATA_URL, { cache: "no-cache" })
+    // 数据 URL 自带 ?v=<季度> 版本参数，季度切换时 URL 变化自动失效，
+    // 因此走浏览器强缓存（配合 _headers 的 Cache-Control），避免每次访问重新下载 5MB 索引。
+    fetch(FUND_STOCK_DATA_URL)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`数据文件请求失败 (HTTP ${response.status})。请检查服务器是否正常运行。`);
@@ -1207,6 +1404,40 @@ export function App() {
     };
   }, [isResearchPage]);
 
+  // 主数据就绪后在浏览器空闲时间预取持仓明细（约 2MB，季度版本化强缓存），
+  // 用户悬浮基金行时数据通常已就位；即使预取失败也不影响首屏任何功能。
+  useEffect(() => {
+    if (!isResearchPage || !data || !shouldPrefetchFundHoldings()) return;
+
+    let cancelled = false;
+    const idle = typeof window.requestIdleCallback === "function"
+      ? window.requestIdleCallback(() => {
+          loadFundHoldings().then((holdings) => {
+            if (!cancelled) {
+              setFundHoldingsMap(holdings);
+              setFundHoldingsReady(true);
+            }
+          });
+        })
+      : window.setTimeout(() => {
+          loadFundHoldings().then((holdings) => {
+            if (!cancelled) {
+              setFundHoldingsMap(holdings);
+              setFundHoldingsReady(true);
+            }
+          });
+        }, 1200);
+
+    return () => {
+      cancelled = true;
+      if (typeof idle === "number" && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idle);
+      } else if (typeof idle === "number") {
+        window.clearTimeout(idle);
+      }
+    };
+  }, [isResearchPage, data]);
+
   useEffect(() => {
     if (typeof window === "undefined" || pageFromPathname(window.location.pathname) !== "research") {
       return;
@@ -1220,6 +1451,24 @@ export function App() {
 
   const matches = useMemo(() => findMatches(data?.stocks ?? [], query), [data, query]);
 
+  // 搜索建议：输入时在搜索框下方实时给出前 5 条匹配，缩短"输入 → 选中标的"的操作路径。
+  const suggestionItems = useMemo(() => matches.slice(0, 5), [matches]);
+  const showSuggestions =
+    suggestionsOpen && query.trim().length > 0 && suggestionItems.length > 0;
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!searchPanelRef.current?.contains(event.target as Node)) {
+        setSuggestionsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [showSuggestions]);
+
   const selectedStock = useMemo(() => {
     if (!data) return null;
     const normalizedSelectedCode = selectedCode ? normalizeStockCode(selectedCode) : "";
@@ -1229,6 +1478,26 @@ export function App() {
     if (fromSelectedCode) return fromSelectedCode;
     return matches[0] ?? null;
   }, [data, matches, selectedCode]);
+
+  useEffect(() => {
+    if (!resultFocusRequest || !selectedStock) return;
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      const resultTitle = resultTitleRef.current;
+      if (!resultTitle) return;
+
+      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      resultTitle.scrollIntoView({
+        behavior: resultFocusRequest === "initial" || reducedMotion ? "auto" : "smooth",
+        block: "start",
+        inline: "nearest",
+      });
+      resultTitle.focus({ preventScroll: true });
+      setResultFocusRequest(null);
+    });
+
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [resultFocusRequest, selectedStock]);
 
   const resultFunds = selectedStock
     ? accessMode === "offExchange"
@@ -1294,6 +1563,65 @@ export function App() {
     setHoveredFund(null);
     setSelectedCode(stock.code);
     setQuery(stock.name);
+    setSuggestionsOpen(false);
+    setActiveSuggestionIndex(null);
+    setResultFocusRequest("selection");
+  }
+
+  function selectSearchSuggestion(index: number) {
+    const stock = suggestionItems[index] ?? matches[0];
+    if (stock) chooseStock(stock);
+  }
+
+  function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setSuggestionsOpen(false);
+      setActiveSuggestionIndex(null);
+      return;
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (!suggestionItems.length) return;
+
+      event.preventDefault();
+      setSuggestionsOpen(true);
+      setActiveSuggestionIndex((current) => {
+        if (current === null) return event.key === "ArrowDown" ? 0 : suggestionItems.length - 1;
+        if (event.key === "ArrowDown") return Math.min(current + 1, suggestionItems.length - 1);
+        return Math.max(current - 1, 0);
+      });
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      selectSearchSuggestion(activeSuggestionIndex ?? 0);
+    }
+  }
+
+  function openFundDetails(fund: FundDetailsTarget, trigger: HTMLButtonElement) {
+    fundDetailsTriggerRef.current = trigger;
+    setHoveredFund({ ...fund, isDialog: true });
+  }
+
+  function updateHoveredFund(fund: FundDetailsTarget | null) {
+    setHoveredFund((current) => (current?.isDialog && fund === null ? current : fund));
+  }
+
+  function restoreDialogTrigger(trigger: HTMLElement | null) {
+    window.requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus();
+    });
+  }
+
+  function closeFundDetails() {
+    pendingFundDetailsFocusRef.current = fundDetailsTriggerRef.current;
+    setHoveredFund(null);
+  }
+
+  function closeFeedbackDialog() {
+    setFeedbackOpen(false);
+    restoreDialogTrigger(feedbackTriggerRef.current);
   }
 
   function changeAccessMode(mode: AccessMode) {
@@ -1301,19 +1629,38 @@ export function App() {
     setAccessMode(mode);
   }
 
-  const fundHoldingsMap = data?.fundHoldings ?? {};
 
+
+  // 悬浮基金行时立即触发懒加载兜底：空闲预取尚未完成或失败时在此补拉。
   useEffect(() => {
     if (!hoveredFund) return;
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setHoveredFund(null);
-      }
-    }
+    loadFundHoldings().then((holdings) => {
+      setFundHoldingsMap(holdings);
+      setFundHoldingsReady(true);
+    });
+  }, [hoveredFund]);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+  useEffect(() => {
+    if (hoveredFund !== null) return;
+
+    const trigger = pendingFundDetailsFocusRef.current;
+    if (!trigger) return;
+
+    let secondFocusFrame: number | null = null;
+    const firstFocusFrame = window.requestAnimationFrame(() => {
+      secondFocusFrame = window.requestAnimationFrame(() => {
+        if (trigger.isConnected) trigger.focus();
+        if (pendingFundDetailsFocusRef.current === trigger) {
+          pendingFundDetailsFocusRef.current = null;
+        }
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFocusFrame);
+      if (secondFocusFrame !== null) window.cancelAnimationFrame(secondFocusFrame);
+    };
   }, [hoveredFund]);
 
   // 修复 UI 锁定 Bug：只有在真正处于 loading 且没有发生加载错误时，才显示骨架屏。
@@ -1325,7 +1672,18 @@ export function App() {
       : "本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。";
 
   return (
-    <main className="app-shell" data-page={page}>
+    <main className="app-shell" data-page={page} id="main-content" tabIndex={-1}>
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
+      {/* 每个路由页面唯一 h1：页面此前缺少 h1 语义层级，影响 SEO 与读屏导航 */}
+      <h1 className="visually-hidden">
+        {page === "leverage"
+          ? "两融数据看板"
+          : page === "methodology"
+            ? "基金持仓穿透方法论"
+            : "海外股票基金持仓查询与基金重仓股穿透"}
+      </h1>
       <header className="topbar">
         <div className="brand-mark">
           <span>出海钱眼</span>
@@ -1375,27 +1733,83 @@ export function App() {
       {page === "research" && (
       <>
       <section className="search-zone" aria-label="基金持仓研究">
-        <div className="command-panel">
+        <div className="command-panel" ref={searchPanelRef}>
           <div className="panel-status">
             <span>全球股票 / 指数 / ETF</span>
           </div>
-          <form className="search-box" onSubmit={(event) => event.preventDefault()}>
+          <form
+            className="search-box"
+            onSubmit={(event) => {
+              event.preventDefault();
+              selectSearchSuggestion(activeSuggestionIndex ?? 0);
+            }}
+          >
             <Search size={22} />
             <input
+              role="combobox"
               aria-label="搜索股票名称或代码"
+              aria-autocomplete="list"
+              aria-expanded={showSuggestions}
+              aria-controls={showSuggestions ? STOCK_SEARCH_LIST_ID : undefined}
+              aria-activedescendant={
+                showSuggestions && activeSuggestionIndex !== null
+                  ? `${STOCK_SEARCH_LIST_ID}-${activeSuggestionIndex}`
+                  : undefined
+              }
+              aria-haspopup="listbox"
               placeholder="NVDA / 00700 / 腾讯"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setSelectedCode(null);
                 setHoveredFund(null);
+                setSuggestionsOpen(true);
+                setActiveSuggestionIndex(null);
               }}
+              onFocus={() => {
+                if (query.trim() && suggestionItems.length) {
+                  setSuggestionsOpen(true);
+                  setActiveSuggestionIndex(null);
+                }
+              }}
+              onBlur={() => {
+                setSuggestionsOpen(false);
+                setActiveSuggestionIndex(null);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              autoComplete="off"
             />
-            <button type="button" onClick={() => matches[0] && chooseStock(matches[0])}>
+            <button
+              type="submit"
+              disabled={!matches[0]}
+            >
               <Search size={18} />
               查询
             </button>
           </form>
+          {showSuggestions && (
+            <ul id={STOCK_SEARCH_LIST_ID} className="search-suggestions" role="listbox" aria-label="搜索建议">
+              {suggestionItems.map((stock, index) => (
+                <li
+                  key={stock.code}
+                  id={`${STOCK_SEARCH_LIST_ID}-${index}`}
+                  className={`search-suggestion ${activeSuggestionIndex === index ? "active" : ""}`}
+                  role="option"
+                  aria-selected={activeSuggestionIndex === index}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectSearchSuggestion(index)}
+                >
+                  <span className="suggestion-name">{stock.name}</span>
+                  <span className="suggestion-code">{stock.code}</span>
+                  <span className="suggestion-meta">
+                    {marketLabel(stock.code, stock.name)} ·{" "}
+                    {numberFormatter.format(stock.activeFundCount)} 只场外基金 · 最高{" "}
+                    {valueFormatter.format(stock.maxRatioPercent)}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="recent-panel" aria-label="快速查询">
@@ -1422,14 +1836,17 @@ export function App() {
         </div>
       </section>
 
-      <section className="ai-hotspot-section" aria-labelledby="ai-hotspot-title">
+      <section
+        className={`ai-hotspot-section ${hotspotsExpanded ? "" : "is-collapsed"}`}
+        aria-labelledby="ai-hotspot-title"
+      >
         <div className="ai-hotspot-head">
           <div>
             <p className="eyeline">AI 战报热点</p>
             <h2 id="ai-hotspot-title">最近高频标的一键穿透</h2>
           </div>
         </div>
-        <div className="ai-hotspot-grid">
+        <div id="ai-hotspot-grid" className="ai-hotspot-grid">
           {aiBattleHotspotCards.length ? (
             aiBattleHotspotCards.map(({ hotspot, stock }) => {
               const isActive = normalizeStockCode(selectedStock?.code ?? "") === normalizeStockCode(stock.code);
@@ -1472,6 +1889,17 @@ export function App() {
             <div className="ai-hotspot-empty">热点入口载入中</div>
           )}
         </div>
+        {aiBattleHotspotCards.length > 3 && (
+          <button
+            type="button"
+            className="ai-hotspot-expand-toggle"
+            aria-expanded={hotspotsExpanded}
+            aria-controls="ai-hotspot-grid"
+            onClick={() => setHotspotsExpanded((current) => !current)}
+          >
+            {hotspotsExpanded ? "收起热点入口" : `展开其余 ${aiBattleHotspotCards.length - 3} 个热点`}
+          </button>
+        )}
       </section>
 
       <section className="selected-context" aria-label="当前研究上下文">
@@ -1548,7 +1976,7 @@ export function App() {
                   </p>
                   <div className="result-title-row">
                     <StockLogo code={selectedStock.code} name={selectedStock.name} size="lg" />
-                    <h2>
+                    <h2 id="stock-result-title" ref={resultTitleRef} className="result-focus-target" tabIndex={-1}>
                       {selectedStock.name}
                       <span>{selectedStock.code}</span>
                     </h2>
@@ -1590,11 +2018,17 @@ export function App() {
                 </span>
               </div>
 
-              <ResultTable funds={resultFunds} accessMode={accessMode} onHoverFund={setHoveredFund} />
+              <ResultTable
+                funds={resultFunds}
+                accessMode={accessMode}
+                onHoverFund={updateHoveredFund}
+                onOpenFund={openFundDetails}
+              />
               {selectedIndirectExposureCount > 0 ? (
                 <IndirectExposureTable
                   exposures={selectedIndirectExposures}
-                  onHoverFund={setHoveredFund}
+                  onHoverFund={updateHoveredFund}
+                  onOpenFund={openFundDetails}
                 />
               ) : null}
             </>
@@ -1660,14 +2094,17 @@ export function App() {
           fundVariantCodes={hoveredFund.fundVariantCodes}
           fundName={hoveredFund.fundName}
           holdings={fundHoldingsMap[hoveredFund.fundCode] || []}
+          holdingsReady={fundHoldingsReady}
           currentSearchStockCode={selectedStock?.code || null}
+          isDialogRequested={hoveredFund.isDialog}
           x={hoveredFund.x}
           y={hoveredFund.y}
-          onClose={() => setHoveredFund(null)}
+          onClose={closeFundDetails}
         />
       )}
 
       <button
+        ref={feedbackTriggerRef}
         type="button"
         className="feedback-trigger"
         aria-label="打开意见反馈"
@@ -1676,7 +2113,7 @@ export function App() {
         <MessageSquareText size={17} />
         意见反馈
       </button>
-      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      <FeedbackDialog open={feedbackOpen} onClose={closeFeedbackDialog} />
     </main>
   );
 }

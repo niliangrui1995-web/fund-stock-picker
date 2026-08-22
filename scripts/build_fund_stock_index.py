@@ -1264,16 +1264,33 @@ def build_index() -> dict[str, Any]:
 def main() -> None:
     TARGET_JSON.parent.mkdir(parents=True, exist_ok=True)
     payload, audit_markdown = build_index_with_audit()
+    # fundHoldings 只在悬浮卡里使用，单独成文件供前端按需懒加载，
+    # 首屏主索引体积可减少约 40%。
+    fund_holdings = payload.pop("fundHoldings", {})
+    holdings_payload = {
+        "meta": {
+            "report": payload["meta"]["report"],
+            "generatedAt": payload["meta"]["generatedAt"],
+            "fundCount": len(fund_holdings),
+        },
+        "fundHoldings": fund_holdings,
+    }
     temp_json = TARGET_JSON.with_name(f".{TARGET_JSON.name}.tmp")
     with temp_json.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
     temp_json.replace(TARGET_JSON)
+    holdings_json = TARGET_JSON.with_name(TARGET_JSON.name.replace("fund-stock-index-", "fund-holdings-"))
+    temp_holdings = holdings_json.with_name(f".{holdings_json.name}.tmp")
+    with temp_holdings.open("w", encoding="utf-8") as handle:
+        json.dump(holdings_payload, handle, ensure_ascii=False, separators=(",", ":"))
+    temp_holdings.replace(holdings_json)
     INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
     INDIRECT_EXPOSURE_AUDIT_MD.write_text(audit_markdown + "\n", encoding="utf-8")
     print(
         f"Wrote {TARGET_JSON} with {payload['meta']['stockCount']} stocks "
         f"from {payload['meta']['sourceRows']} holding rows."
     )
+    print(f"Wrote {holdings_json} with {holdings_payload['meta']['fundCount']} funds.")
     print(f"Wrote {INDIRECT_EXPOSURE_AUDIT_MD}.")
 
 

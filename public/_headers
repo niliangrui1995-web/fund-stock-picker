@@ -8,5 +8,49 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-/data/*.json
+# 应用入口始终先校验 HTML，避免新发布的资源清单被旧入口长期引用。
+/
   Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/research
+  Cache-Control: no-cache
+
+/leverage
+  Cache-Control: no-cache
+
+/methodology
+  Cache-Control: no-cache
+
+/stock-logos/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# 季度文件名可在季度内被更正；保留较长缓存，但不承诺永久不可变。
+/data/fund-stock-index-*.json
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/data/fund-holdings-*.json
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/data/leverage-dashboard.json
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/data/leverage-dashboard.manifest.json
+  Cache-Control: no-cache
+
+/seo/*
+  Cache-Control: public, max-age=86400
+
+/og-image.svg
+  Cache-Control: public, max-age=604800
+
+/favicon.svg
+  Cache-Control: public, max-age=604800
+
+/sitemap.xml
+  Cache-Control: public, max-age=86400
+
+/robots.txt
+  Cache-Control: public, max-age=86400

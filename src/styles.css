@@ -55,6 +55,24 @@
   --shadow-hover: 0 20px 40px -15px rgba(99, 102, 241, 0.12);
   
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --content-max: 1280px;
+  --focus-ring: #4338ca;
+  --focus-ring-on-dark: #c7d2fe;
+  --placeholder: #64748b;
+
+  /* Design Tokens: 间距 / 圆角 / 字号，统一全站节奏 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
 }
 
 * {
@@ -70,6 +88,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* 移动端浏览器地址栏收起/展开时 100dvh 才是真实视口高度，避免跳动 */
+  min-height: 100dvh;
   overflow-x: hidden;
   background:
     linear-gradient(180deg, var(--bg-gradient-start) 0, var(--bg-gradient-mid) 240px, var(--bg-gradient-end) 100%);
@@ -89,8 +109,8 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 2px solid rgba(99, 102, 241, 0.35);
-  outline-offset: 2px;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
 a {
@@ -100,9 +120,9 @@ a {
 }
 
 .app-shell {
-  width: min(1400px, calc(100% - 32px));
+  width: min(var(--content-max), calc(100% - 40px));
   margin: 0 auto;
-  padding: 0 0 56px;
+  padding: 0 0 64px;
 }
 
 .topbar {
@@ -111,11 +131,10 @@ a {
   align-items: stretch;
   min-height: 70px;
   margin: 0 calc(50% - 50vw);
-  padding: 0 max(20px, calc(50vw - 700px));
+  padding: 0 max(20px, calc(50vw - 640px));
   background: linear-gradient(135deg, var(--nav) 0%, var(--nav-soft) 100%);
   color: #f1f5f9;
   border-bottom: 1px solid var(--nav-border);
-  backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -191,6 +210,11 @@ a {
   content: "";
 }
 
+.topbar-nav a:focus-visible {
+  outline-color: var(--focus-ring-on-dark);
+  outline-offset: -4px;
+}
+
 .topbar-meta {
   display: inline-flex;
   align-items: center;
@@ -217,8 +241,8 @@ a {
 .search-zone {
   display: grid;
   grid-template-columns: minmax(420px, 1.35fr) minmax(320px, 0.8fr) minmax(220px, 0.45fr);
-  gap: 16px;
-  padding: 24px 0 16px;
+  gap: var(--space-md);
+  padding: 28px 0 20px;
   scroll-margin-top: 18px;
 }
 
@@ -392,7 +416,8 @@ a {
 }
 
 .search-box input::placeholder {
-  color: #cbd5e1;
+  color: var(--placeholder);
+  opacity: 1;
 }
 
 .search-box button {
@@ -420,6 +445,23 @@ a {
 
 .search-box button:active {
   transform: translateY(1px);
+}
+
+.search-box button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 跳转链接聚焦到主内容时避免默认轮廓；键盘导航仍保留清晰定位。 */
+#main-content:focus {
+  outline: none;
+}
+
+#main-content:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
 }
 
 .recent-chips {
@@ -454,11 +496,11 @@ a {
 
 .ai-hotspot-section {
   display: grid;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 20px;
+  gap: var(--space-md);
+  margin-bottom: 20px;
+  padding: var(--space-lg);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: #ffffff;
   box-shadow: var(--shadow-card);
 }
@@ -609,7 +651,7 @@ a {
 
 .hotspot-metrics small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -636,7 +678,7 @@ a {
 .selected-context {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   overflow: hidden;
 }
 
@@ -911,7 +953,7 @@ a {
 .results-panel {
   min-width: 0;
   min-height: 650px;
-  padding: 24px;
+  padding: 28px;
 }
 
 .eyeline {
@@ -1914,7 +1956,7 @@ tbody tr:last-child td {
 .hover-card-target-strip span {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1961,7 +2003,7 @@ tbody tr:last-child td {
   gap: 12px;
   margin-bottom: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1993,7 +2035,7 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: center;
   color: #64748b;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -2022,7 +2064,7 @@ tbody tr:last-child td {
 .holding-stock-code {
   flex: 0 0 auto;
   color: #64748b;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -2070,7 +2112,7 @@ tbody tr:last-child td {
   border: 1px solid rgba(244, 63, 94, 0.12);
   background: #ffffff;
   color: var(--accent);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2081,6 +2123,155 @@ tbody tr:last-child td {
   color: var(--muted);
   font-size: 12px;
   text-align: center;
+}
+
+/* 懒加载期间给出行内加载提示，避免误显示“暂无持仓记录” */
+.no-holdings-msg.no-holdings-loading::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border: 2px solid var(--line);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: holdings-spinner 0.7s linear infinite;
+}
+
+@keyframes holdings-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- 可访问性：跳转链接与视觉隐藏 ---------- */
+
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 200;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--ink-strong);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform 0.2s var(--ease);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+
+/* ---------- 搜索建议下拉 ---------- */
+
+.command-panel {
+  position: relative;
+}
+
+.search-suggestions {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 0;
+  z-index: 120;
+  width: 100%;
+  max-height: 336px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.18);
+}
+
+.search-suggestions li {
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+.search-suggestions button,
+.search-suggestion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s var(--ease);
+}
+
+.search-suggestions button:hover,
+.search-suggestions button:focus-visible,
+.search-suggestion:hover,
+.search-suggestion.active {
+  background: var(--blue-soft);
+}
+
+.search-suggestion.active {
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.suggestion-name {
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-code {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.suggestion-meta {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ---------- 动效偏好 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -2164,20 +2355,37 @@ tbody tr:last-child td {
   }
 
   .topbar {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding-top: 12px;
-    padding-bottom: 12px;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand meta"
+      "nav nav";
+    gap: 6px 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .brand-mark {
+    grid-area: brand;
     min-width: 0;
     font-size: 18px;
   }
 
   .topbar-nav {
+    grid-area: nav;
     width: 100%;
     min-height: 44px;
+  }
+
+  .topbar-meta {
+    grid-area: meta;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  /* 小屏隐藏次要数据徽章，保留数据期，降低吸顶栏高度 */
+  .topbar-meta span:nth-child(2) {
+    display: none;
   }
 
   .topbar-nav a {
@@ -2188,11 +2396,6 @@ tbody tr:last-child td {
   .topbar-nav a.active::after {
     right: 16px;
     left: 16px;
-  }
-
-  .topbar-meta {
-    flex-wrap: wrap;
-    justify-content: flex-start;
   }
 
   .search-zone {
@@ -2259,6 +2462,20 @@ tbody tr:last-child td {
 
   .results-panel {
     padding: 16px;
+  }
+
+  /* 金融明细表在窄屏保留横向滚动，压缩单元格密度以缩短滚动距离 */
+  table {
+    min-width: 860px;
+  }
+
+  th,
+  td {
+    padding: 11px 12px;
+  }
+
+  .table-wrap {
+    -webkit-overflow-scrolling: touch;
   }
 
   .result-header,
@@ -2335,5 +2552,373 @@ tbody tr:last-child td {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ---------- 查询工作台与小屏数据表优化 ---------- */
+
+/* 搜索承担首屏主操作；摘要和快捷查询保留信息密度，但降低同级卡片的视觉重量。 */
+.search-zone > .command-panel {
+  border-color: rgba(99, 102, 241, 0.16);
+  background: linear-gradient(145deg, #ffffff 0%, #fbfcff 100%);
+  box-shadow: 0 18px 42px -24px rgba(49, 46, 129, 0.28);
+}
+
+.search-zone > .recent-panel,
+.search-zone > .summary-card {
+  border-color: rgba(99, 102, 241, 0.08);
+  box-shadow: none;
+}
+
+.ai-hotspot-section {
+  border-color: rgba(99, 102, 241, 0.1);
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+}
+
+.ai-hotspot-expand-toggle {
+  display: none;
+}
+
+.workspace {
+  gap: 20px;
+}
+
+.results-panel,
+.methodology-section {
+  border-color: rgba(99, 102, 241, 0.1);
+}
+
+.result-focus-target {
+  scroll-margin-top: 104px;
+}
+
+.result-focus-target:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+
+.feedback-form input::placeholder,
+.feedback-form textarea::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+}
+
+/* 让基金明细的触发区域成为一整个、可见焦点的操作目标。 */
+.fund-holdings-action {
+  display: block;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.fund-holdings-action:hover {
+  background: var(--blue-soft);
+}
+
+.fund-holdings-action:focus-visible {
+  outline-offset: 2px;
+  background: var(--blue-soft);
+}
+
+.feedback-dialog,
+.fund-holdings-hover-card.mobile-panel {
+  overscroll-behavior: contain;
+}
+
+.fund-holdings-hover-card[role="dialog"] .hover-card-close {
+  display: inline-flex;
+}
+
+.table-wrap {
+  position: relative;
+  scrollbar-gutter: stable;
+}
+
+.table-scroll-hint {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .ai-hotspot-section {
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+  }
+
+  .ai-hotspot-grid {
+    gap: 10px;
+  }
+
+  .ai-hotspot-main {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .hotspot-thesis {
+    min-height: 0;
+  }
+
+  /* 仅小屏收起第 4 张及之后的 article；空状态 div 不参与该计数。 */
+  .ai-hotspot-section.is-collapsed .ai-hotspot-card:nth-of-type(n + 4) {
+    display: none;
+  }
+
+  .ai-hotspot-expand-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+    padding: 0 16px;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+    border-radius: 8px;
+    background: var(--blue-soft);
+    color: var(--blue);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .ai-hotspot-expand-toggle:hover {
+    border-color: rgba(79, 70, 229, 0.36);
+    background: #e7ebff;
+  }
+
+  .workspace {
+    gap: 14px;
+  }
+
+  /* 当前研究上下文是辅助信息，改为两列以尽早把结果区带回首屏。 */
+  .selected-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 14px;
+  }
+
+  .selected-context div {
+    min-height: 58px;
+    padding: 10px 12px;
+    border-right: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .selected-context div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .selected-context div:nth-child(n + 3) {
+    border-bottom: 0;
+  }
+
+  .results-panel,
+  .workspace.no-selection .results-panel {
+    min-height: 0;
+    padding: 20px 16px;
+  }
+
+  .empty-state {
+    min-height: 220px;
+    padding: 20px 12px;
+  }
+
+  /* 小屏先给出明确说明，再以固定前两列和渐隐边缘提示横向可滚动。 */
+  .table-wrap {
+    margin-top: 10px;
+    overscroll-behavior-x: contain;
+  }
+
+  .table-wrap::before {
+    content: none;
+  }
+
+  .table-scroll-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    margin: 8px 0 0;
+    padding: 0 12px;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    border-radius: 8px;
+    background: linear-gradient(90deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .table-wrap::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+    width: 38px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96));
+    content: "";
+    pointer-events: none;
+  }
+
+  .table-wrap table {
+    min-width: 860px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .table-wrap th:nth-child(1),
+  .table-wrap td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    width: 58px;
+    min-width: 58px;
+    padding-right: 10px;
+    padding-left: 12px;
+    background: #ffffff;
+  }
+
+  .table-wrap th:nth-child(2),
+  .table-wrap td:nth-child(2) {
+    position: sticky;
+    left: 58px;
+    z-index: 4;
+    width: 218px;
+    min-width: 218px;
+    background: #ffffff;
+    box-shadow: 12px 0 14px -16px rgba(30, 41, 59, 0.82);
+  }
+
+  .table-wrap th:nth-child(-n + 2) {
+    z-index: 6;
+    background: #f8fafc;
+  }
+
+  .table-wrap tbody tr:hover td:nth-child(-n + 2),
+  .table-wrap tbody tr:focus-within td:nth-child(-n + 2) {
+    background: var(--blue-soft);
+  }
+
+  .table-wrap tbody tr:focus-within td:nth-child(2) {
+    box-shadow: 12px 0 14px -16px rgba(79, 70, 229, 0.82);
+  }
+
+  .fund-holdings-action {
+    min-height: 44px;
+    padding: 6px;
+  }
+
+  .fund-holdings-hover-card.mobile-panel {
+    max-height: min(78dvh, 680px);
+    padding: 18px 16px;
+  }
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  .recent-chips button,
+  .market-shortcut,
+  .segmented button,
+  .feedback-trigger,
+  .feedback-close,
+  .hover-card-close,
+  .app-shell .leverage-dashboard .leverage-segmented-control button,
+  .app-shell .leverage-dashboard .leverage-period-toggle-group button,
+  .app-shell .leverage-dashboard .leverage-index-toggle {
+    min-height: 44px;
+  }
+
+  .segmented button {
+    height: auto;
+  }
+
+  .app-shell .leverage-dashboard .leverage-date-range input {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .app-shell .leverage-dashboard .leverage-index-toggle:focus-within {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+}
+
+/* 窄平板的结果表仍可能超过可用宽度；沿用手机的可发现性，而不改变平板双列热点布局。 */
+@media (min-width: 721px) and (max-width: 920px) {
+  .table-wrap {
+    margin-top: 10px;
+    overscroll-behavior-x: contain;
+  }
+
+  .table-scroll-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    margin: 8px 0 0;
+    padding: 0 12px;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    border-radius: 8px;
+    background: linear-gradient(90deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .table-wrap::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+    width: 38px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96));
+    content: "";
+    pointer-events: none;
+  }
+
+  .table-wrap table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .table-wrap th:nth-child(1),
+  .table-wrap td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    width: 58px;
+    min-width: 58px;
+    padding-right: 10px;
+    padding-left: 12px;
+    background: #ffffff;
+  }
+
+  .table-wrap th:nth-child(2),
+  .table-wrap td:nth-child(2) {
+    position: sticky;
+    left: 58px;
+    z-index: 4;
+    width: 218px;
+    min-width: 218px;
+    background: #ffffff;
+    box-shadow: 12px 0 14px -16px rgba(30, 41, 59, 0.82);
+  }
+
+  .table-wrap th:nth-child(-n + 2) {
+    z-index: 6;
+    background: #f8fafc;
+  }
+
+  .table-wrap tbody tr:hover td:nth-child(-n + 2),
+  .table-wrap tbody tr:focus-within td:nth-child(-n + 2) {
+    background: var(--blue-soft);
+  }
+
+  .table-wrap tbody tr:focus-within td:nth-child(2) {
+    box-shadow: 12px 0 14px -16px rgba(79, 70, 229, 0.82);
   }
 }
