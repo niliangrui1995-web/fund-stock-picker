@@ -1,29 +1,29 @@
 {
   "schema_version": "1",
-  "generated_at_beijing": "2026-08-14T14:27:37+08:00",
+  "generated_at_beijing": "2026-08-23T23:09:47+08:00",
   "command": "npm run qa:leverage",
   "status": "passed",
-  "data_cutoff": "2026-08-13",
+  "data_cutoff": "2026-08-20",
   "ratio_data_range": {
     "start": "2011-08-03",
-    "end": "2026-08-13"
+    "end": "2026-08-20"
   },
   "temp_parent": "D:\\",
   "normal_preview": {
     "host": "127.0.0.1",
-    "port": 54917
+    "port": 55017
   },
   "bad_preview": {
     "host": "127.0.0.1",
-    "port": 54918
+    "port": 55018
   },
   "ratio_unavailable_preview": {
     "host": "127.0.0.1",
-    "port": 54919
+    "port": 55019
   },
   "ratio_unavailable_package": {
     "reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
-    "data_cutoff": "2026-08-13",
+    "data_cutoff": "2026-08-20",
     "ratio_available": false,
     "all_ratio_pct_null": true,
     "ratio_data_range": {
@@ -31,23 +31,23 @@
       "end": null
     },
     "manifest_reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
-    "payload_records": 3650,
-    "ratio_missing_records": 3650,
-    "payload_sha256": "3ce10019c2057aba62b12e0280cbfd2cbd2f4b2f8dc03b2ef550080f854c25fb"
+    "payload_records": 3655,
+    "ratio_missing_records": 3655,
+    "payload_sha256": "181e50860124d2118badea162231fd668d01f0d4e08da259ee78bf499c92528b"
   },
   "build": {
-    "entry_chunk": "index-tryHRDEh.js",
-    "leverage_async_chunk": "LeverageDashboard-B6EqNm3o.js",
+    "entry_chunk": "index-B2KPIglN.js",
+    "leverage_async_chunk": "LeverageDashboard-CUkO0GKB.js",
     "command": "node_modules/typescript/bin/tsc --noEmit + node_modules/vite/bin/vite.js build",
     "seo_generation": false
   },
   "formal_data_sha256_before": {
-    "leverage-dashboard.json": "78bee679f9a0f249e7865820300cebe9147ffc4450d069bcd945ea1fc545c0f0",
-    "leverage-dashboard.manifest.json": "6a72b7057db50ddbdb580c16f54867a572d37775847bff0ef126af0c99ea0c60"
+    "leverage-dashboard.json": "8540e3768ae1cc519d21d235c7a18a2be43f7eba555d9bf258041dcf2017e6bf",
+    "leverage-dashboard.manifest.json": "10b646c5a95b1e9e51b860199adef47e176d99d8c089d354682372570af764b2"
   },
   "formal_data_sha256_after": {
-    "leverage-dashboard.json": "78bee679f9a0f249e7865820300cebe9147ffc4450d069bcd945ea1fc545c0f0",
-    "leverage-dashboard.manifest.json": "6a72b7057db50ddbdb580c16f54867a572d37775847bff0ef126af0c99ea0c60"
+    "leverage-dashboard.json": "8540e3768ae1cc519d21d235c7a18a2be43f7eba555d9bf258041dcf2017e6bf",
+    "leverage-dashboard.manifest.json": "10b646c5a95b1e9e51b860199adef47e176d99d8c089d354682372570af764b2"
   },
   "formal_data_unchanged": true,
   "scenarios": {
@@ -57,13 +57,13 @@
         "/leverage",
         "/methodology"
       ],
-      "baseBeforeZoom": "对比基准：2016-08-15 = 100",
-      "baseAfterZoom": "对比基准：2016-08-15 = 100",
-      "zoomedTooltipDate": "2020-03-05",
+      "baseBeforeZoom": "对比基准：2016-08-22 = 100",
+      "baseAfterZoom": "对比基准：2016-08-22 = 100",
+      "zoomedTooltipDate": "2020-08-03",
       "manualBase": "2020-01-02",
       "ratioStart": "2011-08-03",
-      "ratioEnd": "2026-08-13",
-      "dataCutoff": "2026-08-13"
+      "ratioEnd": "2026-08-20",
+      "dataCutoff": "2026-08-20"
     },
     "mobile": {
       "navigationMetrics": {
@@ -106,45 +106,48 @@
       "disclosureRange": "N/A",
       "defaultMetric": "margin",
       "marginChartRendered": true,
-      "dataCutoff": "2026-08-13"
+      "dataCutoff": "2026-08-20"
     },
     "offline": {
       "requestUrls": [
-        "http://127.0.0.1:54917/assets/LeverageDashboard-B6EqNm3o.js",
-        "http://127.0.0.1:54917/assets/LeverageDashboard-C_EdC8qw.css",
-        "http://127.0.0.1:54917/assets/index-BzgicxBr.css",
-        "http://127.0.0.1:54917/assets/index-tryHRDEh.js",
-        "http://127.0.0.1:54917/data/fund-stock-index-2026q2.json?v=2026q2",
-        "http://127.0.0.1:54917/data/leverage-dashboard.json",
-        "http://127.0.0.1:54917/data/leverage-dashboard.manifest.json",
-        "http://127.0.0.1:54917/leverage",
-        "http://127.0.0.1:54917/research"
+        "http://127.0.0.1:55017/assets/LeverageDashboard-CUkO0GKB.js",
+        "http://127.0.0.1:55017/assets/LeverageDashboard-C_EdC8qw.css",
+        "http://127.0.0.1:55017/assets/echarts-DYOQg3WD.js",
+        "http://127.0.0.1:55017/assets/icons-D3qIwp8A.js",
+        "http://127.0.0.1:55017/assets/index-B2KPIglN.js",
+        "http://127.0.0.1:55017/assets/index-DIozGaXH.css",
+        "http://127.0.0.1:55017/assets/react-vendor-Da9s6szu.js",
+        "http://127.0.0.1:55017/data/fund-stock-index-2026q2.json?v=2026q2",
+        "http://127.0.0.1:55017/data/leverage-dashboard.json",
+        "http://127.0.0.1:55017/data/leverage-dashboard.manifest.json",
+        "http://127.0.0.1:55017/leverage",
+        "http://127.0.0.1:55017/research"
       ],
       "blockedHttpsRequests": []
     }
   },
   "screenshots": {
     "leverage-default-desktop.png": {
-      "sha256": "3f7e2f06b788b2907fae454c91e1452c9d444e5ddb7712848efda3607d5f64c9",
-      "bytes": 403364,
+      "sha256": "b7a630173ca877af58e2d50f21120818fb11560bf02d2e4c52d3927a533f9f5f",
+      "bytes": 393167,
       "width": 1440,
       "height": 1024
     },
     "leverage-ratio-desktop.png": {
-      "sha256": "a73367a5756a47e1cfcb1e7efd0f45fa4d0f1dd6da71133817b2d23d68b024c4",
-      "bytes": 398855,
+      "sha256": "d0a075690e326cf1d33c1733ba822ce6b20f3c955359d6d1c5fba905657a29cc",
+      "bytes": 389991,
       "width": 1440,
       "height": 1024
     },
     "leverage-mobile.png": {
-      "sha256": "4d7d0bdfb5e5c2a3fa0ff0026000e6d03e387f3bf3b5f5fe31286e692df811ac",
-      "bytes": 112740,
+      "sha256": "e0875a821f6fcc662ff151b3be72c2fc5c43ac595d65aeeeab183081188ea39e",
+      "bytes": 108631,
       "width": 390,
       "height": 844
     },
     "leverage-blocked.png": {
-      "sha256": "e991707d368444ba0487da7616a0d17076cb8ad38fc4e45c98c4bb3c538b9c54",
-      "bytes": 105000,
+      "sha256": "0971642b6eba3711de3744d7b23fb92b80a80b768c2f6deaf07fe8771c7fa5d3",
+      "bytes": 104155,
       "width": 1440,
       "height": 1024
     }

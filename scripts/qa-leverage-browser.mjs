@@ -38,6 +38,8 @@ const qaScrollTop = 3960;
 const sourceSwitchDate = "2017-01-03";
 const officialUnavailableMixedReviewStatus =
   "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
+const mxUnavailableMixedReviewStatus =
+  "mixed_mx_pre2017_unavailable_eastmoney_vendor_unverified";
 const ratioUnavailableReason = "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。";
 const appPagePaths = new Set(["/research", "/leverage", "/methodology"]);
 const dataFiles = [
@@ -148,7 +150,38 @@ async function readFormalDataBounds() {
       ratioRange.start <= ratioRange.end,
     "正式发布包比例日期范围无效。",
   );
-  return { dataCutoff: cutoff, ratioStart: ratioRange.start, ratioEnd: ratioRange.end };
+  const sourceSegments = manifest?.market_cap?.source_segments;
+  assertCondition(Array.isArray(sourceSegments), "正式发布清单市值来源分段无效。");
+  const hasAuditedPre2017Segment = sourceSegments.some(
+    (segment) =>
+      segment?.market_cap_source === "official_exchange_pre2017_raw_chain_audited" &&
+      segment?.market_cap_review_status === "official_exchange_pre2017_raw_chain_audited" &&
+      segment?.ratio_available === true,
+  );
+  const hasMxPre2017Segment = sourceSegments.some(
+    (segment) =>
+      segment?.market_cap_source === "mx_pre2017_vendor_unverified" &&
+      segment?.market_cap_review_status === "mx_vendor_unverified" &&
+      segment?.ratio_available === true,
+  );
+  const hasUnavailablePre2017Segment = sourceSegments.some(
+    (segment) =>
+      segment?.market_cap_source === "pre2017_official_unavailable" ||
+      segment?.market_cap_source === "pre2017_mx_vendor_unavailable",
+  );
+  const marketCapSourceText = hasAuditedPre2017Segment
+    ? "市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。"
+    : hasMxPre2017Segment
+      ? "市值来源：东方财富妙想厂商数据（2011–2016）· 东方财富 Choice（2017 年起）。"
+      : hasUnavailablePre2017Segment
+        ? "市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。"
+        : "市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。";
+  return {
+    dataCutoff: cutoff,
+    ratioStart: ratioRange.start,
+    ratioEnd: ratioRange.end,
+    marketCapSourceText,
+  };
 }
 
 function assertEqualObject(actual, expected, message) {
@@ -242,14 +275,28 @@ async function createRatioUnavailablePackage(previewDirectory) {
       record.date < sourceSwitchDate &&
       record.market_cap_source === "official_exchange_pre2017_raw_chain_audited",
   );
+  const hasMxPre2017Records = payload.records.some(
+    (record) =>
+      record.date < sourceSwitchDate &&
+      record.market_cap_source === "mx_pre2017_vendor_unverified",
+  );
+  const usesMxPre2017Schema =
+    hasMxPre2017Records ||
+    Object.hasOwn(payload.provenance, "mx_pre2017_chain_status") ||
+    Object.hasOwn(manifest.market_cap, "mx_pre2017");
 
   for (const record of payload.records) {
     assertCondition(record !== null && typeof record === "object", "比例不可用临时包存在无效记录。");
     record.denominator_market_cap_yi = null;
     record.ratio_pct = null;
-    if (record.date < sourceSwitchDate && record.market_cap_source === "official_exchange_pre2017_raw_chain_audited") {
-      record.market_cap_source = "pre2017_official_unavailable";
-      record.market_cap_review_status = "unavailable";
+    if (record.date < sourceSwitchDate) {
+      if (record.market_cap_source === "official_exchange_pre2017_raw_chain_audited") {
+        record.market_cap_source = "pre2017_official_unavailable";
+        record.market_cap_review_status = "unavailable";
+      } else if (record.market_cap_source === "mx_pre2017_vendor_unverified") {
+        record.market_cap_source = "pre2017_mx_vendor_unavailable";
+        record.market_cap_review_status = "unavailable";
+      }
     } else if (record.date >= sourceSwitchDate) {
       record.market_cap_review_status = "unavailable";
     }
@@ -258,8 +305,9 @@ async function createRatioUnavailablePackage(previewDirectory) {
   const emptyRatioRange = { start: null, end: null };
   payload.provenance.ratio_available = false;
   payload.provenance.ratio_unavailable_reason = ratioUnavailableReason;
-  payload.provenance.ratio_scope_warning =
-    "QA 临时包：2011–2016 官方前段与 2017 年后东方财富分母均改为 N/A；东方财富Choice厂商口径仍未经交易所复核、未经完整审计，分子可能含非 A 股融资标的。";
+  payload.provenance.ratio_scope_warning = usesMxPre2017Schema
+    ? "QA 临时包：2011–2016 东方财富妙想前段与 2017 年后东方财富 Choice 分母均改为 N/A；两段厂商口径均未经交易所复核、未经完整审计，分子可能含非 A 股融资标的。"
+    : "QA 临时包：2011–2016 官方前段与 2017 年后东方财富分母均改为 N/A；东方财富Choice厂商口径仍未经交易所复核、未经完整审计，分子可能含非 A 股融资标的。";
   payload.provenance.ratio_data_range = emptyRatioRange;
   manifest.market_cap.ratio_available = false;
   manifest.market_cap.reason = ratioUnavailableReason;
@@ -268,8 +316,12 @@ async function createRatioUnavailablePackage(previewDirectory) {
   manifest.market_cap.source_segments = manifest.market_cap.source_segments.map((segment) => ({
     ...segment,
     market_cap_source:
-      hasOfficialPre2017Records && segment.start < sourceSwitchDate
-        ? "pre2017_official_unavailable"
+      segment.start < sourceSwitchDate
+        ? hasMxPre2017Records
+          ? "pre2017_mx_vendor_unavailable"
+          : hasOfficialPre2017Records
+            ? "pre2017_official_unavailable"
+            : segment.market_cap_source
         : segment.market_cap_source,
     market_cap_review_status: "unavailable",
     ratio_available: false,
@@ -290,6 +342,26 @@ async function createRatioUnavailablePackage(previewDirectory) {
       },
     };
     manifest.market_cap.ratio_review_status = officialUnavailableMixedReviewStatus;
+  }
+  if (usesMxPre2017Schema) {
+    payload.provenance.mx_pre2017_chain_status = "unavailable";
+    payload.provenance.mx_pre2017_unavailable_reason = ratioUnavailableReason;
+    manifest.market_cap.mx_pre2017 = {
+      available: false,
+      reason: ratioUnavailableReason,
+      table_sha256: null,
+      raw_response_sha256: null,
+      date_contract_status: "blocked",
+      financial_evidence_audit: {
+        applicable: false,
+        status: "N/A",
+        reason_code: "UNSUPPORTED_RATIO_CONTRACT",
+      },
+    };
+    delete payload.provenance.official_pre2017_chain_status;
+    delete payload.provenance.official_pre2017_unavailable_reason;
+    delete manifest.market_cap.official_pre2017;
+    manifest.market_cap.ratio_review_status = mxUnavailableMixedReviewStatus;
   }
 
   const payloadText = `${JSON.stringify(payload, null, 2)}\n`;
@@ -455,7 +527,14 @@ async function moveToMidChartAndReadTooltip(page) {
   return { chart, box, tooltip: await chart.innerText() };
 }
 
-async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRange) {
+async function runDesktopScenario(
+  browser,
+  result,
+  baseUrl,
+  dataCutoff,
+  ratioRange,
+  marketCapSourceText,
+) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1024 },
     deviceScaleFactor: 1,
@@ -524,7 +603,7 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
     const disclosureDetails = await openDataDisclosure(page);
     const disclosure = await disclosureDetails.innerText();
     textContains(disclosure, "融资数据：东方财富；指数数据：通达信。", "数据来源说明");
-    textContains(disclosure, "市值来源：交易所历史数据（2011–2016）", "市值来源说明");
+    textContains(disclosure, marketCapSourceText, "市值来源说明");
     textContains(disclosure, "计算方式：融资余额 ÷ 沪深 A 股市值。", "比例计算说明");
 
     await page.mouse.move(
@@ -583,7 +662,7 @@ async function runDesktopScenario(browser, result, baseUrl, dataCutoff, ratioRan
       animations: "disabled",
     });
     const ratioDisclosure = await (await openDataDisclosure(page)).innerText();
-    textContains(ratioDisclosure, "市值来源：交易所历史数据（2011–2016）", "比例市值来源说明");
+    textContains(ratioDisclosure, marketCapSourceText, "比例市值来源说明");
     textContains(ratioDisclosure, "仅供趋势参考，不构成投资建议。", "比例使用说明");
 
     result.desktop = {
@@ -888,6 +967,7 @@ try {
     normalServer.url,
     result.data_cutoff,
     result.ratio_data_range,
+    formalDataBounds.marketCapSourceText,
   );
   await runMobileScenario(browser, result.scenarios, normalServer.url);
   await runBlockedScenario(browser, result.scenarios, badServer.url);

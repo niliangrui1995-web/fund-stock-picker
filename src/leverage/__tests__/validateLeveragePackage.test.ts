@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   makeManifestWithDfcfFlags,
   makeManifestWithPayloadHash,
+  makeMxPre2017ManifestText,
+  makeMxPre2017PayloadText,
+  makeMxPre2017UnavailableManifestText,
+  makeMxPre2017UnavailablePayloadText,
   makeOfficialPre2017ManifestText,
   makeOfficialPre2017PayloadText,
   makeOfficialPre2017UnavailableManifestText,
@@ -64,6 +68,45 @@ describe("validateLeveragePackage", () => {
       denominator_market_cap_yi: 10000,
       ratio_pct: 1.8,
     });
+  });
+
+  it("接受 2011–2016 东方财富妙想厂商前段，并保留未审计标识", async () => {
+    const payloadText = makeMxPre2017PayloadText();
+    const result = await validateLeveragePackage(
+      payloadText,
+      makeMxPre2017ManifestText(payloadText),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.payload.records[0]).toMatchObject({
+      market_cap_source: "mx_pre2017_vendor_unverified",
+      market_cap_review_status: "mx_vendor_unverified",
+      denominator_market_cap_yi: 10000,
+      ratio_pct: 1.8,
+    });
+  });
+
+  it("拒绝伪造为可用的东方财富妙想前段元数据", async () => {
+    const payloadText = makeMxPre2017PayloadText();
+    const manifest = parseObject(makeMxPre2017ManifestText(payloadText));
+    manifest.market_cap.mx_pre2017.date_contract_status = "blocked";
+
+    await expect(
+      validateLeveragePackage(payloadText, JSON.stringify(manifest)),
+    ).resolves.toEqual({ ok: false, reason: "比例未审计口径提示无效。" });
+  });
+
+  it("接受妙想前段暂缺且后段 Choice 比例仍可用的发布包", async () => {
+    const payloadText = makeMxPre2017UnavailablePayloadText();
+    const result = await validateLeveragePackage(
+      payloadText,
+      makeMxPre2017UnavailableManifestText(payloadText),
+    );
+
+    expect(result.ok).toBe(true);
   });
 
   it("拒绝伪造为已审计的前段原始链元数据", async () => {
@@ -337,7 +380,7 @@ describe("validateLeveragePackage", () => {
 
     expect(result).toEqual({
       ok: false,
-      reason: "2017-01-03 前不得使用东方财富市值或比例。",
+      reason: "2017-01-03 前不得使用 2017 年后 Choice 市值或比例。",
     });
   });
 

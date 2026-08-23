@@ -10,6 +10,8 @@ const MARKET_CAP_SOURCES = [
   "pre2017_official_unavailable",
   // 兼容已发布的旧静态包；新构建器不会再生成这个来源值。
   "pre2017_official_pending",
+  "mx_pre2017_vendor_unverified",
+  "pre2017_mx_vendor_unavailable",
   "eastmoney_post2017_vendor_unverified",
 ] as const;
 
@@ -78,12 +80,29 @@ function hasAuditedPre2017Segment(manifest: LeverageManifest): boolean {
     );
 }
 
+function hasMxPre2017Segment(manifest: LeverageManifest): boolean {
+  return marketCapSourceSegments(manifest)
+    .some(
+      (segment) =>
+        segment.marketCapSource === "mx_pre2017_vendor_unverified" &&
+        segment.reviewStatus === "mx_vendor_unverified" &&
+        segment.ratioAvailable === true,
+    );
+}
+
 function marketCapSourceSummary(manifest: LeverageManifest): string {
   const segments = marketCapSourceSegments(manifest);
   if (hasAuditedPre2017Segment(manifest)) {
     return "市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。";
   }
-  if (segments.some((segment) => segment.marketCapSource === "pre2017_official_unavailable")) {
+  if (hasMxPre2017Segment(manifest)) {
+    return "市值来源：东方财富妙想厂商数据（2011–2016）· 东方财富 Choice（2017 年起）。";
+  }
+  if (segments.some(
+    (segment) =>
+      segment.marketCapSource === "pre2017_official_unavailable" ||
+      segment.marketCapSource === "pre2017_mx_vendor_unavailable",
+  )) {
     return "市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。";
   }
   return "市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。";

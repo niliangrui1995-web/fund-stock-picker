@@ -17,6 +17,9 @@ const OFFICIAL_PRE2017_SOURCE = "official_exchange_pre2017_raw_chain_audited";
 const OFFICIAL_PRE2017_REVIEW_STATUS = "official_exchange_pre2017_raw_chain_audited";
 const PRE2017_UNAVAILABLE_SOURCE = "pre2017_official_unavailable";
 const LEGACY_PRE2017_SOURCE = "pre2017_official_pending";
+const MX_PRE2017_SOURCE = "mx_pre2017_vendor_unverified";
+const MX_PRE2017_REVIEW_STATUS = "mx_vendor_unverified";
+const MX_PRE2017_UNAVAILABLE_SOURCE = "pre2017_mx_vendor_unavailable";
 const UNAVAILABLE_REVIEW_STATUS = "unavailable";
 const LEGACY_MIXED_RATIO_REVIEW_STATUS =
   "mixed_pre2017_pending_eastmoney_vendor_unverified";
@@ -24,6 +27,10 @@ const AUDITED_MIXED_RATIO_REVIEW_STATUS =
   "mixed_official_pre2017_raw_chain_audited_eastmoney_vendor_unverified";
 const OFFICIAL_UNAVAILABLE_MIXED_RATIO_REVIEW_STATUS =
   "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
+const MX_MIXED_RATIO_REVIEW_STATUS =
+  "mixed_mx_pre2017_vendor_unverified_eastmoney_vendor_unverified";
+const MX_UNAVAILABLE_MIXED_RATIO_REVIEW_STATUS =
+  "mixed_mx_pre2017_unavailable_eastmoney_vendor_unverified";
 const INDEX_CODES: LeverageIndexCode[] = ["000001", "399106", "399006"];
 const DFCF_INPUT_FILENAMES = [
   "dfcf_sse_margin.csv",
@@ -54,7 +61,7 @@ interface CheckedRecord {
   ratio: number | null;
 }
 
-type Pre2017Mode = "audited" | "unavailable";
+type Pre2017Mode = "official" | "mx" | "unavailable";
 
 interface RecordCoverage {
   firstDate: string;
@@ -166,6 +173,8 @@ function isKnownSource(value: unknown): value is MarketCapSource {
     value === OFFICIAL_PRE2017_SOURCE ||
     value === PRE2017_UNAVAILABLE_SOURCE ||
     value === LEGACY_PRE2017_SOURCE ||
+    value === MX_PRE2017_SOURCE ||
+    value === MX_PRE2017_UNAVAILABLE_SOURCE ||
     value === VENDOR_SOURCE
   );
 }
@@ -175,6 +184,7 @@ function isKnownReviewStatus(value: unknown): value is MarketCapReviewStatus {
     value === null ||
     value === OFFICIAL_PRE2017_REVIEW_STATUS ||
     value === UNAVAILABLE_REVIEW_STATUS ||
+    value === MX_PRE2017_REVIEW_STATUS ||
     value === VENDOR_REVIEW_STATUS
   );
 }
@@ -191,6 +201,15 @@ function hasAuditedPre2017Warning(value: unknown): boolean {
     value.includes("DFCF") &&
     value.includes("UNSUPPORTED_RATIO_CONTRACT") &&
     value.includes("严格证券类别匹配");
+}
+
+function hasMxPre2017Warning(value: unknown): boolean {
+  return isNonEmptyString(value) &&
+    value.includes("东方财富妙想") &&
+    value.includes("东方财富 Choice") &&
+    value.includes("未经交易所复核") &&
+    value.includes("未经完整审计") &&
+    value.includes("非 A 股");
 }
 
 function hasRequiredScopeDefinition(value: unknown): boolean {
@@ -315,7 +334,7 @@ function validateRecordBasics(records: unknown[]): CheckedRecord[] | ValidationR
 
     if (recordValue.date < SOURCE_SWITCH_DATE) {
       if (source === VENDOR_SOURCE) {
-        return failure("2017-01-03 前不得使用东方财富市值或比例。");
+        return failure("2017-01-03 前不得使用 2017 年后 Choice 市值或比例。");
       }
 
       if (source === OFFICIAL_PRE2017_SOURCE) {
@@ -329,8 +348,21 @@ function validateRecordBasics(records: unknown[]): CheckedRecord[] | ValidationR
         ) {
           return failure("2017-01-03 前官方市值或比例数据无效。");
         }
+      } else if (source === MX_PRE2017_SOURCE) {
+        if (
+          denominatorMarketCap === null ||
+          denominatorMarketCap <= 0 ||
+          ratio === null ||
+          ratio < 0 ||
+          reviewStatus !== MX_PRE2017_REVIEW_STATUS ||
+          !hasConsistentRatio(recordValue.total_margin_yi, denominatorMarketCap, ratio)
+        ) {
+          return failure("2017-01-03 前妙想厂商市值或比例数据无效。");
+        }
       } else if (
-        (source !== LEGACY_PRE2017_SOURCE && source !== PRE2017_UNAVAILABLE_SOURCE) ||
+        (source !== LEGACY_PRE2017_SOURCE &&
+          source !== PRE2017_UNAVAILABLE_SOURCE &&
+          source !== MX_PRE2017_UNAVAILABLE_SOURCE) ||
         denominatorMarketCap !== null ||
         ratio !== null ||
         reviewStatus !== UNAVAILABLE_REVIEW_STATUS
@@ -386,7 +418,11 @@ function validateRecordCoverage(
       hasPre2017 = true;
       pre2017LastDate = record.date;
       const mode: Pre2017Mode =
-        record.source === OFFICIAL_PRE2017_SOURCE ? "audited" : "unavailable";
+        record.source === OFFICIAL_PRE2017_SOURCE
+          ? "official"
+          : record.source === MX_PRE2017_SOURCE
+            ? "mx"
+            : "unavailable";
       if (pre2017Mode !== null && pre2017Mode !== mode) {
         return failure("2017-01-03 前市值来源分段不得混用。");
       }
@@ -435,10 +471,21 @@ function usesOfficialPre2017Schema(
   payloadProvenance: JsonObject,
   marketCap: JsonObject,
 ): boolean {
-  return coverage.pre2017Mode === "audited" ||
+  return coverage.pre2017Mode === "official" ||
     coverage.pre2017Source === PRE2017_UNAVAILABLE_SOURCE ||
     "official_pre2017_chain_status" in payloadProvenance ||
     "official_pre2017" in marketCap;
+}
+
+function usesMxPre2017Schema(
+  coverage: RecordCoverage,
+  payloadProvenance: JsonObject,
+  marketCap: JsonObject,
+): boolean {
+  return coverage.pre2017Mode === "mx" ||
+    coverage.pre2017Source === MX_PRE2017_UNAVAILABLE_SOURCE ||
+    "mx_pre2017_chain_status" in payloadProvenance ||
+    "mx_pre2017" in marketCap;
 }
 
 function validateOfficialPre2017Metadata(
@@ -487,6 +534,55 @@ function validateOfficialPre2017Metadata(
   );
 }
 
+function validateMxPre2017Metadata(
+  payloadProvenance: JsonObject,
+  marketCap: JsonObject,
+  hasMxPre2017: boolean,
+  usesMxSchema: boolean,
+): boolean {
+  if (!usesMxSchema) {
+    return true;
+  }
+
+  const metadata = marketCap.mx_pre2017;
+  if (!isObject(metadata)) {
+    return false;
+  }
+  const audit = metadata.financial_evidence_audit;
+  if (
+    !isObject(audit) ||
+    audit.applicable !== false ||
+    audit.status !== "N/A" ||
+    audit.reason_code !== "UNSUPPORTED_RATIO_CONTRACT"
+  ) {
+    return false;
+  }
+
+  if (hasMxPre2017) {
+    return (
+      payloadProvenance.mx_pre2017_chain_status === "available" &&
+      payloadProvenance.mx_pre2017_unavailable_reason === null &&
+      metadata.available === true &&
+      metadata.reason === null &&
+      typeof metadata.table_sha256 === "string" &&
+      SHA256_RE.test(metadata.table_sha256) &&
+      typeof metadata.raw_response_sha256 === "string" &&
+      SHA256_RE.test(metadata.raw_response_sha256) &&
+      metadata.date_contract_status === "pass"
+    );
+  }
+
+  return (
+    payloadProvenance.mx_pre2017_chain_status === "unavailable" &&
+    isNonEmptyString(payloadProvenance.mx_pre2017_unavailable_reason) &&
+    metadata.available === false &&
+    isNonEmptyString(metadata.reason) &&
+    metadata.table_sha256 === null &&
+    metadata.raw_response_sha256 === null &&
+    metadata.date_contract_status === "blocked"
+  );
+}
+
 function validateSourceSegments(
   value: unknown,
   coverage: RecordCoverage,
@@ -525,10 +621,12 @@ function validateSourceSegments(
     return false;
   }
 
-  const expectedPre2017ReviewStatus = coverage.pre2017Mode === "audited"
+  const expectedPre2017ReviewStatus = coverage.pre2017Mode === "official"
     ? OFFICIAL_PRE2017_REVIEW_STATUS
-    : UNAVAILABLE_REVIEW_STATUS;
-  const expectedPre2017RatioAvailable = coverage.pre2017Mode === "audited";
+    : coverage.pre2017Mode === "mx"
+      ? MX_PRE2017_REVIEW_STATUS
+      : UNAVAILABLE_REVIEW_STATUS;
+  const expectedPre2017RatioAvailable = coverage.pre2017Mode !== "unavailable";
   const expectedPost2017ReviewStatus = coverage.hasPost2017Ratio
     ? VENDOR_REVIEW_STATUS
     : UNAVAILABLE_REVIEW_STATUS;
@@ -592,28 +690,50 @@ function validateRatioMetadata(
   }
 
   const ratioAvailable = payloadProvenance.ratio_available;
-  const hasAuditedPre2017 = coverage.pre2017Mode === "audited";
+  const hasOfficialPre2017 = coverage.pre2017Mode === "official";
+  const hasMxPre2017 = coverage.pre2017Mode === "mx";
   const officialSchema = usesOfficialPre2017Schema(
     coverage,
     payloadProvenance,
     marketCap,
   );
+  const mxSchema = usesMxPre2017Schema(
+    coverage,
+    payloadProvenance,
+    marketCap,
+  );
+  if (officialSchema && mxSchema) {
+    return failure("市值发布元数据无效。");
+  }
   const expectedReviewStatus = officialSchema
-    ? hasAuditedPre2017
+    ? hasOfficialPre2017
       ? AUDITED_MIXED_RATIO_REVIEW_STATUS
       : OFFICIAL_UNAVAILABLE_MIXED_RATIO_REVIEW_STATUS
-    : LEGACY_MIXED_RATIO_REVIEW_STATUS;
-  const validScopeWarning = hasAuditedPre2017
+    : mxSchema
+      ? hasMxPre2017
+        ? MX_MIXED_RATIO_REVIEW_STATUS
+        : MX_UNAVAILABLE_MIXED_RATIO_REVIEW_STATUS
+      : LEGACY_MIXED_RATIO_REVIEW_STATUS;
+  const validScopeWarning = hasOfficialPre2017
     ? hasAuditedPre2017Warning(payloadProvenance.ratio_scope_warning) &&
       hasRequiredScopeDefinition(marketCap.scope_definition)
-    : isLegacyVendorWarning(payloadProvenance.ratio_scope_warning);
+    : mxSchema
+      ? hasMxPre2017Warning(payloadProvenance.ratio_scope_warning) &&
+        hasRequiredScopeDefinition(marketCap.scope_definition)
+      : isLegacyVendorWarning(payloadProvenance.ratio_scope_warning);
   if (
     !validScopeWarning ||
     !validateOfficialPre2017Metadata(
       payloadProvenance,
       marketCap,
-      hasAuditedPre2017,
+      hasOfficialPre2017,
       officialSchema,
+    ) ||
+    !validateMxPre2017Metadata(
+      payloadProvenance,
+      marketCap,
+      hasMxPre2017,
+      mxSchema,
     )
   ) {
     return failure("比例未审计口径提示无效。");
@@ -770,10 +890,14 @@ export async function validateLeveragePackage(
       return failure("比例分母无效。");
     }
     const expectedSource = record.date < SOURCE_SWITCH_DATE
-      ? OFFICIAL_PRE2017_SOURCE
+      ? coverage.pre2017Mode === "mx"
+        ? MX_PRE2017_SOURCE
+        : OFFICIAL_PRE2017_SOURCE
       : VENDOR_SOURCE;
     const expectedReviewStatus = record.date < SOURCE_SWITCH_DATE
-      ? OFFICIAL_PRE2017_REVIEW_STATUS
+      ? coverage.pre2017Mode === "mx"
+        ? MX_PRE2017_REVIEW_STATUS
+        : OFFICIAL_PRE2017_REVIEW_STATUS
       : VENDOR_REVIEW_STATUS;
     if (
       record.source !== expectedSource ||

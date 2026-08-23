@@ -5,17 +5,22 @@ export type MarketCapSource =
   | "pre2017_official_unavailable"
   // 兼容已发布的旧静态包；新构建器不会再生成这个来源值。
   | "pre2017_official_pending"
+  | "mx_pre2017_vendor_unverified"
+  | "pre2017_mx_vendor_unavailable"
   | "eastmoney_post2017_vendor_unverified"
   | null;
 export type MarketCapReviewStatus =
   | "official_exchange_pre2017_raw_chain_audited"
   | "unavailable"
+  | "mx_vendor_unverified"
   | "eastmoney_vendor_unverified"
   | null;
 export type MarketCapRatioReviewStatus =
   | "mixed_pre2017_pending_eastmoney_vendor_unverified"
   | "mixed_official_pre2017_raw_chain_audited_eastmoney_vendor_unverified"
-  | "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
+  | "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified"
+  | "mixed_mx_pre2017_vendor_unverified_eastmoney_vendor_unverified"
+  | "mixed_mx_pre2017_unavailable_eastmoney_vendor_unverified";
 export type LeverageRatioDataRange =
   | { start: string; end: string }
   | { start: null; end: null }
@@ -62,6 +67,19 @@ export interface OfficialPre2017MarketCapMetadata {
   };
 }
 
+export interface MxPre2017MarketCapMetadata {
+  available: boolean;
+  reason: string | null;
+  table_sha256: string | null;
+  raw_response_sha256: string | null;
+  date_contract_status: "pass" | "blocked";
+  financial_evidence_audit: {
+    applicable: false;
+    status: "N/A";
+    reason_code: "UNSUPPORTED_RATIO_CONTRACT";
+  };
+}
+
 export interface LeverageDashboardPayload {
   schema_version: "1";
   generated_at_beijing: string;
@@ -74,6 +92,8 @@ export interface LeverageDashboardPayload {
     source_switch_date: "2017-01-03";
     official_pre2017_chain_status?: "available" | "unavailable";
     official_pre2017_unavailable_reason?: string | null;
+    mx_pre2017_chain_status?: "available" | "unavailable";
+    mx_pre2017_unavailable_reason?: string | null;
   };
 }
 
@@ -99,6 +119,7 @@ export interface LeverageManifest {
     source_segments: MarketCapSourceSegment[];
     scope_definition: string;
     official_pre2017?: OfficialPre2017MarketCapMetadata;
+    mx_pre2017?: MxPre2017MarketCapMetadata;
   };
   indices: Record<
     LeverageIndexCode,

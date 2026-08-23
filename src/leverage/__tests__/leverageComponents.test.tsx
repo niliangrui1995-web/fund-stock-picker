@@ -8,6 +8,8 @@ import { LeverageControls } from "../LeverageControls";
 import { LeverageDisclosure } from "../LeverageDisclosure";
 import type { LeverageDashboardPayload, LeverageManifest } from "../types";
 import {
+  makeMxPre2017ManifestText,
+  makeMxPre2017PayloadText,
   makeOfficialPre2017ManifestText,
   makeOfficialPre2017PayloadText,
   makeOfficialPre2017UnavailableManifestText,
@@ -21,6 +23,10 @@ const manifest = JSON.parse(makeValidManifestText(makeValidPayloadText())) as Le
 const auditedPayload = JSON.parse(makeOfficialPre2017PayloadText()) as LeverageDashboardPayload;
 const auditedManifest = JSON.parse(
   makeOfficialPre2017ManifestText(makeOfficialPre2017PayloadText()),
+) as LeverageManifest;
+const mxPayload = JSON.parse(makeMxPre2017PayloadText()) as LeverageDashboardPayload;
+const mxManifest = JSON.parse(
+  makeMxPre2017ManifestText(makeMxPre2017PayloadText()),
 ) as LeverageManifest;
 const officialUnavailablePayload = JSON.parse(
   makeOfficialPre2017UnavailablePayloadText(),
@@ -105,6 +111,15 @@ describe("leverage dashboard components", () => {
     expect(markup).not.toContain("未经完整审计");
   });
 
+  it("明确披露妙想前段与 Choice 后段均为厂商口径", () => {
+    const markup = renderToStaticMarkup(
+      <LeverageDisclosure payload={mxPayload} manifest={mxManifest} />,
+    );
+
+    expect(markup).toContain("市值来源：东方财富妙想厂商数据（2011–2016）· 东方财富 Choice（2017 年起）。");
+    expect(markup).not.toContain("交易所历史数据（2011–2016）");
+  });
+
   it("早期市值不可用时使用客户可理解的提示", () => {
     const markup = renderToStaticMarkup(
       <LeverageDisclosure
@@ -133,8 +148,10 @@ describe("leverage dashboard components", () => {
       "official_exchange_pre2017_raw_chain_audited",
       "pre2017_official_unavailable",
       "pre2017_official_pending",
+      "mx_pre2017_vendor_unverified",
+      "pre2017_mx_vendor_unavailable",
     ]).toContain(sources[0]);
-    expect(markup).toMatch(/市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。|市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。|市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。/);
+    expect(markup).toMatch(/市值来源：交易所历史数据（2011–2016）· 东方财富 Choice（2017 年起）。|市值来源：东方财富妙想厂商数据（2011–2016）· 东方财富 Choice（2017 年起）。|市值来源：2011–2016 暂缺 · 东方财富 Choice（2017 年起）。|市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。/);
   });
 
   it("仅 legacy source 字段而没有 market_cap_source 时不显示未验证来源", () => {

@@ -61,6 +61,8 @@ function promotePre2017ToOfficialRawChain(payload, manifest) {
     "2011-08-03 至 2016-12-30 分母已通过交易所原始链准出；但分子为 DFCF 厂商两融余额，financial-evidence-audit 对该聚合比值为 UNSUPPORTED_RATIO_CONTRACT，不能称为正式财务比例或严格证券类别匹配。";
   payload.provenance.official_pre2017_chain_status = "available";
   payload.provenance.official_pre2017_unavailable_reason = null;
+  delete payload.provenance.mx_pre2017_chain_status;
+  delete payload.provenance.mx_pre2017_unavailable_reason;
 
   manifest.market_cap.ratio_available = true;
   manifest.market_cap.ratio_data_range = payload.provenance.ratio_data_range;
@@ -101,6 +103,76 @@ function promotePre2017ToOfficialRawChain(payload, manifest) {
       reason_code: "UNSUPPORTED_RATIO_CONTRACT",
     },
   };
+  delete manifest.market_cap.mx_pre2017;
+  manifest.description =
+    "DFCF 两融余额与三指数静态数据包；两融余额下降仅为去杠杆压力代理，不证明强平、底部或反弹。";
+}
+
+function promotePre2017ToMxVendor(payload, manifest) {
+  const pre2017Records = payload.records.filter((record) => record.date < "2017-01-03");
+  assert.ok(pre2017Records.length > 0, "测试包缺少 2017-01-03 前记录。");
+  for (const record of pre2017Records) {
+    record.denominator_market_cap_yi = 1000000;
+    record.market_cap_source = "mx_pre2017_vendor_unverified";
+    record.market_cap_review_status = "mx_vendor_unverified";
+    record.ratio_pct = (record.total_margin_yi / record.denominator_market_cap_yi) * 100;
+  }
+
+  const ratioRecords = payload.records.filter((record) => record.ratio_pct !== null);
+  const post2017Records = payload.records.filter((record) => record.date >= "2017-01-03");
+  payload.provenance.ratio_available = true;
+  payload.provenance.ratio_unavailable_reason = null;
+  payload.provenance.ratio_data_range = {
+    start: ratioRecords[0]?.date,
+    end: ratioRecords[ratioRecords.length - 1]?.date,
+  };
+  payload.provenance.ratio_scope_warning =
+    "2011-08-03 至 2016-12-30 分母为东方财富妙想厂商口径，2017-01-03 起分母为东方财富 Choice 厂商口径；两段均未经交易所复核、未经完整审计，分子可能含非 A 股融资标的，不能称为正式财务比例。";
+  payload.provenance.mx_pre2017_chain_status = "available";
+  payload.provenance.mx_pre2017_unavailable_reason = null;
+  delete payload.provenance.official_pre2017_chain_status;
+  delete payload.provenance.official_pre2017_unavailable_reason;
+
+  manifest.market_cap.ratio_available = true;
+  manifest.market_cap.ratio_data_range = payload.provenance.ratio_data_range;
+  manifest.market_cap.ratio_missing_records = payload.records.length - ratioRecords.length;
+  manifest.market_cap.ratio_review_status =
+    "mixed_mx_pre2017_vendor_unverified_eastmoney_vendor_unverified";
+  manifest.market_cap.reason =
+    "2011–2016 前段分母为东方财富妙想厂商口径，2017 年起为东方财富 Choice 厂商口径；两段均未经交易所复核和完整审计。";
+  manifest.market_cap.scope_definition =
+    "分子为 DFCF 两市融资余额厂商口径，可能含非 A 股融资标的；2011-08-03 至 2016-12-30 分母为东方财富妙想沪深A股日度总市值，2017-01-03 起分母为东方财富 Choice 市值。两段均未经交易所复核和完整审计，全段均不能称为正式财务比例。";
+  manifest.market_cap.source_segments = [
+    {
+      start: pre2017Records[0]?.date,
+      end: pre2017Records[pre2017Records.length - 1]?.date,
+      market_cap_source: "mx_pre2017_vendor_unverified",
+      market_cap_review_status: "mx_vendor_unverified",
+      ratio_available: true,
+      reason: "东方财富妙想厂商口径，未经交易所复核和完整审计。",
+    },
+    {
+      start: "2017-01-03",
+      end: post2017Records[post2017Records.length - 1]?.date,
+      market_cap_source: "eastmoney_post2017_vendor_unverified",
+      market_cap_review_status: "eastmoney_vendor_unverified",
+      ratio_available: true,
+      reason: null,
+    },
+  ];
+  manifest.market_cap.mx_pre2017 = {
+    available: true,
+    reason: null,
+    table_sha256: "e".repeat(64),
+    raw_response_sha256: "f".repeat(64),
+    date_contract_status: "pass",
+    financial_evidence_audit: {
+      applicable: false,
+      status: "N/A",
+      reason_code: "UNSUPPORTED_RATIO_CONTRACT",
+    },
+  };
+  delete manifest.market_cap.official_pre2017;
   manifest.description =
     "DFCF 两融余额与三指数静态数据包；两融余额下降仅为去杠杆压力代理，不证明强平、底部或反弹。";
 }
@@ -192,6 +264,34 @@ test("允许 2011–2016 官方原始链已审计分母，并将比例范围前�
 
   assert.equal(summary.firstRatioDate, payload.records[0]?.date ?? null);
   assert.equal(summary.ratioMissingRecords, payload.records.length - expectedRatioRecords.length);
+});
+
+test("允许 2011–2016 东方财富妙想厂商分母，并保留未审计披露", async () => {
+  const published = await readPublishedPackage();
+  const payload = clonePackage(published.payload);
+  const manifest = clonePackage(published.manifest);
+  promotePre2017ToMxVendor(payload, manifest);
+  const expectedRatioRecords = payload.records.filter((record) => record.ratio_pct !== null);
+  const serialized = serializePackage(payload, manifest);
+
+  const summary = verifyLeverageDashboard(serialized.payloadText, serialized.manifestText);
+
+  assert.equal(summary.firstRatioDate, payload.records[0]?.date ?? null);
+  assert.equal(summary.ratioMissingRecords, payload.records.length - expectedRatioRecords.length);
+});
+
+test("拒绝妙想前段日期合同状态伪造", async () => {
+  const published = await readPublishedPackage();
+  const payload = clonePackage(published.payload);
+  const manifest = clonePackage(published.manifest);
+  promotePre2017ToMxVendor(payload, manifest);
+  manifest.market_cap.mx_pre2017.date_contract_status = "blocked";
+  const serialized = serializePackage(payload, manifest);
+
+  assert.throws(
+    () => verifyLeverageDashboard(serialized.payloadText, serialized.manifestText),
+    /妙想前段厂商链元数据无效/,
+  );
 });
 
 test("拒绝前段官方原始链审计状态伪造", async () => {

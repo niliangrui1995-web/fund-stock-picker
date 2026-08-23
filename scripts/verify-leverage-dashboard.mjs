@@ -9,6 +9,9 @@ const OFFICIAL_PRE2017_SOURCE = "official_exchange_pre2017_raw_chain_audited";
 const OFFICIAL_PRE2017_REVIEW_STATUS = "official_exchange_pre2017_raw_chain_audited";
 const PRE2017_UNAVAILABLE_SOURCE = "pre2017_official_unavailable";
 const LEGACY_PRE2017_SOURCE = "pre2017_official_pending";
+const MX_PRE2017_SOURCE = "mx_pre2017_vendor_unverified";
+const MX_PRE2017_REVIEW_STATUS = "mx_vendor_unverified";
+const MX_PRE2017_UNAVAILABLE_SOURCE = "pre2017_mx_vendor_unavailable";
 const PRE_2017_REVIEW_STATUS = "unavailable";
 const POST_2017_SOURCE = "eastmoney_post2017_vendor_unverified";
 const POST_2017_REVIEW_STATUS = "eastmoney_vendor_unverified";
@@ -17,6 +20,10 @@ const AUDITED_MIXED_REVIEW_STATUS =
   "mixed_official_pre2017_raw_chain_audited_eastmoney_vendor_unverified";
 const OFFICIAL_UNAVAILABLE_MIXED_REVIEW_STATUS =
   "mixed_official_pre2017_unavailable_eastmoney_vendor_unverified";
+const MX_MIXED_REVIEW_STATUS =
+  "mixed_mx_pre2017_vendor_unverified_eastmoney_vendor_unverified";
+const MX_UNAVAILABLE_MIXED_REVIEW_STATUS =
+  "mixed_mx_pre2017_unavailable_eastmoney_vendor_unverified";
 const DFCF_INPUT_FILENAMES = [
   "dfcf_sse_margin.csv",
   "dfcf_szse_margin.csv",
@@ -202,12 +209,31 @@ function validateRecords(records) {
         pre2017Mode ??= "audited";
         assert(pre2017Mode === "audited", "2017-01-03 前市值来源分段不得混用。");
         ratioRecords.push(record);
+      } else if (record.market_cap_source === MX_PRE2017_SOURCE) {
+        assert(
+          isFiniteNumber(record.denominator_market_cap_yi) && record.denominator_market_cap_yi > 0,
+          "2017-01-03 前妙想厂商分母必须为正数。",
+        );
+        assert(isFiniteNumber(record.ratio_pct) && record.ratio_pct >= 0, "2017-01-03 前妙想厂商比例无效。");
+        assert(
+          record.market_cap_review_status === MX_PRE2017_REVIEW_STATUS,
+          "2017-01-03 前妙想厂商市值审查状态无效。",
+        );
+        const impliedRatio = (record.total_margin_yi / record.denominator_market_cap_yi) * 100;
+        assert(
+          Math.abs(record.ratio_pct - impliedRatio) <= 1e-6,
+          `第 ${index + 1} 条比例未与同日两融余额和市值分母一致。`,
+        );
+        pre2017Mode ??= "mx";
+        assert(pre2017Mode === "mx", "2017-01-03 前市值来源分段不得混用。");
+        ratioRecords.push(record);
       } else {
         assert(
           record.ratio_pct === null &&
             record.denominator_market_cap_yi === null &&
             (record.market_cap_source === LEGACY_PRE2017_SOURCE ||
-              record.market_cap_source === PRE2017_UNAVAILABLE_SOURCE) &&
+              record.market_cap_source === PRE2017_UNAVAILABLE_SOURCE ||
+              record.market_cap_source === MX_PRE2017_UNAVAILABLE_SOURCE) &&
             record.market_cap_review_status === PRE_2017_REVIEW_STATUS,
           "2017-01-03 前市值或比例数据来源无效。",
         );
@@ -254,7 +280,7 @@ function validateRecords(records) {
 
   assert(records[0].date === FIRST_MARGIN_DATE, `两融余额起点必须为 ${FIRST_MARGIN_DATE}。`);
   assert(pre2017Count > 0 && post2017Count > 0, "市值来源前后分段不完整。");
-  assert(pre2017LastDate === "2016-12-30", "交易所市值待定分段终点应为 2016-12-30。");
+  assert(pre2017LastDate === "2016-12-30", "前段市值分段终点应为 2016-12-30。");
   assert(post2017FirstDate === SOURCE_SWITCH_DATE, `东方财富市值分段必须从 ${SOURCE_SWITCH_DATE} 开始。`);
 
   return {
@@ -312,10 +338,16 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
     "两融去杠杆风险披露无效。",
   );
   const auditedPre2017 = recordSummary.pre2017Mode === "audited";
+  const mxPre2017 = recordSummary.pre2017Mode === "mx";
   const officialSchema = auditedPre2017 ||
     recordSummary.pre2017Source === PRE2017_UNAVAILABLE_SOURCE ||
     Object.hasOwn(payload.provenance, "official_pre2017_chain_status") ||
     Object.hasOwn(manifest.market_cap, "official_pre2017");
+  const mxSchema = mxPre2017 ||
+    recordSummary.pre2017Source === MX_PRE2017_UNAVAILABLE_SOURCE ||
+    Object.hasOwn(payload.provenance, "mx_pre2017_chain_status") ||
+    Object.hasOwn(manifest.market_cap, "mx_pre2017");
+  assert(!(officialSchema && mxSchema), "市值发布元数据不得同时声明官方与妙想前段链。");
   if (auditedPre2017) {
     assert(
       typeof payload.provenance.ratio_scope_warning === "string" &&
@@ -328,6 +360,22 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
         manifest.market_cap.scope_definition.includes("未经交易所复核") &&
         manifest.market_cap.scope_definition.includes("完整审计"),
       "官方前段比例口径或后段未审计警示无效。",
+    );
+  } else if (mxSchema) {
+    assert(
+      typeof payload.provenance.ratio_scope_warning === "string" &&
+        payload.provenance.ratio_scope_warning.includes("东方财富妙想") &&
+        payload.provenance.ratio_scope_warning.includes("东方财富 Choice") &&
+        payload.provenance.ratio_scope_warning.includes("未经交易所复核") &&
+        payload.provenance.ratio_scope_warning.includes("未经完整审计") &&
+        payload.provenance.ratio_scope_warning.includes("非 A 股") &&
+        typeof manifest.market_cap.scope_definition === "string" &&
+        manifest.market_cap.scope_definition.includes("DFCF") &&
+        manifest.market_cap.scope_definition.includes("非 A 股") &&
+        manifest.market_cap.scope_definition.includes("东方财富") &&
+        manifest.market_cap.scope_definition.includes("未经交易所复核") &&
+        manifest.market_cap.scope_definition.includes("完整审计"),
+      "妙想前段比例未审计口径提示无效。",
     );
   } else {
     assert(
@@ -369,6 +417,44 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
           officialPre2017.table_sha256 === null &&
           officialPre2017.raw_chain_status === "blocked",
         "官方前段不可用元数据无效。",
+      );
+    }
+  }
+  if (mxSchema) {
+    const mxPre2017Metadata = manifest.market_cap.mx_pre2017;
+    assert(isObject(mxPre2017Metadata), "妙想前段市值元数据无效。");
+    assert(
+      isObject(mxPre2017Metadata.financial_evidence_audit) &&
+        mxPre2017Metadata.financial_evidence_audit.applicable === false &&
+        mxPre2017Metadata.financial_evidence_audit.status === "N/A" &&
+        mxPre2017Metadata.financial_evidence_audit.reason_code === "UNSUPPORTED_RATIO_CONTRACT",
+      "妙想前段 financial-evidence-audit 适用性无效。",
+    );
+    if (mxPre2017) {
+      assert(
+        payload.provenance.mx_pre2017_chain_status === "available" &&
+          payload.provenance.mx_pre2017_unavailable_reason === null &&
+          mxPre2017Metadata.available === true &&
+          mxPre2017Metadata.reason === null &&
+          typeof mxPre2017Metadata.table_sha256 === "string" &&
+          SHA256_PATTERN.test(mxPre2017Metadata.table_sha256) &&
+          typeof mxPre2017Metadata.raw_response_sha256 === "string" &&
+          SHA256_PATTERN.test(mxPre2017Metadata.raw_response_sha256) &&
+          mxPre2017Metadata.date_contract_status === "pass",
+        "妙想前段厂商链元数据无效。",
+      );
+    } else {
+      assert(
+        payload.provenance.mx_pre2017_chain_status === "unavailable" &&
+          typeof payload.provenance.mx_pre2017_unavailable_reason === "string" &&
+          payload.provenance.mx_pre2017_unavailable_reason.trim() &&
+          mxPre2017Metadata.available === false &&
+          typeof mxPre2017Metadata.reason === "string" &&
+          mxPre2017Metadata.reason.trim() &&
+          mxPre2017Metadata.table_sha256 === null &&
+          mxPre2017Metadata.raw_response_sha256 === null &&
+          mxPre2017Metadata.date_contract_status === "blocked",
+        "妙想前段不可用元数据无效。",
       );
     }
   }
@@ -424,7 +510,11 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
     ? auditedPre2017
       ? AUDITED_MIXED_REVIEW_STATUS
       : OFFICIAL_UNAVAILABLE_MIXED_REVIEW_STATUS
-    : LEGACY_MIXED_REVIEW_STATUS;
+    : mxSchema
+      ? mxPre2017
+        ? MX_MIXED_REVIEW_STATUS
+        : MX_UNAVAILABLE_MIXED_REVIEW_STATUS
+      : LEGACY_MIXED_REVIEW_STATUS;
   assert(
     manifest.market_cap.ratio_review_status === expectedRatioReviewStatus,
     "发布清单比例审查状态无效。",
@@ -435,9 +525,17 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
     {
       start: recordSummary.firstDate,
       end: recordSummary.pre2017LastDate,
-      source: auditedPre2017 ? OFFICIAL_PRE2017_SOURCE : payload.records[0].market_cap_source,
-      reviewStatus: auditedPre2017 ? OFFICIAL_PRE2017_REVIEW_STATUS : PRE_2017_REVIEW_STATUS,
-      ratioAvailable: auditedPre2017,
+      source: auditedPre2017
+        ? OFFICIAL_PRE2017_SOURCE
+        : mxPre2017
+          ? MX_PRE2017_SOURCE
+          : payload.records[0].market_cap_source,
+      reviewStatus: auditedPre2017
+        ? OFFICIAL_PRE2017_REVIEW_STATUS
+        : mxPre2017
+          ? MX_PRE2017_REVIEW_STATUS
+          : PRE_2017_REVIEW_STATUS,
+      ratioAvailable: auditedPre2017 || mxPre2017,
     },
     0,
   );
