@@ -1165,14 +1165,69 @@ function LeverageModuleFallback() {
   );
 }
 
+type TurnstileRenderOptions = {
+  sitekey: string;
+  action: string;
+  size: "compact";
+  callback: (token: string) => void;
+  "expired-callback": () => void;
+  "error-callback": () => void;
+};
+
+type TurnstileApi = {
+  render: (container: HTMLElement, options: TurnstileRenderOptions) => string;
+  reset: (widgetId?: string) => void;
+  remove: (widgetId?: string) => void;
+};
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
+
+const TURNSTILE_SITEKEY = "0x4AAAAAAEer-1lAw8ypwkb7";
+const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+let turnstileScriptPromise: Promise<TurnstileApi> | null = null;
+
+function loadTurnstileApi(): Promise<TurnstileApi> {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  if (turnstileScriptPromise) return turnstileScriptPromise;
+
+  turnstileScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = TURNSTILE_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => {
+      if (window.turnstile) {
+        resolve(window.turnstile);
+      } else {
+        turnstileScriptPromise = null;
+        reject(new Error("安全验证组件未能初始化。"));
+      }
+    };
+    script.onerror = () => {
+      turnstileScriptPromise = null;
+      reject(new Error("安全验证组件加载失败。"));
+    };
+    document.head.appendChild(script);
+  });
+
+  return turnstileScriptPromise;
+}
+
 function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [contact, setContact] = useState("");
   const [message, setMessage] = useState("");
   const [website, setWebsite] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorText, setErrorText] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileError, setTurnstileError] = useState("");
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
   const onCloseRef = useRef(onClose);
   const statusRef = useRef(status);
 
@@ -1225,10 +1280,68 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    let active = true;
+    setTurnstileToken("");
+    setTurnstileError("");
+
+    void loadTurnstileApi()
+      .then((turnstile) => {
+        const container = turnstileContainerRef.current;
+        if (!active || !container) return;
+
+        turnstileWidgetIdRef.current = turnstile.render(container, {
+          sitekey: TURNSTILE_SITEKEY,
+          action: "feedback",
+          size: "compact",
+          callback: (token) => {
+            if (active) {
+              setTurnstileToken(token);
+              setTurnstileError("");
+            }
+          },
+          "expired-callback": () => {
+            if (active) setTurnstileToken("");
+          },
+          "error-callback": () => {
+            if (active) {
+              setTurnstileToken("");
+              setTurnstileError("安全验证暂不可用，请刷新页面后重试。");
+            }
+          },
+        });
+      })
+      .catch(() => {
+        if (active) setTurnstileError("安全验证加载失败，请刷新页面后重试。");
+      });
+
+    return () => {
+      active = false;
+      const widgetId = turnstileWidgetIdRef.current;
+      if (widgetId) window.turnstile?.remove(widgetId);
+      turnstileWidgetIdRef.current = null;
+      turnstileContainerRef.current?.replaceChildren();
+    };
+  }, [open]);
+
   if (!open) return null;
+
+  function resetTurnstile() {
+    setTurnstileToken("");
+    const widgetId = turnstileWidgetIdRef.current;
+    if (widgetId) window.turnstile?.reset(widgetId);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!turnstileToken) {
+      setStatus("error");
+      setErrorText("请先完成人机验证。");
+      return;
+    }
+
     setStatus("submitting");
     setErrorText("");
 
@@ -1241,6 +1354,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
           message,
           website,
           page: window.location.href,
+          turnstileToken,
         }),
       });
 
@@ -1253,9 +1367,11 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
       setContact("");
       setMessage("");
       setWebsite("");
+      resetTurnstile();
     } catch (submitError) {
       setStatus("error");
       setErrorText(submitError instanceof Error ? submitError.message : "反馈发送失败，请稍后再试。");
+      resetTurnstile();
     }
   }
 
@@ -1329,8 +1445,17 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
                 onChange={(event) => setWebsite(event.target.value)}
               />
             </label>
+            <div className="feedback-turnstile" aria-live="polite">
+              <div ref={turnstileContainerRef} />
+              {!turnstileToken && !turnstileError && <p>正在加载安全验证…</p>}
+              {turnstileError && <p className="feedback-error">{turnstileError}</p>}
+            </div>
             {status === "error" && <p className="feedback-error">{errorText}</p>}
-            <button type="submit" className="feedback-submit" disabled={status === "submitting"}>
+            <button
+              type="submit"
+              className="feedback-submit"
+              disabled={status === "submitting" || !turnstileToken}
+            >
               {status === "submitting" ? <Loader2 size={17} className="spin" /> : <Send size={17} />}
               {status === "submitting" ? "发送中" : "发送反馈"}
             </button>

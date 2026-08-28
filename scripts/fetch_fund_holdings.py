@@ -21,6 +21,7 @@ from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from quarter_config import cutoff_date_for_quarter, load_quarter_config, month_for_quarter, report_label
+from spreadsheet_safety import append_safe_xlsx_row, safe_csv_row, safe_xlsx_value
 
 
 FUND_LIST_URL = "https://fund.eastmoney.com/js/fundcode_search.js"
@@ -352,18 +353,20 @@ def fetch_one_fund(
 def write_fund_list(funds: list[dict[str, str]], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(FUND_HEADERS)
+        writer = csv.writer(handle, quoting=csv.QUOTE_ALL)
+        writer.writerow(safe_csv_row(FUND_HEADERS))
         for fund in funds:
             writer.writerow(
-                [
-                    fund["code"],
-                    fund["name"],
-                    fund["type"],
-                    fund["pinyin_short"],
-                    fund["pinyin_full"],
-                    fund["is_qdii"],
-                ]
+                safe_csv_row(
+                    [
+                        fund["code"],
+                        fund["name"],
+                        fund["type"],
+                        fund["pinyin_short"],
+                        fund["pinyin_full"],
+                        fund["is_qdii"],
+                    ]
+                )
             )
 
 
@@ -403,7 +406,10 @@ def make_header_cells(ws: Any, values: list[str]) -> list[WriteOnlyCell]:
     alignment = Alignment(horizontal="center", vertical="center")
     cells = []
     for value in values:
-        cell = WriteOnlyCell(ws, value=value)
+        safe_value, is_formula = safe_xlsx_value(value)
+        cell = WriteOnlyCell(ws, value=safe_value)
+        if is_formula:
+            cell.data_type = "s"
         cell.fill = fill
         cell.font = font
         cell.alignment = alignment
@@ -450,7 +456,10 @@ def append_csv_as_sheets(wb: Workbook, csv_path: Path, base_sheet_name: str) -> 
                 row_in_sheet = 1
                 sheet_rows = 0
 
-            ws.append([coerce_cell(header[i], row[i]) if i < len(row) else None for i in range(len(header))])
+            append_safe_xlsx_row(
+                ws,
+                [coerce_cell(header[i], row[i]) if i < len(row) else None for i in range(len(header))],
+            )
             row_in_sheet += 1
             sheet_rows += 1
 
@@ -482,7 +491,7 @@ def add_readme_sheet(
         ["完整性摘要", json.dumps(summary, ensure_ascii=False, sort_keys=True)],
     ]
     for row in rows:
-        ws.append(row)
+        append_safe_xlsx_row(ws, row)
 
 
 def build_workbook(
@@ -567,13 +576,15 @@ def main() -> int:
         for holding_type in selected_types
     }
     try:
-        holding_writers = {holding_type: csv.writer(handle) for holding_type, handle in holding_handles.items()}
+        holding_writers = {
+            holding_type: csv.writer(handle, quoting=csv.QUOTE_ALL) for holding_type, handle in holding_handles.items()
+        }
         for writer in holding_writers.values():
-            writer.writerow(HOLDING_HEADERS)
+            writer.writerow(safe_csv_row(HOLDING_HEADERS))
 
         with status_csv.open("w", newline="", encoding="utf-8-sig") as status_handle:
-            status_writer = csv.writer(status_handle)
-            status_writer.writerow(build_status_header(selected_types))
+            status_writer = csv.writer(status_handle, quoting=csv.QUOTE_ALL)
+            status_writer.writerow(safe_csv_row(build_status_header(selected_types)))
 
             with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
                 futures = [
@@ -594,10 +605,10 @@ def main() -> int:
                     processed += 1
                     for holding_type in selected_types:
                         rows = record["holdings"].get(holding_type, [])
-                        holding_writers[holding_type].writerows(rows)
+                        holding_writers[holding_type].writerows(safe_csv_row(row) for row in rows)
                         status = record["status"].get(holding_type, {}).get("status", "missing")
                         status_counts[holding_type][status] += 1
-                    status_writer.writerow(status_row(record, selected_types))
+                    status_writer.writerow(safe_csv_row(status_row(record, selected_types)))
 
                     if args.progress_every and processed % args.progress_every == 0:
                         elapsed = time.time() - started

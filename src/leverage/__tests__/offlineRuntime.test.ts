@@ -15,15 +15,19 @@ describe("本机离线运行边界", () => {
     expect(sources.every((source) => !/^https?:\/\//.test(source))).toBe(true);
   });
 
-  it("运行时代码与 CSP 不保留外部图片或数据域名", async () => {
+  it("运行时代码只允许 Turnstile，不保留外部图片或数据域名", async () => {
     const [appSource, headers] = await Promise.all([
       readFile(resolve(projectRoot, "src", "App.tsx"), "utf8"),
       readFile(resolve(projectRoot, "public", "_headers"), "utf8"),
     ]);
 
-    expect(appSource).not.toMatch(/https?:\/\//);
+    const externalUrls = appSource.match(/https?:\/\/[^\"'`\s]+/g) ?? [];
+
+    expect(externalUrls).toEqual(["https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"]);
     expect(headers).toContain("img-src 'self' data:");
     expect(headers).toContain("connect-src 'self'");
+    expect(headers).toContain("script-src 'self' https://challenges.cloudflare.com");
+    expect(headers).toContain("frame-src https://challenges.cloudflare.com");
     expect(headers).not.toMatch(/financialmodelingprep|eodhd/);
   });
 });

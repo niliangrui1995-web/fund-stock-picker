@@ -15,6 +15,7 @@ import fitz
 import requests
 
 from quarter_config import cutoff_date_for_quarter, load_quarter_config, report_label
+from spreadsheet_safety import safe_csv_row
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -557,8 +558,8 @@ def main() -> int:
     processed = 0
 
     with output_path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(HOLDING_HEADERS)
+        writer = csv.writer(handle, quoting=csv.QUOTE_ALL)
+        writer.writerow(safe_csv_row(HOLDING_HEADERS))
         with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
             futures = {
                 executor.submit(
@@ -607,7 +608,7 @@ def main() -> int:
                 candidate_results.append(candidate_result_record(result))
                 rows = result.get("rows", [])
                 if rows:
-                    writer.writerows(rows)
+                    writer.writerows(safe_csv_row(row) for row in rows)
                     rows_written += len(rows)
                 if args.progress_every and processed % args.progress_every == 0:
                     print(

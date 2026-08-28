@@ -208,6 +208,23 @@ async function testDesktop(browser, baseUrl, result) {
     colorScheme: "light",
     reducedMotion: "reduce",
   });
+  await context.addInitScript(() => {
+    window.turnstile = {
+      render(container, options) {
+        const widget = document.createElement("div");
+        const widgetId = "qa-turnstile-widget";
+        widget.dataset.qaTurnstile = widgetId;
+        widget.textContent = "QA Turnstile";
+        container.appendChild(widget);
+        queueMicrotask(() => options.callback("qa-turnstile-token"));
+        return widgetId;
+      },
+      reset() {},
+      remove(widgetId) {
+        document.querySelector(`[data-qa-turnstile="${widgetId}"]`)?.remove();
+      },
+    };
+  });
   const requests = [];
   const failedResources = [];
   context.on("request", (request) => requests.push(request.url()));
@@ -233,6 +250,12 @@ async function testDesktop(browser, baseUrl, result) {
     await feedbackTrigger.click();
     const dialog = page.getByRole("dialog", { name: "意见反馈" });
     await dialog.waitFor({ state: "visible", timeout: 10_000 });
+    await page.locator("[data-qa-turnstile='qa-turnstile-widget']").waitFor({ state: "visible", timeout: 10_000 });
+    await page.waitForFunction(
+      () => !document.querySelector(".feedback-submit")?.hasAttribute("disabled"),
+      undefined,
+      { timeout: 10_000 },
+    );
     await waitForActiveClass(page, "feedback-close", "反馈弹层初始");
     await page.keyboard.press("Shift+Tab");
     await waitForActiveClass(page, "feedback-submit", "反馈弹层 Shift+Tab");

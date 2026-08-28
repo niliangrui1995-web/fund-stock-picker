@@ -14,6 +14,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from quarter_config import load_quarter_config
+from spreadsheet_safety import append_safe_xlsx_row, safe_csv_row
 
 
 QUARTER = load_quarter_config()
@@ -423,10 +424,10 @@ def analyze() -> tuple[list[list[Any]], list[list[Any]], list[list[Any]], dict[s
 
 def write_csv(path: Path, headers: list[str], rows: list[list[Any]]) -> None:
     with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(headers)
+        writer = csv.writer(handle, quoting=csv.QUOTE_ALL)
+        writer.writerow(safe_csv_row(headers))
         for row in rows:
-            writer.writerow([pct(value) if isinstance(value, float) else value for value in row])
+            writer.writerow(safe_csv_row([pct(value) if isinstance(value, float) else value for value in row]))
 
 
 def style_header(ws: Any) -> None:
@@ -442,9 +443,9 @@ def style_header(ws: Any) -> None:
 
 def append_sheet(wb: Workbook, title: str, headers: list[str], rows: list[list[Any]], limit: int | None = None) -> None:
     ws = wb.create_sheet(title)
-    ws.append(headers)
+    append_safe_xlsx_row(ws, headers)
     for row in rows[:limit] if limit else rows:
-        ws.append(row)
+        append_safe_xlsx_row(ws, row)
     style_header(ws)
     for column_cells in ws.columns:
         max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells[:200])
@@ -460,7 +461,7 @@ def write_workbook(ranking_rows: list[list[Any]], detail_rows: list[list[Any]], 
     wb = Workbook()
     ws = wb.active
     ws.title = "方法说明"
-    ws.append(["项目", "内容"])
+    append_safe_xlsx_row(ws, ["项目", "内容"])
     notes = [
         ["分析口径", f"基于 {QUARTER.source_stock_csv_relative.as_posix()}；同一基金同一证券代码重复出现时取最大占净值比例。"],
         ["狭义海外AI占比", "只统计美股/台股/韩股/欧洲等海外AI核心算力、AI云、大模型平台、核心半导体和数据中心基础设施。"],
@@ -470,7 +471,7 @@ def write_workbook(ranking_rows: list[list[Any]], detail_rows: list[list[Any]], 
         ["生成摘要", json.dumps(summary, ensure_ascii=False, sort_keys=True)],
     ]
     for row in notes:
-        ws.append(row)
+        append_safe_xlsx_row(ws, row)
     style_header(ws)
     ws.column_dimensions["A"].width = 20
     ws.column_dimensions["B"].width = 120

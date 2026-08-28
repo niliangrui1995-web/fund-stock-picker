@@ -3,13 +3,14 @@ import { connect } from "cloudflare:sockets";
 const MAX_CONTACT_LENGTH = 120;
 const MAX_MESSAGE_LENGTH = 1200;
 const MAX_REQUEST_BYTES = 4096;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 5;
+const MAX_TURNSTILE_TOKEN_LENGTH = 2048;
+const TURNSTILE_VERIFY_TIMEOUT_MS = 5_000;
+const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const FEEDBACK_HOSTNAME = "fund.niliangrui.cloud";
 const SMTP_HOST = "smtp.qq.com";
 const SMTP_PORT = 465;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const feedbackAttempts = new Map();
 const APP_PAGE_PATHS = new Set(["/research", "/leverage", "/methodology"]);
 
 function jsonResponse(payload, init = {}) {
@@ -18,6 +19,12 @@ function jsonResponse(payload, init = {}) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Referrer-Policy": "no-referrer",
+      "Strict-Transport-Security": "max-age=31536000",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
       ...(init.headers || {}),
     },
   });
@@ -45,14 +52,18 @@ function looksLikeContact(value) {
 
 function isSameOriginRequest(request) {
   const origin = request.headers.get("origin");
-  if (!origin) return true;
+  if (!origin) return false;
 
   try {
-    return new URL(origin).host === new URL(request.url).host;
+    return new URL(origin).origin === new URL(request.url).origin;
   } catch (originError) {
     void originError;
     return false;
   }
+}
+
+function isFeedbackHost(request) {
+  return new URL(request.url).hostname.toLowerCase() === FEEDBACK_HOSTNAME;
 }
 
 function isRequestTooLarge(request) {
@@ -94,31 +105,41 @@ async function readJsonWithinLimit(request) {
   return text ? JSON.parse(text) : {};
 }
 
-function clientKey(request) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return request.headers.get("cf-connecting-ip") || forwardedFor || "unknown";
-}
+async function verifyTurnstile(request, token, secret) {
+  if (typeof token !== "string" || !token.trim() || token.length > MAX_TURNSTILE_TOKEN_LENGTH) {
+    return "invalid";
+  }
 
-function isRateLimited(request) {
-  const now = Date.now();
-  const key = clientKey(request);
-  const current = feedbackAttempts.get(key);
+  const body = new URLSearchParams({ secret, response: token.trim() });
+  const remoteIp = request.headers.get("cf-connecting-ip");
+  if (remoteIp) body.set("remoteip", remoteIp);
 
-  if (feedbackAttempts.size > 1000) {
-    for (const [storedKey, record] of feedbackAttempts) {
-      if (now - record.startedAt >= RATE_LIMIT_WINDOW_MS) {
-        feedbackAttempts.delete(storedKey);
-      }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TURNSTILE_VERIFY_TIMEOUT_MS);
+  try {
+    const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      signal: controller.signal,
+    });
+    if (!response.ok) return "unavailable";
+
+    const result = await response.json();
+    if (Array.isArray(result["error-codes"]) && result["error-codes"].includes("invalid-input-secret")) {
+      return "configuration";
     }
-  }
 
-  if (!current || now - current.startedAt >= RATE_LIMIT_WINDOW_MS) {
-    feedbackAttempts.set(key, { startedAt: now, count: 1 });
-    return false;
+    const hostname = new URL(request.url).hostname.toLowerCase();
+    return result.success === true && result.hostname?.toLowerCase() === hostname && result.action === "feedback"
+      ? "valid"
+      : "invalid";
+  } catch (error) {
+    void error;
+    return "unavailable";
+  } finally {
+    clearTimeout(timeout);
   }
-
-  current.count += 1;
-  return current.count > RATE_LIMIT_MAX_REQUESTS;
 }
 
 function base64Utf8(value) {
@@ -286,17 +307,11 @@ async function sendSmtpFeedback({ senderEmail, senderPassword, receivers, rawMes
 }
 
 async function handleFeedback(request, env) {
-  if (!isSameOriginRequest(request)) {
+  if (!isFeedbackHost(request) || !isSameOriginRequest(request)) {
     return jsonResponse({ ok: false, error: "请求来源不正确。" }, { status: 403 });
   }
   if (isRequestTooLarge(request)) {
     return jsonResponse({ ok: false, error: "反馈内容过长。" }, { status: 413 });
-  }
-  if (isRateLimited(request)) {
-    return jsonResponse(
-      { ok: false, error: "提交过于频繁，请稍后再试。" },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)) } },
-    );
   }
 
   if (!request.headers.get("content-type")?.includes("application/json")) {
@@ -326,6 +341,22 @@ async function handleFeedback(request, env) {
   }
   if (!looksLikeContact(contact)) {
     return jsonResponse({ ok: false, error: "请填写有效的手机或邮箱。" }, { status: 400 });
+  }
+
+  const turnstileSecret = env.TURNSTILE_SECRET_KEY;
+  if (!turnstileSecret) {
+    return jsonResponse({ ok: false, error: "反馈安全验证尚未配置。" }, { status: 503 });
+  }
+
+  const turnstileStatus = await verifyTurnstile(request, payload.turnstileToken, turnstileSecret);
+  if (turnstileStatus === "configuration") {
+    return jsonResponse({ ok: false, error: "反馈安全验证尚未配置。" }, { status: 503 });
+  }
+  if (turnstileStatus === "unavailable") {
+    return jsonResponse({ ok: false, error: "安全验证服务暂时不可用，请稍后再试。" }, { status: 503 });
+  }
+  if (turnstileStatus !== "valid") {
+    return jsonResponse({ ok: false, error: "请完成人机验证后再提交。" }, { status: 403 });
   }
 
   const senderEmail = env.FEEDBACK_EMAIL_ADDRESS || env.EMAIL_ADDRESS;
