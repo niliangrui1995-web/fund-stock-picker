@@ -147,16 +147,16 @@ async function renderDirtyApp(): Promise<HTMLInputElement> {
     await Promise.resolve();
   });
   await act(async () => { await Promise.resolve(); });
-  const picker = container.querySelectorAll<HTMLSelectElement>(".portfolio-editor select")[1];
-  if (picker === undefined) throw new Error("缺少组合股票选择器");
-  await act(async () => {
-    picker.value = "TSM";
-    picker.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  const picker = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+  if (picker === null) throw new Error("缺少组合股票检索框");
+  await setSearchInput(picker, "TSM");
+  const pickerSuggestion = container.querySelector<HTMLElement>('#portfolio-stock-search-suggestions [role="option"]');
+  if (pickerSuggestion === null) throw new Error("缺少组合股票检索建议");
+  await act(async () => pickerSuggestion.click());
   const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "添加到组合");
   if (addButton === undefined) throw new Error("缺少添加股票按钮");
   await act(async () => addButton.click());
-  const input = container.querySelector<HTMLInputElement>('input[role="combobox"]');
+  const input = container.querySelector<HTMLInputElement>('[aria-label="搜索股票名称或代码"]');
   if (input === null) throw new Error("缺少搜索输入框");
   return input;
 }
@@ -343,16 +343,146 @@ describe("PortfolioWorkbench", () => {
     expect(protectedCreate).toHaveBeenCalledTimes(1);
   });
 
+  it("添加股票支持按中文名称检索，并可用键盘选中后添加", async () => {
+    const addStock = vi.fn();
+    await render(model({ addStock }));
+    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (search === null) throw new Error("缺少股票检索输入框");
+
+    await setSearchInput(search, "台积");
+    const options = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toContain("台积电 · TSM");
+    expect(container.querySelector('[role="listbox"]')?.textContent).not.toContain("英伟达 · NVDA");
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    });
+    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "添加到组合");
+    if (addButton === undefined) throw new Error("缺少添加按钮");
+    await act(async () => addButton.click());
+    expect(addStock).toHaveBeenCalledWith("TSM");
+  });
+
+  it("添加股票支持按代码检索并点击候选项添加", async () => {
+    const addStock = vi.fn();
+    await render(model({ addStock }));
+    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (search === null) throw new Error("缺少股票检索输入框");
+
+    await setSearchInput(search, "TSM");
+    const option = container.querySelector<HTMLElement>('[role="option"]');
+    if (option === null) throw new Error("缺少代码检索候选项");
+    expect(option.textContent).toContain("台积电 · TSM");
+    await act(async () => option.click());
+    await act(async () => search.focus());
+    expect(container.querySelector('[role="listbox"]')?.textContent).toContain("台积电 · TSM");
+    expect(container.textContent).not.toContain("未找到匹配股票");
+    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "添加到组合");
+    if (addButton === undefined) throw new Error("缺少添加按钮");
+    await act(async () => addButton.click());
+    expect(addStock).toHaveBeenCalledWith("TSM");
+  });
+
+  it("同名的多个代码必须在选择候选项后才能添加", async () => {
+    const addStock = vi.fn();
+    await render(model({ addStock }), {
+      stocks: [
+        { code: "NVDA", name: "英伟达" },
+        { code: "TSM", name: "台积电" },
+        { code: "2330", name: "台积电" },
+      ],
+    });
+    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (search === null) throw new Error("缺少股票检索输入框");
+
+    await setSearchInput(search, "台积电");
+    const options = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
+    expect(options).toHaveLength(2);
+    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "添加到组合");
+    if (addButton === undefined) throw new Error("缺少添加按钮");
+    expect(addButton.disabled).toBe(true);
+
+    await act(async () => options[1]?.click());
+    expect(addButton.disabled).toBe(false);
+    await act(async () => addButton.click());
+    expect(addStock).toHaveBeenCalledWith("2330");
+  });
+
+  it("键盘移动到超出可视高度的候选项时会将其滚动到可视区", async () => {
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
+    try {
+      await render(model(), {
+        stocks: [
+          { code: "NVDA", name: "英伟达" },
+          ...Array.from({ length: 13 }, (_, index) => ({ code: `TEST-${index}`, name: `测试股票 ${index}` })),
+        ],
+      });
+      const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+      if (search === null) throw new Error("缺少股票检索输入框");
+      await act(async () => search.focus());
+      expect(container.querySelectorAll('[role="option"]')).toHaveLength(12);
+
+      await act(async () => {
+        for (let index = 0; index < 12; index += 1) {
+          search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        }
+      });
+
+      expect(search.getAttribute("aria-activedescendant")).toBe("portfolio-stock-search-option-TEST-11");
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+    } finally {
+      if (originalScrollIntoView) Object.defineProperty(HTMLElement.prototype, "scrollIntoView", originalScrollIntoView);
+      else Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+    }
+  });
+
+  it("键盘 Tab 离开组合检索时关闭候选列表且不拦截焦点移动", async () => {
+    await render(model());
+    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (search === null) throw new Error("缺少股票检索输入框");
+
+    await setSearchInput(search, "台积");
+    expect(container.querySelector('[role="listbox"]')).not.toBeNull();
+    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    await act(async () => search.dispatchEvent(tab));
+
+    expect(tab.defaultPrevented).toBe(false);
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+  });
+
+  it("中文输入法组合确认时不会拦截 Enter 或提前选中股票", async () => {
+    await render(model());
+    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (search === null) throw new Error("缺少股票检索输入框");
+
+    await setSearchInput(search, "台积");
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    });
+    const composingEnter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    Object.defineProperty(composingEnter, "isComposing", { value: true });
+    await act(async () => search.dispatchEvent(composingEnter));
+
+    expect(composingEnter.defaultPrevented).toBe(false);
+    expect(search.value).toBe("台积");
+  });
+
   it("添加和移除股票使用真实按钮并保留中文可访问名称", async () => {
     const addStock = vi.fn();
     const removeStock = vi.fn();
     await render(model({ addStock, removeStock }));
-    const picker = container.querySelectorAll<HTMLSelectElement>(".portfolio-editor select")[1] ?? null;
-    if (picker === null) throw new Error("缺少股票选择器");
-    await act(async () => {
-      picker.value = "TSM";
-      picker.dispatchEvent(new Event("change", { bubbles: true }));
-    });
+    const picker = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (picker === null) throw new Error("缺少股票检索框");
+    await setSearchInput(picker, "TSM");
+    const pickerSuggestion = container.querySelector<HTMLElement>('#portfolio-stock-search-suggestions [role="option"]');
+    if (pickerSuggestion === null) throw new Error("缺少股票检索建议");
+    await act(async () => pickerSuggestion.click());
     const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "添加到组合");
     if (addButton === undefined) throw new Error("缺少添加按钮");
     await act(async () => addButton.click());
@@ -365,12 +495,19 @@ describe("PortfolioWorkbench", () => {
 
   it("已选股票不会在选择器重复出现，达到十只时给出明确禁用原因", async () => {
     await render(model());
-    expect(container.querySelectorAll<HTMLSelectElement>(".portfolio-editor select")[1]?.textContent).not.toContain("英伟达 · NVDA");
+    const picker = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    if (picker === null) throw new Error("缺少股票检索框");
+    await setSearchInput(picker, "英伟达");
+    expect(container.querySelector('#portfolio-stock-search-suggestions')).toBeNull();
+    expect(container.textContent).toContain("未找到匹配股票");
+    expect(picker.getAttribute("aria-expanded")).toBe("false");
+    expect(picker.hasAttribute("aria-controls")).toBe(false);
 
     await render(model({
       draft: { name: "满额组合", stockCodes: ["NVDA", "TSM", "A", "B", "C", "D", "E", "F", "G", "H"] },
     }));
-    expect(container.querySelectorAll<HTMLSelectElement>(".portfolio-editor select")[1]?.disabled).toBe(true);
+    expect(container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]')?.disabled).toBe(true);
+    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "添加到组合")?.disabled).toBe(true);
     expect(container.textContent).toContain("请先移除一只再添加");
   });
 

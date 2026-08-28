@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { AggregatedFundResult, PortfolioView } from "./types";
 import {
@@ -11,6 +11,8 @@ import {
 import "./portfolio.css";
 
 const PAGE_SIZE = 50;
+const STOCK_SEARCH_RESULT_LIMIT = 12;
+const STOCK_SEARCH_LIST_ID = "portfolio-stock-search-suggestions";
 
 export interface PortfolioWorkbenchProps {
   stocks: PortfolioStockOption[];
@@ -29,6 +31,14 @@ export interface PortfolioWorkbenchProps {
 
 function formatPercent(value: number): string {
   return `${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value)}%`;
+}
+
+function normalizeStockSearchTerm(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function formatPickerStock(stock: PortfolioStockOption): string {
+  return `${stock.name} · ${stock.code}`;
 }
 
 function DetailDialog({
@@ -204,7 +214,10 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
     temporarySelection: props.temporarySelection ?? undefined,
     fetchImpl: props.fetchImpl,
   });
+  const [pickerQuery, setPickerQuery] = useState("");
   const [pickerCode, setPickerCode] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerActiveIndex, setPickerActiveIndex] = useState<number | null>(null);
   const [view, setView] = useState<PortfolioView>("offExchange");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const tabRefs = useRef<Record<PortfolioView, HTMLButtonElement | null>>({ offExchange: null, onExchange: null });
@@ -230,6 +243,92 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
   }, [model.requestLeave, props.onLeaveGuard]);
 
   const selectedOptions = model.draft.stockCodes.map((code) => props.stocks.find((stock) => stock.code === code) ?? { code, name: code });
+  const availableStocks = useMemo(
+    () => props.stocks.filter((stock) => !model.draft.stockCodes.includes(stock.code)),
+    [model.draft.stockCodes, props.stocks],
+  );
+  const normalizedPickerQuery = normalizeStockSearchTerm(pickerQuery);
+  const pickerMatches = useMemo(() => {
+    const matches = normalizedPickerQuery
+      ? availableStocks.filter((stock) => (
+        normalizeStockSearchTerm(stock.code).includes(normalizedPickerQuery)
+        || normalizeStockSearchTerm(stock.name).includes(normalizedPickerQuery)
+        || normalizeStockSearchTerm(formatPickerStock(stock)).includes(normalizedPickerQuery)
+      ))
+      : availableStocks;
+    return matches.slice(0, STOCK_SEARCH_RESULT_LIMIT);
+  }, [availableStocks, normalizedPickerQuery]);
+  const explicitlySelectedStock = availableStocks.find((stock) => stock.code === pickerCode);
+  const exactCodeStock = normalizedPickerQuery
+    ? availableStocks.find((stock) => normalizeStockSearchTerm(stock.code) === normalizedPickerQuery)
+    : undefined;
+  const exactNameMatches = normalizedPickerQuery
+    ? availableStocks.filter((stock) => normalizeStockSearchTerm(stock.name) === normalizedPickerQuery)
+    : [];
+  const exactDisplayStock = normalizedPickerQuery
+    ? availableStocks.find((stock) => normalizeStockSearchTerm(formatPickerStock(stock)) === normalizedPickerQuery)
+    : undefined;
+  const exactQueryStock = exactCodeStock ?? exactDisplayStock ?? (exactNameMatches.length === 1 ? exactNameMatches[0] : undefined);
+  const pickerStock = explicitlySelectedStock ?? exactQueryStock;
+  const pickerListVisible = pickerOpen && model.draft.stockCodes.length < 10 && pickerMatches.length > 0;
+  const pickerNoMatchVisible = pickerOpen && model.draft.stockCodes.length < 10 && normalizedPickerQuery.length > 0 && pickerMatches.length === 0;
+  const pickerActiveDescendant = pickerListVisible && pickerActiveIndex !== null && pickerMatches[pickerActiveIndex]
+    ? `portfolio-stock-search-option-${pickerMatches[pickerActiveIndex].code}`
+    : undefined;
+
+  useEffect(() => {
+    if (!pickerActiveDescendant) return;
+    const option = document.getElementById(pickerActiveDescendant);
+    if (option && typeof option.scrollIntoView === "function") option.scrollIntoView({ block: "nearest" });
+  }, [pickerActiveDescendant]);
+
+  const selectPickerStock = (stock: PortfolioStockOption) => {
+    setPickerCode(stock.code);
+    setPickerQuery(formatPickerStock(stock));
+    setPickerOpen(false);
+    setPickerActiveIndex(null);
+  };
+  const resetPicker = () => {
+    setPickerQuery("");
+    setPickerCode("");
+    setPickerOpen(false);
+    setPickerActiveIndex(null);
+  };
+  const onPickerKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "Tab") {
+      setPickerOpen(false);
+      setPickerActiveIndex(null);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      if (pickerMatches.length === 0) return;
+      event.preventDefault();
+      setPickerOpen(true);
+      setPickerActiveIndex((current) => current === null ? 0 : Math.min(current + 1, pickerMatches.length - 1));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      if (pickerMatches.length === 0) return;
+      event.preventDefault();
+      setPickerOpen(true);
+      setPickerActiveIndex((current) => current === null ? pickerMatches.length - 1 : Math.max(current - 1, 0));
+      return;
+    }
+    if (event.key === "Enter") {
+      const activeStock = pickerActiveIndex === null ? pickerStock : pickerMatches[pickerActiveIndex];
+      if (activeStock) {
+        event.preventDefault();
+        selectPickerStock(activeStock);
+      }
+      return;
+    }
+    if (event.key === "Escape" && pickerOpen) {
+      event.preventDefault();
+      setPickerOpen(false);
+      setPickerActiveIndex(null);
+    }
+  };
 
   const switchTab = (next: PortfolioView) => {
     setView(next);
@@ -292,16 +391,63 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
             {model.baskets.map((basket) => <option key={basket.id} value={basket.id}>{basket.name}</option>)}
           </select>
         </label>
-        <label>
-          添加股票
-          <select value={pickerCode} disabled={model.draft.stockCodes.length >= 10} onChange={(event) => setPickerCode(event.target.value)}>
-            <option value="">选择当前可搜索股票</option>
-            {props.stocks.filter((stock) => !model.draft.stockCodes.includes(stock.code)).map((stock) => <option key={stock.code} value={stock.code}>{stock.name} · {stock.code}</option>)}
-          </select>
-        </label>
-        <button type="button" className="portfolio-add-stock" disabled={!pickerCode || model.draft.stockCodes.length >= 10} onClick={() => {
-          model.addStock(pickerCode);
-          setPickerCode("");
+        <div className="portfolio-stock-search-field">
+          <label htmlFor="portfolio-stock-search">添加股票</label>
+          <div className="portfolio-stock-picker">
+            <input
+              id="portfolio-stock-search"
+              type="search"
+              role="combobox"
+              aria-label="检索添加股票"
+              aria-autocomplete="list"
+              aria-controls={pickerListVisible ? STOCK_SEARCH_LIST_ID : undefined}
+              aria-expanded={pickerListVisible}
+              aria-activedescendant={pickerActiveDescendant}
+              aria-describedby="portfolio-stock-search-hint"
+              value={pickerQuery}
+              disabled={model.draft.stockCodes.length >= 10}
+              placeholder="输入代码或中文名称"
+              onFocus={() => setPickerOpen(true)}
+              onBlur={() => {
+                setPickerOpen(false);
+                setPickerActiveIndex(null);
+              }}
+              onChange={(event) => {
+                setPickerQuery(event.target.value);
+                setPickerCode("");
+                setPickerOpen(true);
+                setPickerActiveIndex(null);
+              }}
+              onKeyDown={onPickerKeyDown}
+            />
+            {pickerListVisible ? (
+              <ul id={STOCK_SEARCH_LIST_ID} className="portfolio-stock-search-results" role="listbox" aria-label="匹配股票">
+                {pickerMatches.map((stock, index) => (
+                  <li
+                    id={`portfolio-stock-search-option-${stock.code}`}
+                    key={stock.code}
+                    className="portfolio-stock-search-option"
+                    role="option"
+                    aria-selected={pickerActiveIndex === index}
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={() => selectPickerStock(stock)}
+                  >
+                    <strong>{stock.name} · </strong>
+                    <code>{stock.code}</code>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {pickerNoMatchVisible ? (
+              <p className="portfolio-stock-search-empty" role="status">未找到匹配股票</p>
+            ) : null}
+          </div>
+          <p id="portfolio-stock-search-hint" className="portfolio-stock-search-hint">支持股票代码、中文名称或名称片段检索</p>
+        </div>
+        <button type="button" className="portfolio-add-stock" disabled={!pickerStock || model.draft.stockCodes.length >= 10} onClick={() => {
+          if (!pickerStock) return;
+          model.addStock(pickerStock.code);
+          resetPicker();
         }}>添加到组合</button>
       </div>
       <div className="portfolio-chips" aria-label="已选股票">

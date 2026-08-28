@@ -239,7 +239,17 @@ async function ready(page, url, code = "NVDA") {
     .waitFor({ state: "visible", timeout: 30000 });
 }
 async function add(page, code) {
-  await page.getByLabel("添加股票").selectOption(code);
+  const picker = page.getByRole("combobox", { name: "检索添加股票" });
+  await picker.fill(code);
+  await page
+    .getByRole("listbox", { name: "匹配股票" })
+    .waitFor({ state: "visible" });
+  await picker.press("ArrowDown");
+  ok(
+    await picker.getAttribute("aria-activedescendant"),
+    `组合股票检索没有激活 ${code} 建议`,
+  );
+  await picker.press("Enter");
   await page.getByRole("button", { name: "添加到组合" }).click();
   await page
     .getByText("正在校验并加载完整组合结果…")
@@ -502,6 +512,67 @@ async function selectionAndLimit(browser, url, result) {
   try {
     const { page } = state;
     await ready(page, url);
+    const picker = page.getByRole("combobox", { name: "检索添加股票" });
+    await picker.click();
+    await page.keyboard.press("KeyA");
+    const pointerTyping = await picker.evaluate((element) => ({
+      inputMode: document.documentElement.dataset.inputMode,
+      outlineStyle: getComputedStyle(element).outlineStyle,
+    }));
+    assert.equal(pointerTyping.inputMode, "pointer", "鼠标输入普通字符后不应切换为键盘焦点模式");
+    assert.equal(pointerTyping.outlineStyle, "none", "鼠标输入普通字符后仍显示焦点外框");
+    await picker.fill("台积");
+    const pickerSuggestions = page.getByRole("listbox", { name: "匹配股票" });
+    await pickerSuggestions.waitFor({ state: "visible" });
+    ok(
+      (await pickerSuggestions.getByRole("option", { name: /台积电/ }).count()) >= 2,
+      "中文组合检索没有保留台积电的多个可选代码",
+    );
+    await picker.press("ArrowDown");
+    ok(
+      await picker.getAttribute("aria-activedescendant"),
+      "中文组合检索没有激活建议",
+    );
+    await picker.press("Enter");
+    assert.match(await picker.inputValue(), /台积电/, "中文组合检索没有选中台积电");
+
+    const onExchangeTab = page.getByRole("tab", { name: "场内 ETF / LOF" });
+    await onExchangeTab.click();
+    const pointerFocus = await onExchangeTab.evaluate((element) => ({
+      inputMode: document.documentElement.dataset.inputMode,
+      outlineStyle: getComputedStyle(element).outlineStyle,
+      outlineWidth: getComputedStyle(element).outlineWidth,
+    }));
+    assert.equal(pointerFocus.inputMode, "pointer", "点击页签后未记录为指针操作");
+    assert.equal(pointerFocus.outlineStyle, "none", "鼠标点击页签仍显示焦点外框");
+    const keyboardFocus = await focusEvidence(onExchangeTab, "键盘场内基金页签");
+
+    await picker.fill("");
+    await pickerSuggestions.waitFor({ state: "visible" });
+    const values = await pickerSuggestions
+      .getByRole("option")
+      .evaluateAll((items) =>
+        items
+          .map((item) => item.querySelector("code")?.textContent?.trim())
+          .filter(Boolean)
+          .slice(0, 9),
+      );
+    assert.equal(values.length, 9, "可搜索范围不足十只验证");
+    for (let index = 0; index < 12; index += 1) await picker.press("ArrowDown");
+    const activeOptionId = await picker.getAttribute("aria-activedescendant");
+    ok(activeOptionId, "组合检索无法移动到最后一个候选项");
+    const pickerScroll = await pickerSuggestions.evaluate((listbox, activeId) => {
+      const activeOption = document.getElementById(activeId);
+      if (activeOption === null) return { found: false, visible: false };
+      const listboxBounds = listbox.getBoundingClientRect();
+      const optionBounds = activeOption.getBoundingClientRect();
+      return {
+        found: true,
+        visible: optionBounds.top >= listboxBounds.top && optionBounds.bottom <= listboxBounds.bottom,
+        scrollTop: listbox.scrollTop,
+      };
+    }, activeOptionId);
+    ok(pickerScroll.found && pickerScroll.visible, "活动组合检索候选项未滚动到可视区");
     const search = page.getByRole("combobox", { name: "搜索股票名称或代码" });
     await search.fill("TSM");
     await page
@@ -513,19 +584,9 @@ async function selectionAndLimit(browser, url, result) {
       "键盘搜索没有激活建议",
     );
     await search.press("Enter");
-    const values = await page
-      .getByLabel("添加股票")
-      .locator("option")
-      .evaluateAll((items) =>
-        items
-          .map((item) => item.getAttribute("value"))
-          .filter(Boolean)
-          .slice(0, 9),
-      );
-    assert.equal(values.length, 9, "可搜索范围不足十只验证");
     for (const value of values) await add(page, value);
     assert.equal(
-      await page.getByLabel("添加股票").isDisabled(),
+      await picker.isDisabled(),
       true,
       "10 只后选择器未禁用",
     );
@@ -547,6 +608,10 @@ async function selectionAndLimit(browser, url, result) {
         .getByLabel("已选股票")
         .getByRole("button", { name: /移除 / })
         .count(),
+      pointerTyping,
+      pointerFocus,
+      keyboardFocus,
+      pickerScroll,
     };
   } finally {
     network(state, "选择上限最终", [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
@@ -818,6 +883,13 @@ async function viewportMatrix(browser, url, result) {
     try {
       const { page } = state;
       await ready(page, url);
+      const picker = page.getByRole("combobox", { name: "检索添加股票" });
+      await picker.fill("台积");
+      await page
+        .getByRole("listbox", { name: "匹配股票" })
+        .waitFor({ state: "visible" });
+      const pickerOverflow = await overflow(page, `${viewport.width}px 展开组合检索`);
+      await picker.press("Escape");
       await add(page, "TSM");
       await page.getByRole("button", { name: "移除 台积电 TSM" }).click();
       await page.getByRole("tab", { name: "场内 ETF / LOF" }).click();
@@ -831,6 +903,7 @@ async function viewportMatrix(browser, url, result) {
       text.forEach((item) => ok(item.contrast >= 4.5, `${viewport.width}px ${item.selector} 普通文本对比度 ${item.contrast} < 4.5`));
       result.viewports[viewport.width] = {
         ...(await overflow(page, `${viewport.width}px`)),
+        pickerOverflow,
         controls,
         text,
       };

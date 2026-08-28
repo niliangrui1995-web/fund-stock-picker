@@ -184,7 +184,7 @@
   color: #fce4a8;
 }
 
-.leverage-index-toggle:focus-within {
+:root[data-input-mode="keyboard"] .leverage-index-toggle:focus-within {
   outline: 2px solid rgba(99, 102, 241, 0.35);
   outline-offset: 2px;
 }

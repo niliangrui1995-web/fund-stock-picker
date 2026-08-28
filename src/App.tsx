@@ -15,6 +15,7 @@ import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as Reac
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
+import { installInputModalityTracking } from "./inputModality";
 import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
 import { PortfolioWorkbench } from "./portfolio/PortfolioWorkbench";
 
@@ -1520,6 +1521,8 @@ export function App() {
   
   // Track hovered fund information for Hover Card portal display
   const [hoveredFund, setHoveredFund] = useState<FundDetailsTarget | null>(null);
+
+  useEffect(() => installInputModalityTracking(), []);
 
   useEffect(() => {
     if (!isResearchPage) {
