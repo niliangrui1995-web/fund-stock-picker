@@ -443,12 +443,12 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
             ) : null}
           </div>
           <p id="portfolio-stock-search-hint" className="portfolio-stock-search-hint">支持股票代码、中文名称或名称片段检索</p>
+          <button type="button" className="portfolio-add-stock" disabled={!pickerStock || model.draft.stockCodes.length >= 10} onClick={() => {
+            if (!pickerStock) return;
+            model.addStock(pickerStock.code);
+            resetPicker();
+          }}>添加到组合</button>
         </div>
-        <button type="button" className="portfolio-add-stock" disabled={!pickerStock || model.draft.stockCodes.length >= 10} onClick={() => {
-          if (!pickerStock) return;
-          model.addStock(pickerStock.code);
-          resetPicker();
-        }}>添加到组合</button>
       </div>
       <div className="portfolio-chips" aria-label="已选股票">
         {selectedOptions.map((stock) => (

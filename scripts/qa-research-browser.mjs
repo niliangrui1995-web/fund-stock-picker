@@ -267,6 +267,63 @@ async function overflow(page, label) {
   ok(size[0] <= size[1], `${label}横向溢出 ${size[0]}>${size[1]}`);
   return { documentWidth: size[0], viewportWidth: size[1] };
 }
+async function portfolioEditorLayout(page, label, { wide, stacked }) {
+  const layout = await page.locator(".portfolio-editor").evaluate((editor) => {
+    const rect = (selector) => {
+      const element = editor.querySelector(selector);
+      if (!element) return null;
+      const { top, bottom } = element.getBoundingClientRect();
+      return { top, bottom };
+    };
+    return {
+      labels: {
+        name: rect(":scope > label:nth-of-type(1)"),
+        savedBasket: rect(":scope > label:nth-of-type(2)"),
+        stockSearch: rect(".portfolio-stock-search-field > label"),
+      },
+      controls: {
+        name: rect(":scope > label:nth-of-type(1) > input"),
+        savedBasket: rect(":scope > label:nth-of-type(2) > select"),
+        stockSearch: rect(".portfolio-stock-search-field input"),
+        addStock: rect(".portfolio-add-stock"),
+      },
+      hint: rect(".portfolio-stock-search-hint"),
+    };
+  });
+  const sameRow = (rowName, entries) => {
+    const [referenceName, reference] = Object.entries(entries)[0];
+    ok(Number.isFinite(reference?.top), `${label} ${rowName} 缺少 ${referenceName} 坐标`);
+    for (const [name, rect] of Object.entries(entries).slice(1)) {
+      ok(Number.isFinite(rect?.top), `${label} ${rowName} 缺少 ${name} 坐标`);
+      ok(
+        Math.abs(rect.top - reference.top) <= 1,
+        `${label} ${rowName} 未对齐：${referenceName}=${reference.top.toFixed(2)}，${name}=${rect.top.toFixed(2)}`,
+      );
+    }
+  };
+  if (wide) {
+    sameRow("标签", layout.labels);
+    sameRow("控件", layout.controls);
+  } else if (stacked) {
+    ok(Number.isFinite(layout.hint?.bottom), `${label} 缺少检索提示坐标`);
+    ok(Number.isFinite(layout.controls.addStock?.top), `${label} 缺少添加按钮坐标`);
+    const gap = layout.controls.addStock.top - layout.hint.bottom;
+    ok(gap >= 0 && gap <= 16, `${label} 纵向按钮间距异常：${gap.toFixed(2)}px`);
+  } else {
+    sameRow("检索与添加控件", {
+      stockSearch: layout.controls.stockSearch,
+      addStock: layout.controls.addStock,
+    });
+  }
+  return Object.fromEntries(
+    Object.entries(layout).map(([rowName, entries]) => [
+      rowName,
+      entries && "top" in entries
+        ? Object.fromEntries(Object.entries(entries).map(([name, value]) => [name, Number(value.toFixed(2))]))
+        : Object.fromEntries(Object.entries(entries).map(([name, rect]) => [name, Number(rect.top.toFixed(2))])),
+    ]),
+  );
+}
 function contrastRatio(foreground, background) {
   const channel = (value) => {
     const normalized = value / 255;
@@ -883,6 +940,10 @@ async function viewportMatrix(browser, url, result) {
     try {
       const { page } = state;
       await ready(page, url);
+      const editorLayout = await portfolioEditorLayout(page, `${viewport.width}px 编辑区`, {
+        wide: viewport.width >= 1024,
+        stacked: viewport.width <= 720,
+      });
       const picker = page.getByRole("combobox", { name: "检索添加股票" });
       await picker.fill("台积");
       await page
@@ -906,6 +967,7 @@ async function viewportMatrix(browser, url, result) {
         pickerOverflow,
         controls,
         text,
+        editorLayout,
       };
     } finally {
       network(state, `${viewport.width}px 最终`, [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
