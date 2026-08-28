@@ -3,6 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { loadQuarterConfig } from "./quarter-config.mjs";
+import { verifyPortfolioRelease } from "./verify-portfolio-index.mjs";
 
 const SITE_URL = "https://fund.niliangrui.cloud";
 const STOCKS_DIR = path.join("public", "stocks");
@@ -167,6 +168,7 @@ export function releaseCheckManifest(quarterConfig, payload, indirectExposure) {
         fileName: path.posix.basename(indirectExposure.auditPath),
         requiredMappings: indirectExposure.requiredMappings,
       },
+      portfolioRelease: indirectExposure.portfolioRelease,
       seo: {
         siteUrl: SITE_URL,
         lastmod: LASTMOD,
@@ -188,6 +190,24 @@ export function releaseCheckManifest(quarterConfig, payload, indirectExposure) {
     null,
     2,
   )}\n`;
+}
+
+export async function portfolioReleaseEvidence(quarterConfig) {
+  const result = await verifyPortfolioRelease({
+    publicDataDir: path.join("public", "data"),
+    report: quarterConfig.report,
+  });
+  if (!result.ok) {
+    throw new Error(`组合发布包未通过本地校验：${result.reason}`);
+  }
+  return {
+    manifestPath: result.manifestPath.replace(/^/, "data/"),
+    releaseId: result.releaseId,
+    manifestSha256: result.manifestSha256,
+    report: result.report,
+    stockShardCount: result.stockShardCount,
+    fundDetailShardCount: result.fundDetailShardCount,
+  };
 }
 
 export async function loadQuarterPayload(quarterConfig) {
@@ -237,6 +257,7 @@ async function main() {
   await rm(path.join(SEO_DIR, "share.js"), { force: true });
 
   const indirectExposure = await indirectExposureReleaseEvidence(quarterConfig, payload);
+  indirectExposure.portfolioRelease = await portfolioReleaseEvidence(quarterConfig);
   await writeFile(
     quarterConfig.paths.releaseCheckJson,
     releaseCheckManifest(quarterConfig, payload, indirectExposure),

@@ -1,29 +1,29 @@
 {
   "schema_version": "1",
-  "generated_at_beijing": "2026-08-23T23:09:47+08:00",
+  "generated_at_beijing": "2026-08-28T18:55:37+08:00",
   "command": "npm run qa:leverage",
   "status": "passed",
-  "data_cutoff": "2026-08-20",
+  "data_cutoff": "2026-08-27",
   "ratio_data_range": {
     "start": "2011-08-03",
-    "end": "2026-08-20"
+    "end": "2026-08-27"
   },
   "temp_parent": "D:\\",
   "normal_preview": {
     "host": "127.0.0.1",
-    "port": 55017
+    "port": 60523
   },
   "bad_preview": {
     "host": "127.0.0.1",
-    "port": 55018
+    "port": 60524
   },
   "ratio_unavailable_preview": {
     "host": "127.0.0.1",
-    "port": 55019
+    "port": 60525
   },
   "ratio_unavailable_package": {
     "reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
-    "data_cutoff": "2026-08-20",
+    "data_cutoff": "2026-08-27",
     "ratio_available": false,
     "all_ratio_pct_null": true,
     "ratio_data_range": {
@@ -31,23 +31,23 @@
       "end": null
     },
     "manifest_reason": "QA 临时包：全部精确同日市值分母不可用，因此比例模式已禁用。",
-    "payload_records": 3655,
-    "ratio_missing_records": 3655,
-    "payload_sha256": "181e50860124d2118badea162231fd668d01f0d4e08da259ee78bf499c92528b"
+    "payload_records": 3660,
+    "ratio_missing_records": 3660,
+    "payload_sha256": "1f44ef10e51d7f52c3855e0fbb415856be583c0ba3d34b1865fccdf723c4354c"
   },
   "build": {
-    "entry_chunk": "index-B2KPIglN.js",
-    "leverage_async_chunk": "LeverageDashboard-CUkO0GKB.js",
+    "entry_chunk": "index-CL50VfgJ.js",
+    "leverage_async_chunk": "LeverageDashboard-BAKkTO0T.js",
     "command": "node_modules/typescript/bin/tsc --noEmit + node_modules/vite/bin/vite.js build",
     "seo_generation": false
   },
   "formal_data_sha256_before": {
-    "leverage-dashboard.json": "8540e3768ae1cc519d21d235c7a18a2be43f7eba555d9bf258041dcf2017e6bf",
-    "leverage-dashboard.manifest.json": "10b646c5a95b1e9e51b860199adef47e176d99d8c089d354682372570af764b2"
+    "leverage-dashboard.json": "c1b2b9e3a54253925fe1b8c5aeaa55d68cb85aca1dad27c2f484ab82ab96cec9",
+    "leverage-dashboard.manifest.json": "da16ad7acd1759c05d36801dec666cb72eb17de7bb91a7aa3eec5bbe2b1b296a"
   },
   "formal_data_sha256_after": {
-    "leverage-dashboard.json": "8540e3768ae1cc519d21d235c7a18a2be43f7eba555d9bf258041dcf2017e6bf",
-    "leverage-dashboard.manifest.json": "10b646c5a95b1e9e51b860199adef47e176d99d8c089d354682372570af764b2"
+    "leverage-dashboard.json": "c1b2b9e3a54253925fe1b8c5aeaa55d68cb85aca1dad27c2f484ab82ab96cec9",
+    "leverage-dashboard.manifest.json": "da16ad7acd1759c05d36801dec666cb72eb17de7bb91a7aa3eec5bbe2b1b296a"
   },
   "formal_data_unchanged": true,
   "scenarios": {
@@ -57,13 +57,13 @@
         "/leverage",
         "/methodology"
       ],
-      "baseBeforeZoom": "对比基准：2016-08-22 = 100",
-      "baseAfterZoom": "对比基准：2016-08-22 = 100",
-      "zoomedTooltipDate": "2020-08-03",
+      "baseBeforeZoom": "对比基准：2016-08-29 = 100",
+      "baseAfterZoom": "对比基准：2016-08-29 = 100",
+      "zoomedTooltipDate": "2020-08-12",
       "manualBase": "2020-01-02",
       "ratioStart": "2011-08-03",
-      "ratioEnd": "2026-08-20",
-      "dataCutoff": "2026-08-20"
+      "ratioEnd": "2026-08-27",
+      "dataCutoff": "2026-08-27"
     },
     "mobile": {
       "navigationMetrics": {
@@ -106,42 +106,43 @@
       "disclosureRange": "N/A",
       "defaultMetric": "margin",
       "marginChartRendered": true,
-      "dataCutoff": "2026-08-20"
+      "dataCutoff": "2026-08-27"
     },
     "offline": {
       "requestUrls": [
-        "http://127.0.0.1:55017/assets/LeverageDashboard-CUkO0GKB.js",
-        "http://127.0.0.1:55017/assets/LeverageDashboard-C_EdC8qw.css",
-        "http://127.0.0.1:55017/assets/echarts-DYOQg3WD.js",
-        "http://127.0.0.1:55017/assets/icons-D3qIwp8A.js",
-        "http://127.0.0.1:55017/assets/index-B2KPIglN.js",
-        "http://127.0.0.1:55017/assets/index-DIozGaXH.css",
-        "http://127.0.0.1:55017/assets/react-vendor-Da9s6szu.js",
-        "http://127.0.0.1:55017/data/fund-stock-index-2026q2.json?v=2026q2",
-        "http://127.0.0.1:55017/data/leverage-dashboard.json",
-        "http://127.0.0.1:55017/data/leverage-dashboard.manifest.json",
-        "http://127.0.0.1:55017/leverage",
-        "http://127.0.0.1:55017/research"
+        "http://127.0.0.1:60523/assets/LeverageDashboard-BAKkTO0T.js",
+        "http://127.0.0.1:60523/assets/LeverageDashboard-C_EdC8qw.css",
+        "http://127.0.0.1:60523/assets/echarts-DYOQg3WD.js",
+        "http://127.0.0.1:60523/assets/icons-CxV5YTQ1.js",
+        "http://127.0.0.1:60523/assets/index-CL50VfgJ.js",
+        "http://127.0.0.1:60523/assets/index-D-pKNH4M.css",
+        "http://127.0.0.1:60523/assets/react-vendor-Da9s6szu.js",
+        "http://127.0.0.1:60523/assets/validateLeveragePackage-Dfw3uRKw.js",
+        "http://127.0.0.1:60523/data/fund-stock-index-2026q2.json?v=2026q2",
+        "http://127.0.0.1:60523/data/leverage-dashboard.json",
+        "http://127.0.0.1:60523/data/leverage-dashboard.manifest.json",
+        "http://127.0.0.1:60523/leverage",
+        "http://127.0.0.1:60523/research"
       ],
       "blockedHttpsRequests": []
     }
   },
   "screenshots": {
     "leverage-default-desktop.png": {
-      "sha256": "b7a630173ca877af58e2d50f21120818fb11560bf02d2e4c52d3927a533f9f5f",
-      "bytes": 393167,
+      "sha256": "d06779f0c8c0d77f505f43ecad0726814d2f6d3aa3c662121688efa794cd7437",
+      "bytes": 394867,
       "width": 1440,
       "height": 1024
     },
     "leverage-ratio-desktop.png": {
-      "sha256": "d0a075690e326cf1d33c1733ba822ce6b20f3c955359d6d1c5fba905657a29cc",
-      "bytes": 389991,
+      "sha256": "b0cdb3c559b946d753034d0bb60c153626670b6bcf963cb4fd6692a3be2952a3",
+      "bytes": 390668,
       "width": 1440,
       "height": 1024
     },
     "leverage-mobile.png": {
-      "sha256": "e0875a821f6fcc662ff151b3be72c2fc5c43ac595d65aeeeab183081188ea39e",
-      "bytes": 108631,
+      "sha256": "bbb8a691e283553092515fe9ac50bdff330dbe519ae9cc80736e6210a774fb1d",
+      "bytes": 111085,
       "width": 390,
       "height": 844
     },

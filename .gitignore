@@ -14,5 +14,6 @@ tmp-preview.pid
 
 # 本地工作记忆与一次性验证产物
 .workbuddy/
+.superpowers/
 data-check.tmp.json
 dist-verify/

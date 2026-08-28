@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
 import { evaluatePurchaseLimitSnapshotFreshness } from "./purchase-limit-freshness.mjs";
 import { normalizeStockCode, verifyLiveStockDeeplinks } from "./verify-stock-deeplinks.mjs";
+import { verifyPortfolioRelease } from "./verify-portfolio-index.mjs";
 
 const DEFAULT_LIVE_ORIGIN = "https://fund.niliangrui.cloud";
 const LIVE_ORIGIN = (process.env.LIVE_RELEASE_ORIGIN || DEFAULT_LIVE_ORIGIN).replace(/\/+$/, "");
@@ -69,6 +71,11 @@ async function readJson(filePath) {
 }
 
 async function fetchText(url, label) {
+  const { text } = await fetchTextWithHeaders(url, label);
+  return text;
+}
+
+async function fetchTextWithHeaders(url, label) {
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
@@ -81,7 +88,7 @@ async function fetchText(url, label) {
     throw new Error(`${label} returned ${response.status} ${response.statusText}`);
   }
 
-  return response.text();
+  return { text: await response.text(), headers: response.headers };
 }
 
 async function fetchJson(url, label) {
@@ -122,6 +129,8 @@ function manifestMismatches(manifest, expected) {
     ["checks.hasIndirectExposureAuditFile", true],
     ["checks.auditCoversRequiredIndirectMappings", true],
     ["indirectExposureAudit.path", expected.auditPath],
+    ["portfolioRelease.manifestPath", expected.portfolioManifestPath],
+    ["portfolioRelease.report", expected.report],
   ]
     .map(([keyPath, expectedValue]) => {
       const actualValue = getValue(manifest, keyPath);
@@ -153,6 +162,12 @@ function releaseFingerprintDiffs(localManifest, liveManifest) {
     "indirectExposureAudit.path",
     "indirectExposureAudit.fileName",
     "indirectExposureAudit.requiredMappings",
+    "portfolioRelease.manifestPath",
+    "portfolioRelease.releaseId",
+    "portfolioRelease.manifestSha256",
+    "portfolioRelease.report",
+    "portfolioRelease.stockShardCount",
+    "portfolioRelease.fundDetailShardCount",
     "seo.siteUrl",
     "seo.lastmod",
     "seo.stockPageCount",
@@ -177,6 +192,96 @@ function releaseFingerprintDiffs(localManifest, liveManifest) {
         : `${field}: local ${formatValue(localValue)}, live ${formatValue(liveValue)}`;
     })
     .filter(Boolean);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function cacheHeaderMatches(header, expected) {
+  const value = String(header ?? "").toLowerCase();
+  if (expected === "no-cache") return /(?:^|,)\s*no-cache\b/.test(value);
+  return /\bpublic\b/.test(value)
+    && /\bmax-age=604800\b/.test(value)
+    && /\bstale-while-revalidate=86400\b/.test(value)
+    && !/\bno-cache\b/.test(value);
+}
+
+function portfolioBrowserPath(quarterConfig) {
+  return `data/fund-portfolio-index-${quarterConfig.slug}.manifest.json`;
+}
+
+async function verifyLivePortfolioRelease(quarterConfig) {
+  const localResult = await verifyPortfolioRelease({
+    publicDataDir: path.join(ROOT, "public", "data"),
+    report: quarterConfig.report,
+  });
+  addCheck(
+    "local portfolio release passes the shared verifier",
+    localResult.ok,
+    localResult.ok
+      ? `releaseId=${localResult.releaseId}; manifest=${localResult.manifestPath}; sha256=${localResult.manifestSha256}; stockShards=${localResult.stockShardCount}; detailShards=${localResult.fundDetailShardCount}`
+      : localResult.reason,
+  );
+  if (!localResult.ok) return;
+
+  const manifestPath = portfolioBrowserPath(quarterConfig);
+  let livePortfolioManifest;
+  try {
+    const response = await fetchTextWithHeaders(liveUrl(manifestPath), `live portfolio manifest ${manifestPath}`);
+    const liveManifestSha256 = sha256(response.text);
+    livePortfolioManifest = JSON.parse(response.text);
+    addCheck(`live portfolio manifest ${manifestPath} is reachable`, true);
+    addCheck(
+      "live portfolio manifest bytes match the locally verified manifest",
+      liveManifestSha256 === localResult.manifestSha256,
+      `local=${localResult.manifestSha256}; live=${liveManifestSha256}`,
+    );
+    addCheck(
+      "live portfolio manifest uses no-cache",
+      cacheHeaderMatches(response.headers.get("cache-control"), "no-cache"),
+      `Cache-Control=${response.headers.get("cache-control") ?? "missing"}`,
+    );
+  } catch (error) {
+    addCheck(`live portfolio manifest ${manifestPath} is reachable`, false, error.message);
+    return;
+  }
+
+  addCheck(
+    "live portfolio manifest release metadata matches the local verified release",
+    livePortfolioManifest?.schemaVersion === "1"
+      && livePortfolioManifest?.releaseId === localResult.releaseId
+      && livePortfolioManifest?.report === quarterConfig.report
+      && livePortfolioManifest?.cutoffDate === quarterConfig.cutoffDate
+      && livePortfolioManifest?.publishStatus === "complete",
+    `releaseId=${formatValue(livePortfolioManifest?.releaseId)}; report=${formatValue(livePortfolioManifest?.report)}; cutoffDate=${formatValue(livePortfolioManifest?.cutoffDate)}`,
+  );
+
+  const stockEntry = Object.entries(livePortfolioManifest?.shards ?? {})[0];
+  const detailEntry = Object.entries(livePortfolioManifest?.fundDetailShards ?? {})[0];
+  for (const [kind, entry] of [["stock", stockEntry], ["fund detail", detailEntry]]) {
+    if (!entry || !entry[1]?.path || !entry[1]?.sha256) {
+      addCheck(`live portfolio ${kind} manifest declaration is present`, false, "manifest does not declare a path and SHA-256");
+      continue;
+    }
+    try {
+      const response = await fetchTextWithHeaders(liveUrl(`data/${entry[1].path}`), `live portfolio ${kind} shard ${entry[1].path}`);
+      const liveHash = sha256(response.text);
+      addCheck(`live portfolio ${kind} shard ${entry[1].path} is reachable`, true);
+      addCheck(
+        `live portfolio ${kind} shard ${entry[1].path} matches declared SHA-256`,
+        liveHash === entry[1].sha256,
+        `declared=${entry[1].sha256}; live=${liveHash}`,
+      );
+      addCheck(
+        `live portfolio ${kind} shard ${entry[1].path} uses immutable-release cache policy`,
+        cacheHeaderMatches(response.headers.get("cache-control"), "release"),
+        `Cache-Control=${response.headers.get("cache-control") ?? "missing"}`,
+      );
+    } catch (error) {
+      addCheck(`live portfolio ${kind} shard ${entry[1].path} is reachable`, false, error.message);
+    }
+  }
 }
 
 function getHtmlAttribute(tag, name) {
@@ -434,6 +539,7 @@ async function main() {
     dataPath: toBrowserPath(quarterConfig.paths.fundStockIndexJson),
     dataFileName: path.posix.basename(toBrowserPath(quarterConfig.paths.fundStockIndexJson)),
     auditPath: `seo/indirect-exposure-audit-${quarterConfig.slug}.md`,
+    portfolioManifestPath: portfolioBrowserPath(quarterConfig),
   };
 
   const localManifestPath = path.join(ROOT, quarterConfig.paths.releaseCheckJson);
@@ -474,6 +580,7 @@ async function main() {
     "live manifest matches local release fingerprint",
     releaseFingerprintDiffs(localManifest, liveManifest),
   );
+  await verifyLivePortfolioRelease(quarterConfig);
 
   const liveDataPath = toBrowserPath(liveManifest.dataPath);
   const liveDataFileName = path.posix.basename(liveDataPath);

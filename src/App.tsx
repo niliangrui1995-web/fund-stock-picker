@@ -11,11 +11,12 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
 import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
+import { PortfolioWorkbench } from "./portfolio/PortfolioWorkbench";
 
 type AccessMode = "offExchange" | "onExchange";
 
@@ -24,6 +25,35 @@ const LazyLeverageDashboard = lazy(() =>
     default: LeverageDashboard,
   })),
 );
+const LazyLeverageMarketSummary = lazy(() =>
+  import("./leverage/LeverageMarketSummary").then(({ LeverageMarketSummary }) => ({
+    default: LeverageMarketSummary,
+  })),
+);
+
+function MarketSummaryFallback() {
+  return (
+    <section className="leverage-market-summary" aria-label="市场环境" role="status" aria-live="polite">
+      <h3>市场环境</h3>
+      <p>市场环境摘要暂不可用</p>
+      <a className="leverage-market-summary-link" href={appPagePath("leverage")} aria-label="打开完整两融数据看板">
+        查看完整两融看板
+      </a>
+    </section>
+  );
+}
+
+class MarketSummaryBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? <MarketSummaryFallback /> : this.props.children;
+  }
+}
 
 type FundRecord = {
   fundCode: string;
@@ -140,21 +170,9 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
 const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
-// 悬浮卡明细数据（约 2MB）不在首屏加载：仅在非省流量、非慢网时利用空闲时间预取，
-// 首次失败时下次悬浮再重试，避免阻塞首屏交互。
 const FUND_HOLDINGS_URL = fundQuarter.holdingsUrl;
 const STOCK_SEARCH_LIST_ID = "stock-search-suggestions";
 let fundHoldingsCache: Promise<Record<string, HoldingRecord[]>> | null = null;
-
-function shouldPrefetchFundHoldings() {
-  if (typeof navigator === "undefined") return false;
-
-  const connection = (navigator as Navigator & {
-    connection?: { saveData?: boolean; effectiveType?: string };
-  }).connection;
-
-  return !connection?.saveData && connection?.effectiveType !== "slow-2g" && connection?.effectiveType !== "2g";
-}
 
 function getDialogFocusableElements(container: HTMLElement | null) {
   if (!container) return [];
@@ -1100,11 +1118,11 @@ function CandidateButton({
   selected = false,
 }: {
   stock: PopularStock | StockRecord;
-  onSelect: () => void;
+  onSelect: (trigger: HTMLButtonElement) => void;
   selected?: boolean;
 }) {
   return (
-    <button className={`candidate ${selected ? "selected" : ""}`} onClick={onSelect} type="button">
+    <button className={`candidate ${selected ? "selected" : ""}`} onClick={(event) => onSelect(event.currentTarget)} type="button">
       <span className="candidate-identity">
         <StockLogo code={stock.code} name={stock.name} />
         <span className="candidate-main">
@@ -1472,7 +1490,6 @@ export function App() {
   const [data, setData] = useState<FundStockIndex | null>(null);
   const [query, setQuery] = useState(getInitialQuery);
   const [selectedCode, setSelectedCode] = useState<string | null>(getInitialSelectedCode);
-  const [accessMode, setAccessMode] = useState<AccessMode>("offExchange");
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -1481,8 +1498,18 @@ export function App() {
   const [resultFocusRequest, setResultFocusRequest] = useState<"initial" | "selection" | null>(
     () => (getInitialSelectedCode() || getInitialQuery() ? "initial" : null),
   );
+  const [temporarySelection, setTemporarySelection] = useState<{
+    code: string;
+    requestId: number;
+    trigger: HTMLElement | null;
+  } | null>(() => {
+    const code = getInitialSelectedCode();
+    return code ? { code, requestId: 0, trigger: null } : null;
+  });
   const searchPanelRef = useRef<HTMLDivElement>(null);
-  const resultTitleRef = useRef<HTMLHeadingElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const researchLeaveGuardRef = useRef<((action: () => void, trigger: HTMLElement | null) => void) | null>(null);
+  const temporarySelectionRequestIdRef = useRef(0);
   const fundDetailsTriggerRef = useRef<HTMLElement | null>(null);
   const pendingFundDetailsFocusRef = useRef<HTMLElement | null>(null);
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1529,40 +1556,6 @@ export function App() {
     };
   }, [isResearchPage]);
 
-  // 主数据就绪后在浏览器空闲时间预取持仓明细（约 2MB，季度版本化强缓存），
-  // 用户悬浮基金行时数据通常已就位；即使预取失败也不影响首屏任何功能。
-  useEffect(() => {
-    if (!isResearchPage || !data || !shouldPrefetchFundHoldings()) return;
-
-    let cancelled = false;
-    const idle = typeof window.requestIdleCallback === "function"
-      ? window.requestIdleCallback(() => {
-          loadFundHoldings().then((holdings) => {
-            if (!cancelled) {
-              setFundHoldingsMap(holdings);
-              setFundHoldingsReady(true);
-            }
-          });
-        })
-      : window.setTimeout(() => {
-          loadFundHoldings().then((holdings) => {
-            if (!cancelled) {
-              setFundHoldingsMap(holdings);
-              setFundHoldingsReady(true);
-            }
-          });
-        }, 1200);
-
-    return () => {
-      cancelled = true;
-      if (typeof idle === "number" && typeof window.cancelIdleCallback === "function") {
-        window.cancelIdleCallback(idle);
-      } else if (typeof idle === "number") {
-        window.clearTimeout(idle);
-      }
-    };
-  }, [isResearchPage, data]);
-
   useEffect(() => {
     if (typeof window === "undefined" || pageFromPathname(window.location.pathname) !== "research") {
       return;
@@ -1604,51 +1597,6 @@ export function App() {
     return matches[0] ?? null;
   }, [data, matches, selectedCode]);
 
-  useEffect(() => {
-    if (!resultFocusRequest || !selectedStock) return;
-
-    const focusFrame = window.requestAnimationFrame(() => {
-      const resultTitle = resultTitleRef.current;
-      if (!resultTitle) return;
-
-      const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      resultTitle.scrollIntoView({
-        behavior: resultFocusRequest === "initial" || reducedMotion ? "auto" : "smooth",
-        block: "start",
-        inline: "nearest",
-      });
-      resultTitle.focus({ preventScroll: true });
-      setResultFocusRequest(null);
-    });
-
-    return () => window.cancelAnimationFrame(focusFrame);
-  }, [resultFocusRequest, selectedStock]);
-
-  const resultFunds = selectedStock
-    ? accessMode === "offExchange"
-      ? selectedStock.topByRatio
-      : selectedStock.topOnExchangeByRatio ?? []
-    : [];
-  const selectedFundCount = selectedStock
-    ? accessMode === "offExchange"
-      ? selectedStock.activeFundCount
-      : selectedStock.onExchangeFundCount ?? 0
-    : 0;
-  const selectedMaxRatio = selectedStock
-    ? accessMode === "offExchange"
-      ? selectedStock.maxRatioPercent
-      : selectedStock.onExchangeMaxRatioPercent ?? 0
-    : 0;
-  const selectedMarketValue = selectedStock
-    ? accessMode === "offExchange"
-      ? selectedStock.totalMarketValueWan
-      : selectedStock.onExchangeTotalMarketValueWan
-    : null;
-  const selectedIndirectExposures = selectedStock?.topIndirectExposureByRatio ?? [];
-  const selectedIndirectExposureCount =
-    selectedStock?.indirectExposureFundCount ?? selectedIndirectExposures.length;
-  const accessLabel = accessMode === "offExchange" ? "场外" : "场内";
-
   const popularSuggestions = useMemo(() => {
     const source = data?.popularStocks ?? [];
     if (!popularMarketFilter) return source;
@@ -1684,18 +1632,24 @@ export function App() {
       .filter((item): item is { hotspot: AiBattleHotspot; stock: StockRecord } => item !== null);
   }, [data]);
 
-  function chooseStock(stock: PopularStock | StockRecord) {
+  function chooseStock(stock: PopularStock | StockRecord, trigger: HTMLElement | null = null) {
     setHoveredFund(null);
     setSelectedCode(stock.code);
     setQuery(stock.name);
     setSuggestionsOpen(false);
     setActiveSuggestionIndex(null);
     setResultFocusRequest("selection");
+    temporarySelectionRequestIdRef.current += 1;
+    setTemporarySelection({
+      code: stock.code,
+      requestId: temporarySelectionRequestIdRef.current,
+      trigger,
+    });
   }
 
-  function selectSearchSuggestion(index: number) {
+  function selectSearchSuggestion(index: number, trigger: HTMLElement | null = null) {
     const stock = suggestionItems[index] ?? matches[0];
-    if (stock) chooseStock(stock);
+    if (stock) chooseStock(stock, trigger);
   }
 
   function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
@@ -1720,7 +1674,7 @@ export function App() {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      selectSearchSuggestion(activeSuggestionIndex ?? 0);
+      selectSearchSuggestion(activeSuggestionIndex ?? 0, searchInputRef.current ?? event.currentTarget);
     }
   }
 
@@ -1749,9 +1703,15 @@ export function App() {
     restoreDialogTrigger(feedbackTriggerRef.current);
   }
 
-  function changeAccessMode(mode: AccessMode) {
-    setHoveredFund(null);
-    setAccessMode(mode);
+  function handleTopNavigation(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (!isResearchPage || event.currentTarget.href === window.location.href) return;
+
+    const leaveGuard = researchLeaveGuardRef.current;
+    if (!leaveGuard) return;
+
+    event.preventDefault();
+    const destination = event.currentTarget.href;
+    leaveGuard(() => window.location.assign(destination), event.currentTarget);
   }
 
 
@@ -1819,6 +1779,7 @@ export function App() {
             href={appPagePath("research")}
             className={page === "research" ? "active" : ""}
             aria-current={page === "research" ? "page" : undefined}
+            onClick={handleTopNavigation}
           >
             研究
           </a>
@@ -1826,6 +1787,7 @@ export function App() {
             href={appPagePath("leverage")}
             className={page === "leverage" ? "active" : ""}
             aria-current={page === "leverage" ? "page" : undefined}
+            onClick={handleTopNavigation}
           >
             两融
           </a>
@@ -1833,6 +1795,7 @@ export function App() {
             href={appPagePath("methodology")}
             className={page === "methodology" ? "active" : ""}
             aria-current={page === "methodology" ? "page" : undefined}
+            onClick={handleTopNavigation}
           >
             方法论
           </a>
@@ -1866,11 +1829,12 @@ export function App() {
             className="search-box"
             onSubmit={(event) => {
               event.preventDefault();
-              selectSearchSuggestion(activeSuggestionIndex ?? 0);
+              selectSearchSuggestion(activeSuggestionIndex ?? 0, searchInputRef.current ?? event.currentTarget);
             }}
           >
             <Search size={22} />
             <input
+              ref={searchInputRef}
               role="combobox"
               aria-label="搜索股票名称或代码"
               aria-autocomplete="list"
@@ -1922,7 +1886,7 @@ export function App() {
                   role="option"
                   aria-selected={activeSuggestionIndex === index}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => selectSearchSuggestion(index)}
+                  onClick={() => selectSearchSuggestion(index, searchInputRef.current)}
                 >
                   <span className="suggestion-name">{stock.name}</span>
                   <span className="suggestion-code">{stock.code}</span>
@@ -1944,7 +1908,7 @@ export function App() {
           <div className="recent-chips">
             {quickStocks.length ? (
               quickStocks.map((stock) => (
-                <button key={stock.code} type="button" onClick={() => chooseStock(stock)}>
+                <button key={stock.code} type="button" onClick={(event) => chooseStock(stock, event.currentTarget)}>
                   {stock.code}
                 </button>
               ))
@@ -1982,7 +1946,7 @@ export function App() {
                     type="button"
                     className="ai-hotspot-main"
                     aria-label={`查看 ${hotspot.label} 的基金持仓穿透结果`}
-                    onClick={() => chooseStock(stock)}
+                    onClick={(event) => chooseStock(stock, event.currentTarget)}
                   >
                     <span className="hotspot-kicker">
                       <span>{hotspot.track}</span>
@@ -2079,7 +2043,7 @@ export function App() {
                 <CandidateButton
                   key={stock.code}
                   stock={stock}
-                  onSelect={() => chooseStock(stock)}
+                  onSelect={(trigger) => chooseStock(stock, trigger)}
                   selected={selectedStock?.code === stock.code}
                 />
               ))
@@ -2092,73 +2056,28 @@ export function App() {
         <section className="results-panel">
           {isAppLoading ? (
             <SkeletonResults />
-          ) : selectedStock ? (
-            <>
-              <div className="result-header">
-                <div>
-                  <p className="eyeline">
-                    {isOverseasStockCode(selectedStock.code, selectedStock.name) ? "当前海外标的" : "当前标的"}
-                  </p>
-                  <div className="result-title-row">
-                    <StockLogo code={selectedStock.code} name={selectedStock.name} size="lg" />
-                    <h2 id="stock-result-title" ref={resultTitleRef} className="result-focus-target" tabIndex={-1}>
-                      {selectedStock.name}
-                      <span>{selectedStock.code}</span>
-                    </h2>
-                  </div>
-                  <div className="result-tags">
-                    <span>{marketLabel(selectedStock.code, selectedStock.name)}</span>
-                    <span>{data?.meta.report ?? fundQuarter.report}</span>
-                    <span>{accessLabel}持仓</span>
-                  </div>
-                </div>
-                <AccessToggle accessMode={accessMode} onChange={changeAccessMode} />
-              </div>
-
-              <div className="metrics-grid">
-                <MetricCard
-                  icon={<ShieldCheck size={20} />}
-                  label={`${accessLabel}基金覆盖`}
-                  value={`${numberFormatter.format(selectedFundCount)} 只`}
-                />
-                <MetricCard
-                  icon={<SlidersHorizontal size={20} />}
-                  label="最高净值占比"
-                  value={`${valueFormatter.format(selectedMaxRatio)}%`}
-                />
-                <MetricCard
-                  icon={<BarChart3 size={20} />}
-                  label={`${accessLabel}持仓市值`}
-                  value={formatWan(selectedMarketValue)}
-                />
-              </div>
-
-              <div className="section-title">
-                <h3>前 10 名{accessLabel}基金持仓明细</h3>
-                <span>
-                  <ArrowUpDown size={15} />
-                  {accessMode === "offExchange"
-                    ? "剔除指数和 ETF，按净值占比排序"
-                    : "ETF / LOF 等场内品种，按净值占比排序"}
-                </span>
-              </div>
-
-              <ResultTable
-                funds={resultFunds}
-                accessMode={accessMode}
-                onHoverFund={updateHoveredFund}
-                onOpenFund={openFundDetails}
-              />
-              {selectedIndirectExposureCount > 0 ? (
-                <IndirectExposureTable
-                  exposures={selectedIndirectExposures}
-                  onHoverFund={updateHoveredFund}
-                  onOpenFund={openFundDetails}
-                />
-              ) : null}
-            </>
-          ) : (
+          ) : error ? (
             <EmptyState loading={false} error={error} />
+          ) : (
+            <PortfolioWorkbench
+              stocks={data?.stocks ?? []}
+              report={data?.meta.report ?? fundQuarter.report}
+              cutoffDate={data?.meta.cutoffDate ?? fundQuarter.cutoffDate}
+              manifestUrl={fundQuarter.portfolioManifestUrl}
+              temporarySelection={temporarySelection}
+              focusResult={resultFocusRequest !== null}
+              onResultFocused={() => setResultFocusRequest(null)}
+              onLeaveGuard={(guard) => {
+                researchLeaveGuardRef.current = guard;
+              }}
+              afterResultsReady={
+                <MarketSummaryBoundary>
+                  <Suspense fallback={<MarketSummaryFallback />}>
+                    <LazyLeverageMarketSummary />
+                  </Suspense>
+                </MarketSummaryBoundary>
+              }
+            />
           )}
         </section>
       </section>

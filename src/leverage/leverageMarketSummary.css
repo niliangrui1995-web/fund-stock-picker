@@ -1,0 +1,68 @@
+.leverage-market-summary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.leverage-market-summary h3,
+.leverage-market-summary p {
+  margin: 0;
+}
+
+.leverage-market-summary h3 {
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.leverage-market-summary-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.leverage-market-summary-list > div {
+  display: grid;
+  grid-template-columns: minmax(74px, auto) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.leverage-market-summary-list dt {
+  color: #475569;
+  font-weight: 700;
+}
+
+.leverage-market-summary-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.leverage-market-summary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 24px;
+  min-height: 32px;
+  color: #3730a3;
+  font-weight: 700;
+}
+
+.leverage-market-summary-link:focus-visible {
+  outline: 3px solid #312e81;
+  outline-offset: 2px;
+}
+
+@media (max-width: 360px) {
+  .leverage-market-summary-list > div {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

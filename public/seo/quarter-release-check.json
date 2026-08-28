@@ -7,7 +7,7 @@
   "dataMeta": {
     "report": "2026Q2",
     "cutoffDate": "2026-06-30",
-    "generatedAt": "2026-08-01T02:49:21",
+    "generatedAt": "2026-08-28T14:27:57",
     "sourceFile": "holdings_stock_2026q2.csv",
     "purchaseLimitCount": 27106,
     "purchaseLimitFetchedAt": "2026-08-01 02:48:53",
@@ -37,6 +37,14 @@
         "targetCode": "005930"
       }
     ]
+  },
+  "portfolioRelease": {
+    "manifestPath": "data/fund-portfolio-index-2026q2.manifest.json",
+    "releaseId": "2026q2-20260828142757812753-bf32d6944b87",
+    "manifestSha256": "27f357e9bf01801c8494499c7137f28b63334d0fdd1d2f1d2dccb0d9814dd63a",
+    "report": "2026Q2",
+    "stockShardCount": 710,
+    "fundDetailShardCount": 256
   },
   "seo": {
     "siteUrl": "https://fund.niliangrui.cloud",

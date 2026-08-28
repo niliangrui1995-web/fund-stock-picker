@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,40 @@ vi.mock("../LeverageDashboard", async () => {
   return {
     LeverageDashboard: () =>
       createElement("div", { "data-testid": "loaded-leverage-dashboard" }, "两融独立页面已加载"),
+  };
+});
+
+vi.mock("../LeverageMarketSummary", async () => {
+  const { createElement } = await import("react");
+  return {
+    LeverageMarketSummary: () =>
+      createElement("div", { "data-testid": "loaded-market-summary" }, "市场环境摘要已加载"),
+  };
+});
+
+const portfolioLeaveGuard = vi.fn<(action: () => void, trigger: HTMLElement | null) => void>();
+let renderReadyResults = false;
+
+vi.mock("../../portfolio/PortfolioWorkbench", async () => {
+  const { createElement, useEffect } = await import("react");
+  return {
+    PortfolioWorkbench: ({
+      onLeaveGuard,
+      afterResultsReady,
+    }: {
+      onLeaveGuard?: (guard: typeof portfolioLeaveGuard) => void;
+      afterResultsReady?: ReactNode;
+    }) => {
+      useEffect(() => {
+        onLeaveGuard?.(portfolioLeaveGuard);
+      }, [onLeaveGuard]);
+      return createElement(
+        "div",
+        { "data-testid": "portfolio-workbench" },
+        "组合工作台",
+        renderReadyResults ? afterResultsReady : null,
+      );
+    },
   };
 });
 
@@ -70,6 +104,8 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   vi.unstubAllGlobals();
+  portfolioLeaveGuard.mockReset();
+  renderReadyResults = false;
   document.body.innerHTML = "";
 });
 
@@ -81,11 +117,22 @@ describe("独立页面导航", () => {
     expect(container.querySelector(".search-zone")).not.toBeNull();
     expect(container.querySelector(".methodology-section")).toBeNull();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-market-summary"]')).toBeNull();
     expect(navigationLink("研究").getAttribute("href")).toBe("/research");
     expect(navigationLink("两融").getAttribute("href")).toBe("/leverage");
     expect(navigationLink("方法论").getAttribute("href")).toBe("/methodology");
     expect(navigationLink("研究").getAttribute("aria-current")).toBe("page");
     expect(navigationLink("两融").hasAttribute("aria-current")).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("研究页仅在组合结果 ready 槽位中加载市场环境摘要", async () => {
+    renderReadyResults = true;
+    await renderAt("/research");
+
+    expect(container.querySelector('[data-testid="portfolio-workbench"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="loaded-market-summary"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -96,6 +143,7 @@ describe("独立页面导航", () => {
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
     expect(container.querySelector(".search-zone")).toBeNull();
     expect(container.querySelector(".methodology-section")).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-market-summary"]')).toBeNull();
     expect(navigationLink("两融").getAttribute("aria-current")).toBe("page");
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -117,5 +165,30 @@ describe("独立页面导航", () => {
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).not.toBeNull();
     expect(window.location.pathname).toBe("/leverage");
     expect(window.location.hash).toBe("");
+  });
+
+  it("研究页有未保存组合时，顶部导航会先交给组合离开保护", async () => {
+    await renderAt("/research");
+
+    const leverageLink = navigationLink("两融");
+    await act(async () => {
+      leverageLink.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    expect(portfolioLeaveGuard).toHaveBeenCalledTimes(1);
+    expect(portfolioLeaveGuard.mock.calls[0]?.[0]).toBeTypeOf("function");
+    expect(portfolioLeaveGuard.mock.calls[0]?.[1]).toBe(leverageLink);
+  });
+
+  it("研究页查询参数变更为默认研究 URL 时也会先交给组合离开保护", async () => {
+    await renderAt("/research?stock=NVDA");
+
+    const researchLink = navigationLink("研究");
+    await act(async () => {
+      researchLink.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    expect(portfolioLeaveGuard).toHaveBeenCalledTimes(1);
+    expect(portfolioLeaveGuard.mock.calls[0]?.[1]).toBe(researchLink);
   });
 });

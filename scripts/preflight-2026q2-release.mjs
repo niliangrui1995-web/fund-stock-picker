@@ -8,6 +8,7 @@ import { evaluatePurchaseLimitSnapshotFreshness } from "./purchase-limit-freshne
 import {
   indirectExposureReleaseEvidence,
   loadQuarterPayload,
+  portfolioReleaseEvidence,
   releaseCheckManifest,
   validateQuarterPayload,
 } from "./build_seo_pages.mjs";
@@ -47,6 +48,12 @@ const REQUIRED_MANIFEST_FIELDS = [
   "indirectExposureAudit.path",
   "indirectExposureAudit.fileName",
   "indirectExposureAudit.requiredMappings",
+  "portfolioRelease.manifestPath",
+  "portfolioRelease.releaseId",
+  "portfolioRelease.manifestSha256",
+  "portfolioRelease.report",
+  "portfolioRelease.stockShardCount",
+  "portfolioRelease.fundDetailShardCount",
   "seo.siteUrl",
   "seo.lastmod",
   "seo.stockPageCount",
@@ -246,8 +253,8 @@ async function main() {
   const targetSnapshot = nodeQuarterSnapshot(targetQuarter);
 
   addCheck(
-    "config/fund-quarter.json has not already been switched to 2026Q2",
-    currentQuarter.report !== targetQuarter.report || currentQuarter.cutoffDate !== targetQuarter.cutoffDate,
+    "config/fund-quarter.json is set to the 2026Q2 release target",
+    currentQuarter.report === targetQuarter.report && currentQuarter.cutoffDate === targetQuarter.cutoffDate,
     `current config is ${currentQuarter.report} (${currentQuarter.cutoffDate})`,
   );
   addGroupedCheck("Node quarter-config.mjs derives the 2026Q2 names", compareExact(targetSnapshot, TARGET_EXPECTED));
@@ -273,6 +280,7 @@ async function main() {
   const targetDataPath = path.join(ROOT, targetQuarter.paths.fundStockIndexJson);
   const targetDataExists = await exists(targetDataPath);
   let targetPayload = null;
+  let portfolioRelease = null;
 
   try {
     const currentReleaseManifest = await readJson(TARGET_EXPECTED.releaseCheckJson);
@@ -305,8 +313,15 @@ async function main() {
           snapshotPath: TARGET_EXPECTED.fundStockIndexJson,
         }),
       );
+      portfolioRelease = await portfolioReleaseEvidence(targetQuarter);
+      addCheck(
+        "existing 2026Q2 portfolio release passes the shared local verifier",
+        true,
+        `releaseId=${portfolioRelease.releaseId}; manifest=${portfolioRelease.manifestPath}; sha256=${portfolioRelease.manifestSha256}; stockShards=${portfolioRelease.stockShardCount}; detailShards=${portfolioRelease.fundDetailShardCount}`,
+      );
     } catch (error) {
       addCheck("existing 2026Q2 frontend data meta matches the target quarter", false, error.message);
+      addCheck("existing 2026Q2 portfolio release passes the shared local verifier", false, error.message);
     }
   } else {
     try {
@@ -324,6 +339,7 @@ async function main() {
 
   const manifestPayload = targetPayload ?? inMemoryPreflightPayload(targetQuarter);
   const indirectExposure = await indirectExposureReleaseEvidence(targetQuarter, manifestPayload);
+  indirectExposure.portfolioRelease = portfolioRelease;
   const manifest = JSON.parse(releaseCheckManifest(targetQuarter, manifestPayload, indirectExposure));
   addGroupedCheck(
     "release manifest builder keeps all required fields",
@@ -343,6 +359,8 @@ async function main() {
       "checks.reportMatchesData": true,
       "checks.cutoffDateMatchesData": true,
       "checks.seoUsesConfiguredDataFile": true,
+      "portfolioRelease.manifestPath": "data/fund-portfolio-index-2026q2.manifest.json",
+      "portfolioRelease.report": TARGET_EXPECTED.report,
     }),
   );
 

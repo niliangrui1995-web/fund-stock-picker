@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
+import math
 import re
+import shutil
+import uuid
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -997,7 +1001,902 @@ def better_indirect_exposure_record(
     return candidate if candidate_score > current_score else current
 
 
-def build_index_with_audit() -> tuple[dict[str, Any], str]:
+PORTFOLIO_SCHEMA_VERSION = "1"
+PORTFOLIO_FAMILY_RULE_VERSION = "fund-family-key-v1"
+PORTFOLIO_VIEW_RULE_VERSION = "is-on-exchange-fund-v1"
+PORTFOLIO_DISCLOSURE = (
+    "仅覆盖当前季度已采集的公开股票持仓明细；未出现不代表未持有。"
+    "基金详情最多展示 10 条，不能代表基金完整组合或实时仓位。"
+)
+PORTFOLIO_INDIRECT_DISCLOSURE = "未映射或不合格的间接产品不按 0% 计入。"
+PORTFOLIO_PERCENT_DISPLAY_TOLERANCE = 0.005000001
+PORTFOLIO_DETAIL_SHARD_RULE = "sha256(fundFamilyKey UTF-8) 的前 2 位十六进制字符"
+PORTFOLIO_FUND_DETAIL_DISPLAY_LIMIT = 10
+
+
+def json_utf8_bytes(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def portfolio_ratio_percent(fund: dict[str, Any]) -> float | None:
+    ratio_percent = fund.get("ratioPercent")
+    if finite_number(ratio_percent):
+        return float(ratio_percent)
+    ratio = fund.get("ratio")
+    if finite_number(ratio):
+        return float(ratio) * 100
+    return None
+
+
+def portfolio_direct_ineligible_reason(fund: dict[str, Any]) -> str | None:
+    ratio_percent = portfolio_ratio_percent(fund)
+    if ratio_percent is None:
+        return "non_finite_direct_ratio"
+    if ratio_percent <= 0:
+        return "non_positive_direct_ratio"
+    return None
+
+
+def portfolio_indirect_ineligible_reason(fund: dict[str, Any]) -> str | None:
+    multiplier = fund.get("leverageMultiple")
+    estimated = fund.get("estimatedRatioPercent")
+    target_code = str(fund.get("targetCode", "")).strip()
+    source_code = str(fund.get("sourceCode", "")).strip()
+    if not target_code:
+        return "missing_target_code"
+    if not source_code:
+        return "missing_source_code"
+    if not finite_number(multiplier):
+        return "non_finite_leverage"
+    if float(multiplier) <= 0:
+        return "non_positive_leverage"
+    if not finite_number(estimated):
+        return "non_finite_estimated_ratio"
+    if float(estimated) <= 0:
+        return "non_positive_estimated_ratio"
+    source_ratio_percent = fund.get("sourceRatioPercent")
+    if not finite_number(source_ratio_percent):
+        source_ratio_percent = portfolio_ratio_percent(fund)
+    if source_ratio_percent is None:
+        return "non_finite_source_ratio"
+    if source_ratio_percent <= 0:
+        return "non_positive_source_ratio"
+    return None
+
+
+def eligible_indirect_edge(fund: dict[str, Any]) -> bool:
+    return portfolio_indirect_ineligible_reason(fund) is None
+
+
+def indirect_formula_matches_display(edge: dict[str, Any]) -> bool:
+    source_ratio = edge.get("sourceRatioPercent")
+    multiplier = edge.get("leverageMultiple")
+    estimated = edge.get("estimatedRatioPercent")
+    if not all(finite_number(value) for value in (source_ratio, multiplier, estimated)):
+        return False
+    expected = round(float(source_ratio) * float(multiplier), 2)
+    return math.isclose(float(estimated), expected, abs_tol=PORTFOLIO_PERCENT_DISPLAY_TOLERANCE)
+
+
+def portfolio_view_for(fund: dict[str, Any]) -> str:
+    return "onExchange" if is_on_exchange_fund(fund) else "offExchange"
+
+
+def unique_fund_family_records(
+    funds: list[dict[str, Any]],
+    *,
+    ranking: str,
+    selector: Any = better_record,
+) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]]]:
+    """Return all family representatives without the legacy Top-10 display truncation."""
+    representatives: dict[str, dict[str, Any]] = {}
+    variant_codes: dict[str, set[str]] = defaultdict(set)
+    for fund in funds:
+        fund_code = str(fund.get("fundCode", "")).strip()
+        fund_name = str(fund.get("fundName", "")).strip()
+        if not fund_code or not fund_name:
+            continue
+        key = fund_family_key(fund)
+        variant_codes[key].add(fund_code)
+        current = representatives.get(key)
+        if current is None or ranking_key(fund, ranking) > ranking_key(current, ranking):
+            representatives[key] = selector(current, fund)
+    return representatives, variant_codes
+
+
+def portfolio_profile(fund: dict[str, Any], family_key: str, variant_codes: set[str]) -> dict[str, Any]:
+    return {
+        "fundFamilyKey": family_key,
+        "fundCode": fund["fundCode"],
+        "fundName": fund["fundName"],
+        "fundDisplayName": fund_family_display_name(fund),
+        "fundType": fund.get("fundType", ""),
+        "fundVariantCodes": sorted(variant_codes),
+        "isOnExchangeFund": is_on_exchange_fund(fund),
+        "view": portfolio_view_for(fund),
+        "detailShardKey": portfolio_detail_shard_prefix(family_key),
+    }
+
+
+def portfolio_record_key(fund: dict[str, Any]) -> tuple[Any, ...]:
+    ratio = fund.get("ratio")
+    market_value = fund.get("marketValueWan")
+    return (
+        float(ratio) if finite_number(ratio) else float("-inf"),
+        float(market_value) if finite_number(market_value) else float("-inf"),
+        -share_class_penalty(fund),
+        str(fund.get("fundCode", "")),
+    )
+
+
+def build_portfolio_profile_registry(
+    direct_funds: dict[str, list[dict[str, Any]]],
+    indirect_candidates: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
+    """Build one family profile registry before producing individual stock shards."""
+    representatives: dict[str, dict[str, Any]] = {}
+    variants: dict[str, set[str]] = defaultdict(set)
+    for collection in [*direct_funds.values(), *indirect_candidates.values()]:
+        for fund in collection:
+            if not isinstance(fund, dict):
+                continue
+            fund_code = str(fund.get("fundCode", "")).strip()
+            fund_name = str(fund.get("fundName", "")).strip()
+            if not fund_code or not fund_name:
+                continue
+            family_key = fund_family_key(fund)
+            variants[family_key].add(fund_code)
+            current = representatives.get(family_key)
+            if current is None or portfolio_record_key(fund) > portfolio_record_key(current):
+                representatives[family_key] = fund
+    return {
+        family_key: portfolio_profile(representative, family_key, variants[family_key])
+        for family_key, representative in sorted(representatives.items())
+    }
+
+
+def portfolio_detail_shard_prefix(fund_family_key_value: str) -> str:
+    return sha256_bytes(fund_family_key_value.encode("utf-8"))[:2]
+
+
+def portfolio_holding_sort_key(holding: dict[str, Any]) -> tuple[Any, ...]:
+    rank = holding.get("rank")
+    ratio = holding.get("ratio")
+    return (
+        int(rank) if finite_number(rank) and int(rank) > 0 else 9999,
+        -float(ratio) if finite_number(ratio) else 0.0,
+        str(holding.get("stockCode", "")),
+    )
+
+
+def build_portfolio_fund_detail_payloads(
+    *,
+    report: str,
+    cutoff_date: str,
+    generated_at: str,
+    release_id: str,
+    profiles: dict[str, dict[str, Any]],
+    fund_holdings: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
+    """Build on-demand family-detail shards without pretending missing rows are empty holdings."""
+    grouped: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    for family_key, profile in sorted(profiles.items()):
+        detail_fund_code = ""
+        holdings: list[dict[str, Any]] | None = None
+        for fund_code in profile["fundVariantCodes"]:
+            candidate = fund_holdings.get(fund_code)
+            if candidate:
+                detail_fund_code = fund_code
+                holdings = sorted(candidate, key=portfolio_holding_sort_key)[:PORTFOLIO_FUND_DETAIL_DISPLAY_LIMIT]
+                break
+        if holdings is None:
+            record = {
+                "fundFamilyKey": family_key,
+                "detailStatus": "not_captured_in_current_stock_detail_rows",
+                "detailMessage": "当前已采集公开股票明细未包含可展开的该基金家族持仓详情；这不代表基金没有持仓。",
+            }
+        else:
+            record = {
+                "fundFamilyKey": family_key,
+                "detailStatus": "available",
+                "detailFundCode": detail_fund_code,
+                "holdings": holdings,
+            }
+        grouped[profile["detailShardKey"]][family_key] = record
+    return {
+        prefix: {
+            "schemaVersion": PORTFOLIO_SCHEMA_VERSION,
+            "releaseId": release_id,
+            "report": report,
+            "cutoffDate": cutoff_date,
+            "generatedAt": generated_at,
+            "fundFamilyKeyHashPrefix": prefix,
+            "fundDetails": details,
+            "integrity": {"algorithm": "SHA-256", "encoding": "UTF-8"},
+        }
+        for prefix, details in sorted(grouped.items())
+    }
+
+
+def build_portfolio_release_id(
+    report: str,
+    generated_at: str,
+    release_seed: Any,
+) -> str:
+    report_slug = re.sub(r"[^a-z0-9]+", "-", report.lower()).strip("-") or "report"
+    timestamp_slug = re.sub(r"[^0-9]", "", generated_at)[:20] or "generated"
+    return f"{report_slug}-{timestamp_slug}-{sha256_bytes(json_utf8_bytes(release_seed))[:12]}"
+
+
+def build_portfolio_expected_facts(
+    *,
+    stock_codes: set[str],
+    direct_funds: dict[str, list[dict[str, Any]]],
+    indirect_candidates: dict[str, list[dict[str, Any]]],
+    indirect_coverage: dict[str, Any],
+    source_metadata: dict[str, Any],
+    total_direct_input_rows: int,
+    fund_detail_payloads: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Derive build-only release facts from raw inputs, never from public shards."""
+    per_stock_coverage: dict[str, dict[str, Any]] = {}
+    direct_ineligible: Counter[str] = Counter()
+    indirect_ineligible = Counter(indirect_coverage.get("ineligibleByReason", {}))
+    direct_input_rows = 0
+    direct_published_edges = 0
+    indirect_input_rows = 0
+    qualified_indirect_edges = 0
+    for code in sorted(stock_codes):
+        direct_rows = [item for item in direct_funds.get(code, []) if isinstance(item, dict)]
+        indirect_rows = [item for item in indirect_candidates.get(code, []) if isinstance(item, dict)]
+        direct_input_rows += len(direct_rows)
+        indirect_input_rows += len(indirect_rows)
+        direct_representatives: dict[str, dict[str, Any]] = {}
+        per_stock_direct_ineligible: Counter[str] = Counter()
+        for fund in direct_rows:
+            reason = portfolio_direct_ineligible_reason(fund)
+            if reason is not None:
+                direct_ineligible[reason] += 1
+                per_stock_direct_ineligible[reason] += 1
+                continue
+            family_key = fund_family_key(fund)
+            current = direct_representatives.get(family_key)
+            if current is None or ranking_key(fund, "ratio") > ranking_key(current, "ratio"):
+                direct_representatives[family_key] = fund
+        direct_published_edges += len(direct_representatives)
+
+        qualified_indirect_rows: list[dict[str, Any]] = []
+        per_stock_indirect_ineligible: Counter[str] = Counter()
+        for fund in indirect_rows:
+            reason = portfolio_indirect_ineligible_reason(fund)
+            if reason is not None:
+                indirect_ineligible[reason] += 1
+                per_stock_indirect_ineligible[reason] += 1
+                continue
+            if str(fund.get("targetCode", "")).strip() != code:
+                indirect_ineligible["target_code_mismatch"] += 1
+                continue
+            qualified_indirect_rows.append(fund)
+        indirect_keys = {
+            (fund_family_key(fund), str(fund["sourceCode"]).strip())
+            for fund in qualified_indirect_rows
+        }
+        qualified_indirect_edges += len(indirect_keys)
+        per_stock_coverage[code] = {
+            "directInputRows": len(direct_rows),
+            "directPublishedEdges": len(direct_representatives),
+            "directIneligibleByReason": dict(sorted(per_stock_direct_ineligible.items())),
+            "indirectCandidateRows": len(indirect_rows),
+            "qualifiedIndirectEdges": len(indirect_keys),
+            "ineligibleCandidateRows": len(indirect_rows) - len(qualified_indirect_rows),
+            "ineligibleByReason": dict(sorted(per_stock_indirect_ineligible.items())),
+            "unmappedNotCountedAsZero": PORTFOLIO_INDIRECT_DISCLOSURE,
+        }
+    detail_records = [
+        detail
+        for payload in fund_detail_payloads.values()
+        for detail in payload["fundDetails"].values()
+    ]
+    coverage = {
+        "directInputRows": direct_input_rows,
+        "directPublishedEdges": direct_published_edges,
+        "indirectCandidateRows": indirect_input_rows,
+        "qualifiedIndirectEdges": qualified_indirect_edges,
+        "unmappedCandidateRows": int(indirect_coverage.get("unmappedCandidateRows", 0)),
+        "unmappedByReason": dict(sorted(indirect_coverage.get("unmappedByReason", {}).items())),
+        "directIneligibleByReason": dict(sorted(direct_ineligible.items())),
+        "ineligibleByReason": dict(sorted(indirect_ineligible.items())),
+        "unmappedNotCountedAsZero": PORTFOLIO_INDIRECT_DISCLOSURE,
+        "stockShardCount": len(stock_codes),
+        "fundDetailShardCount": len(fund_detail_payloads),
+        "fundDetailFamilyCount": len(detail_records),
+        "fundDetailAvailableFamilyCount": sum(
+            detail["detailStatus"] == "available" for detail in detail_records
+        ),
+        "fundDetailNotCapturedFamilyCount": sum(
+            detail["detailStatus"] == "not_captured_in_current_stock_detail_rows"
+            for detail in detail_records
+        ),
+    }
+    return {
+        "coverage": coverage,
+        "perStockCoverage": per_stock_coverage,
+        "sourceFacts": {
+            "inputHoldingRows": int(source_metadata.get("inputHoldingRows", total_direct_input_rows)),
+            "source": source_metadata.get("source", "current-quarter-public-stock-detail-rows"),
+            "sourceFile": source_metadata.get("sourceFile", "unknown-source.csv"),
+            "fundInvestmentSourceFile": source_metadata.get(
+                "fundInvestmentSourceFile", "not-provided"
+            ),
+            "fundInvestmentSourceRows": int(source_metadata.get("fundInvestmentSourceRows", 0)),
+        },
+    }
+
+
+def build_portfolio_release(
+    *,
+    report: str,
+    generated_at: str,
+    stock_rows: dict[str, dict[str, Any]],
+    direct_funds: dict[str, list[dict[str, Any]]],
+    indirect_candidates: dict[str, list[dict[str, Any]]],
+    cutoff_date: str = "",
+    source_metadata: dict[str, Any] | None = None,
+    indirect_coverage: dict[str, Any] | None = None,
+    fund_holdings: dict[str, list[dict[str, Any]]] | None = None,
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Build an immutable, untruncated portfolio package in memory.
+
+    Legacy Top-10 arrays deliberately do not enter this function.  The caller
+    supplies raw quarterly rows grouped by canonical target code instead.
+    """
+    source_metadata = source_metadata or {}
+    indirect_coverage = indirect_coverage or {}
+    fund_holdings = fund_holdings or {}
+    normalized_stocks = {
+        str(code).strip(): value
+        for code, value in stock_rows.items()
+        if str(code).strip() and isinstance(value, dict)
+    }
+    release_seed = {
+        "report": report,
+        "generatedAt": generated_at,
+        "stocks": normalized_stocks,
+        "direct": direct_funds,
+        "indirect": indirect_candidates,
+        "fundHoldings": fund_holdings,
+    }
+    release_id = build_portfolio_release_id(report, generated_at, release_seed)
+    report_slug = report.lower()
+    profile_registry = build_portfolio_profile_registry(direct_funds, indirect_candidates)
+    shards: dict[str, dict[str, Any]] = {}
+    manifest_shards: dict[str, dict[str, Any]] = {}
+    total_direct_input_rows = 0
+    total_direct_published_rows = 0
+    total_indirect_input_rows = 0
+    total_indirect_published_rows = 0
+    global_ineligible = Counter(indirect_coverage.get("ineligibleByReason", {}))
+    global_direct_ineligible: Counter[str] = Counter()
+
+    for code in sorted(normalized_stocks):
+        stock = normalized_stocks[code]
+        stock_name = str(stock.get("name", "")).strip()
+        direct_rows = [dict(item) for item in direct_funds.get(code, []) if isinstance(item, dict)]
+        indirect_rows = [
+            dict(item) for item in indirect_candidates.get(code, []) if isinstance(item, dict)
+        ]
+        total_direct_input_rows += len(direct_rows)
+        total_indirect_input_rows += len(indirect_rows)
+
+        qualified_direct_rows: list[dict[str, Any]] = []
+        direct_ineligible: Counter[str] = Counter()
+        for fund in direct_rows:
+            reason = portfolio_direct_ineligible_reason(fund)
+            if reason is not None:
+                direct_ineligible[reason] += 1
+                global_direct_ineligible[reason] += 1
+                continue
+            qualified_direct_rows.append(fund)
+        direct_representatives, _direct_variants = unique_fund_family_records(
+            qualified_direct_rows,
+            ranking="ratio",
+        )
+        direct_edges: list[dict[str, Any]] = []
+        for family_key, fund in sorted(direct_representatives.items()):
+            ratio_percent = portfolio_ratio_percent(fund)
+            direct_edges.append(
+                {
+                    "fundFamilyKey": family_key,
+                    "targetCode": code,
+                    "targetName": stock_name,
+                    "ratioPercent": rounded(ratio_percent, 2),
+                    "isOnExchangeFund": profile_registry[family_key]["isOnExchangeFund"],
+                }
+            )
+
+        qualified_indirect_rows: list[dict[str, Any]] = []
+        for fund in indirect_rows:
+            reason = portfolio_indirect_ineligible_reason(fund)
+            if reason is not None:
+                global_ineligible[reason] += 1
+                continue
+            if str(fund.get("targetCode", "")).strip() != code:
+                global_ineligible["target_code_mismatch"] += 1
+                continue
+            qualified_indirect_rows.append(fund)
+
+        indirect_representatives: dict[tuple[str, str], dict[str, Any]] = {}
+        for fund in qualified_indirect_rows:
+            family_key = fund_family_key(fund)
+            source_code = str(fund["sourceCode"]).strip()
+            key = (family_key, source_code)
+            current = indirect_representatives.get(key)
+            indirect_representatives[key] = better_indirect_exposure_record(current, fund)
+
+        indirect_edges: list[dict[str, Any]] = []
+        for (family_key, source_code), fund in sorted(indirect_representatives.items()):
+            source_ratio_percent = rounded(portfolio_ratio_percent(fund) or 0.0, 2)
+            leverage_multiple = rounded(float(fund["leverageMultiple"]), 4)
+            indirect_edges.append(
+                {
+                    "fundFamilyKey": family_key,
+                    "targetCode": code,
+                    "targetName": stock_name,
+                    "sourceCode": source_code,
+                    "sourceName": fund.get("sourceName", ""),
+                    "sourceRatioPercent": source_ratio_percent,
+                    "leverageMultiple": leverage_multiple,
+                    "estimatedRatioPercent": rounded(source_ratio_percent * leverage_multiple, 2),
+                    "matchReason": fund.get("matchReason", ""),
+                    "isOnExchangeFund": profile_registry[family_key]["isOnExchangeFund"],
+                }
+            )
+
+        edge_family_keys = {edge["fundFamilyKey"] for edge in [*direct_edges, *indirect_edges]}
+        profiles = {
+            family_key: profile_registry[family_key]
+            for family_key in sorted(edge_family_keys)
+        }
+        shard = {
+            "schemaVersion": PORTFOLIO_SCHEMA_VERSION,
+            "releaseId": release_id,
+            "report": report,
+            "cutoffDate": cutoff_date,
+            "generatedAt": generated_at,
+            "stock": {"code": code, "name": stock_name},
+            "fundProfiles": profiles,
+            "directEdges": direct_edges,
+            "indirectEdges": indirect_edges,
+            "coverage": {
+                "directInputRows": len(direct_rows),
+                "directPublishedEdges": len(direct_edges),
+                "directIneligibleByReason": dict(sorted(direct_ineligible.items())),
+                "indirectCandidateRows": len(indirect_rows),
+                "qualifiedIndirectEdges": len(indirect_edges),
+                "ineligibleCandidateRows": len(indirect_rows) - len(qualified_indirect_rows),
+                "unmappedNotCountedAsZero": PORTFOLIO_INDIRECT_DISCLOSURE,
+                "ineligibleByReason": {},
+            },
+            "integrity": {"algorithm": "SHA-256", "encoding": "UTF-8"},
+        }
+        for fund in indirect_rows:
+            reason = portfolio_indirect_ineligible_reason(fund)
+            if reason is not None:
+                shard["coverage"]["ineligibleByReason"][reason] = (
+                    shard["coverage"]["ineligibleByReason"].get(reason, 0) + 1
+                )
+        shards[code] = shard
+        total_direct_published_rows += len(direct_edges)
+        total_indirect_published_rows += len(indirect_edges)
+        manifest_shards[code] = {
+            "path": f"fund-portfolio-index-{report_slug}/{release_id}/{code}.json",
+            "sha256": sha256_bytes(json_utf8_bytes(shard)),
+            "directEdgeCount": len(direct_edges),
+            "qualifiedIndirectEdgeCount": len(indirect_edges),
+        }
+
+    coverage = {
+        "directInputRows": total_direct_input_rows,
+        "directPublishedEdges": total_direct_published_rows,
+        "indirectCandidateRows": total_indirect_input_rows,
+        "qualifiedIndirectEdges": total_indirect_published_rows,
+        "unmappedCandidateRows": int(indirect_coverage.get("unmappedCandidateRows", 0)),
+        "unmappedByReason": dict(sorted(indirect_coverage.get("unmappedByReason", {}).items())),
+        "directIneligibleByReason": dict(sorted(global_direct_ineligible.items())),
+        "ineligibleByReason": dict(sorted(global_ineligible.items())),
+        "unmappedNotCountedAsZero": PORTFOLIO_INDIRECT_DISCLOSURE,
+    }
+    relevant_profiles = {
+        family_key: profile
+        for shard in shards.values()
+        for family_key, profile in shard["fundProfiles"].items()
+    }
+    fund_detail_payloads = build_portfolio_fund_detail_payloads(
+        report=report,
+        cutoff_date=cutoff_date,
+        generated_at=generated_at,
+        release_id=release_id,
+        profiles=relevant_profiles,
+        fund_holdings=fund_holdings,
+    )
+    fund_detail_shards = {
+        prefix: {
+            "path": f"fund-portfolio-index-{report_slug}/{release_id}/fund-details/{prefix}.json",
+            "sha256": sha256_bytes(json_utf8_bytes(payload)),
+            "fundFamilyCount": len(payload["fundDetails"]),
+        }
+        for prefix, payload in fund_detail_payloads.items()
+    }
+    detail_records = [
+        detail
+        for payload in fund_detail_payloads.values()
+        for detail in payload["fundDetails"].values()
+    ]
+    coverage.update(
+        {
+            "stockShardCount": len(shards),
+            "fundDetailShardCount": len(fund_detail_shards),
+            "fundDetailFamilyCount": len(detail_records),
+            "fundDetailAvailableFamilyCount": sum(
+                detail["detailStatus"] == "available" for detail in detail_records
+            ),
+            "fundDetailNotCapturedFamilyCount": sum(
+                detail["detailStatus"] == "not_captured_in_current_stock_detail_rows"
+                for detail in detail_records
+            ),
+        }
+    )
+    manifest = {
+        "schemaVersion": PORTFOLIO_SCHEMA_VERSION,
+        "releaseId": release_id,
+        "report": report,
+        "cutoffDate": cutoff_date,
+        "generatedAt": generated_at,
+        "builderVersion": "fund-portfolio-index-v1",
+        "fundFamilyRuleVersion": PORTFOLIO_FAMILY_RULE_VERSION,
+        "viewClassificationRuleVersion": PORTFOLIO_VIEW_RULE_VERSION,
+        "publishStatus": "complete",
+        "inputHoldingRows": int(source_metadata.get("inputHoldingRows", total_direct_input_rows)),
+        "source": source_metadata.get("source", "current-quarter-public-stock-detail-rows"),
+        "sourceFile": source_metadata.get("sourceFile", "unknown-source.csv"),
+        "fundInvestmentSourceFile": source_metadata.get(
+            "fundInvestmentSourceFile", "not-provided"
+        ),
+        "fundInvestmentSourceRows": int(source_metadata.get("fundInvestmentSourceRows", 0)),
+        "disclosure": PORTFOLIO_DISCLOSURE,
+        "auditPath": source_metadata.get(
+            "auditPath", f"seo/indirect-exposure-audit-{report_slug}.md"
+        ),
+        "fundDetailShardRule": PORTFOLIO_DETAIL_SHARD_RULE,
+        "fundDetailDisplayLimit": PORTFOLIO_FUND_DETAIL_DISPLAY_LIMIT,
+        "fundDetailShards": fund_detail_shards,
+        "coverage": coverage,
+        "shards": manifest_shards,
+        "_buildFundDetailPayloads": fund_detail_payloads,
+    }
+    manifest["_buildExpectedFacts"] = build_portfolio_expected_facts(
+        stock_codes=set(normalized_stocks),
+        direct_funds=direct_funds,
+        indirect_candidates=indirect_candidates,
+        indirect_coverage=indirect_coverage,
+        source_metadata=source_metadata,
+        total_direct_input_rows=total_direct_input_rows,
+        fund_detail_payloads=fund_detail_payloads,
+    )
+    errors = validate_portfolio_release(manifest, shards)
+    if errors:
+        raise ValueError("组合发布包内存校验失败：" + "；".join(errors))
+    return manifest, shards
+
+
+def validate_portfolio_release(
+    manifest: dict[str, Any],
+    shards: dict[str, dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    if manifest.get("schemaVersion") != PORTFOLIO_SCHEMA_VERSION:
+        errors.append("manifest schemaVersion 无效")
+    report = manifest.get("report")
+    release_id = manifest.get("releaseId")
+    if not isinstance(report, str) or not report:
+        errors.append("manifest report 缺失")
+    if not isinstance(release_id, str) or not release_id:
+        errors.append("manifest releaseId 缺失")
+    for field in ("cutoffDate", "generatedAt"):
+        if not isinstance(manifest.get(field), str) or not manifest[field]:
+            errors.append(f"manifest {field} 缺失")
+    required_manifest_values = {
+        "builderVersion": "fund-portfolio-index-v1",
+        "fundFamilyRuleVersion": PORTFOLIO_FAMILY_RULE_VERSION,
+        "viewClassificationRuleVersion": PORTFOLIO_VIEW_RULE_VERSION,
+        "publishStatus": "complete",
+    }
+    for field, expected in required_manifest_values.items():
+        if manifest.get(field) != expected:
+            errors.append(f"manifest {field} 无效")
+    if not isinstance(manifest.get("inputHoldingRows"), int) or manifest["inputHoldingRows"] < 0:
+        errors.append("manifest inputHoldingRows 无效")
+    for field in ("source", "sourceFile", "fundInvestmentSourceFile", "auditPath", "disclosure"):
+        if not isinstance(manifest.get(field), str) or not manifest[field]:
+            errors.append(f"manifest {field} 缺失")
+    if not isinstance(manifest.get("fundInvestmentSourceRows"), int) or manifest[
+        "fundInvestmentSourceRows"
+    ] < 0:
+        errors.append("manifest fundInvestmentSourceRows 无效")
+    coverage = manifest.get("coverage")
+    if not isinstance(coverage, dict) or not isinstance(
+        coverage.get("unmappedNotCountedAsZero"), str
+    ) or not isinstance(coverage.get("unmappedByReason"), dict):
+        errors.append("manifest coverage 无效")
+        coverage = {}
+    if manifest.get("fundDetailShardRule") != PORTFOLIO_DETAIL_SHARD_RULE:
+        errors.append("manifest fundDetailShardRule 无效")
+    if manifest.get("fundDetailDisplayLimit") != PORTFOLIO_FUND_DETAIL_DISPLAY_LIMIT:
+        errors.append("manifest fundDetailDisplayLimit 无效")
+    if coverage.get("unmappedNotCountedAsZero") != PORTFOLIO_INDIRECT_DISCLOSURE:
+        errors.append("manifest coverage unmappedNotCountedAsZero 无效")
+    expected_facts = manifest.get("_buildExpectedFacts")
+    expected_per_stock_coverage: dict[str, Any] = {}
+    if expected_facts is not None:
+        if not isinstance(expected_facts, dict):
+            errors.append("build expected facts 无效")
+        else:
+            expected_coverage = expected_facts.get("coverage")
+            expected_source_facts = expected_facts.get("sourceFacts")
+            expected_per_stock_coverage = expected_facts.get("perStockCoverage", {})
+            if not isinstance(expected_coverage, dict) or coverage != expected_coverage:
+                errors.append("manifest coverage 与构建输入事实不一致")
+            if not isinstance(expected_source_facts, dict):
+                errors.append("manifest source facts 无效")
+            else:
+                for field, expected in expected_source_facts.items():
+                    if manifest.get(field) != expected:
+                        errors.append(f"manifest {field} 与构建输入事实不一致")
+            if not isinstance(expected_per_stock_coverage, dict):
+                errors.append("build per-stock coverage 无效")
+                expected_per_stock_coverage = {}
+    manifest_shards = manifest.get("shards")
+    if not isinstance(manifest_shards, dict):
+        return [*errors, "manifest shards 无效"]
+    if set(manifest_shards) != set(shards):
+        errors.append("manifest 分片集合与内容不一致")
+    canonical_profiles: dict[str, dict[str, Any]] = {}
+    for code, shard in shards.items():
+        metadata = manifest_shards.get(code)
+        if not isinstance(metadata, dict):
+            errors.append(f"{code} 缺少 manifest 元数据")
+            continue
+        if shard.get("schemaVersion") != PORTFOLIO_SCHEMA_VERSION:
+            errors.append(f"{code} shard schemaVersion 无效")
+        if (
+            shard.get("report") != report
+            or shard.get("releaseId") != release_id
+            or shard.get("cutoffDate") != manifest.get("cutoffDate")
+            or shard.get("generatedAt") != manifest.get("generatedAt")
+        ):
+            errors.append(f"{code} shard 报告期或 releaseId 不一致")
+        if shard.get("stock", {}).get("code") != code:
+            errors.append(f"{code} shard 股票代码不一致")
+        expected_hash = metadata.get("sha256")
+        expected_path = f"fund-portfolio-index-{str(report).lower()}/{release_id}/{code}.json"
+        if metadata.get("path") != expected_path:
+            errors.append(f"{code} shard path 无效")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(expected_hash)):
+            errors.append(f"{code} shard SHA-256 元数据无效")
+        if expected_hash != sha256_bytes(json_utf8_bytes(shard)):
+            errors.append(f"{code} shard SHA-256 不一致")
+        direct_keys: set[tuple[str, str]] = set()
+        indirect_keys: set[tuple[str, str, str]] = set()
+        profiles = shard.get("fundProfiles", {})
+        if not isinstance(profiles, dict):
+            errors.append(f"{code} fundProfiles 无效")
+            continue
+        shard_coverage = shard.get("coverage")
+        if not isinstance(shard_coverage, dict):
+            errors.append(f"{code} shard coverage 无效")
+            shard_coverage = {}
+        if expected_facts is not None and shard_coverage != expected_per_stock_coverage.get(code):
+            errors.append(f"{code} shard coverage 与构建输入事实不一致")
+        for family_key, profile in profiles.items():
+            if profile.get("fundFamilyKey") != family_key:
+                errors.append(f"{code} profile family key 不一致")
+            if not isinstance(profile.get("isOnExchangeFund"), bool):
+                errors.append(f"{code} profile 分类无效")
+            if profile.get("detailShardKey") != portfolio_detail_shard_prefix(family_key):
+                errors.append(f"{code} profile detailShardKey 无效")
+            existing_profile = canonical_profiles.get(family_key)
+            if existing_profile is None:
+                canonical_profiles[family_key] = profile
+            elif existing_profile != profile:
+                errors.append(f"{code} profile 跨股票分片不一致")
+        for edge in shard.get("directEdges", []):
+            key = (edge.get("fundFamilyKey", ""), edge.get("targetCode", ""))
+            if not key[0] or key[1] != code or key in direct_keys:
+                errors.append(f"{code} direct edge 无效或重复")
+            direct_keys.add(key)
+            if (
+                edge.get("fundFamilyKey") not in profiles
+                or portfolio_direct_ineligible_reason(edge) is not None
+                or edge.get("isOnExchangeFund") != profiles[edge.get("fundFamilyKey")].get("isOnExchangeFund")
+            ):
+                errors.append(f"{code} direct edge profile 或数值无效")
+        for edge in shard.get("indirectEdges", []):
+            key = (edge.get("fundFamilyKey", ""), edge.get("targetCode", ""), edge.get("sourceCode", ""))
+            if not key[0] or key[1] != code or not key[2] or key in indirect_keys:
+                errors.append(f"{code} indirect edge 无效或重复")
+            indirect_keys.add(key)
+            if (
+                edge.get("fundFamilyKey") not in profiles
+                or not eligible_indirect_edge(edge)
+                or not indirect_formula_matches_display(edge)
+                or edge.get("isOnExchangeFund") != profiles[edge.get("fundFamilyKey")].get("isOnExchangeFund")
+            ):
+                errors.append(f"{code} indirect edge profile 或数值无效")
+        if metadata.get("directEdgeCount") != len(shard.get("directEdges", [])):
+            errors.append(f"{code} direct edge count 不一致")
+        if metadata.get("qualifiedIndirectEdgeCount") != len(shard.get("indirectEdges", [])):
+            errors.append(f"{code} indirect edge count 不一致")
+    valid_shard_coverages = [
+        shard.get("coverage")
+        for shard in shards.values()
+        if isinstance(shard.get("coverage"), dict)
+    ]
+    if isinstance(coverage, dict) and len(valid_shard_coverages) == len(shards):
+        expected_coverage = {
+            "directInputRows": sum(item.get("directInputRows", -1) for item in valid_shard_coverages),
+            "directPublishedEdges": sum(len(shard["directEdges"]) for shard in shards.values()),
+            "indirectCandidateRows": sum(
+                item.get("indirectCandidateRows", -1) for item in valid_shard_coverages
+            ),
+            "qualifiedIndirectEdges": sum(len(shard["indirectEdges"]) for shard in shards.values()),
+            "stockShardCount": len(shards),
+        }
+        for field, expected in expected_coverage.items():
+            if coverage.get(field) != expected:
+                errors.append(f"manifest coverage {field} 不一致")
+        if sum(coverage.get("unmappedByReason", {}).values()) != coverage.get("unmappedCandidateRows"):
+            errors.append("manifest coverage unmappedByReason 不一致")
+    detail_metadata = manifest.get("fundDetailShards", {})
+    detail_payloads = manifest.get("_buildFundDetailPayloads")
+    if not isinstance(detail_metadata, dict):
+        errors.append("fundDetailShards 无效")
+    for prefix, metadata in detail_metadata.items():
+        if not isinstance(prefix, str) or not re.fullmatch(r"[0-9a-f]{2}", prefix):
+            errors.append("fundDetailShards prefix 无效")
+            continue
+        expected_path = f"fund-portfolio-index-{str(report).lower()}/{release_id}/fund-details/{prefix}.json"
+        if not isinstance(metadata, dict) or metadata.get("path") != expected_path:
+            errors.append(f"基金详情分片 {prefix} path 无效")
+        if not isinstance(metadata, dict) or not re.fullmatch(
+            r"[0-9a-f]{64}", str(metadata.get("sha256", ""))
+        ):
+            errors.append(f"基金详情分片 {prefix} SHA-256 元数据无效")
+    if detail_payloads is not None:
+        if not isinstance(detail_payloads, dict) or set(detail_metadata) != set(detail_payloads):
+            errors.append("基金详情分片集合不一致")
+        else:
+            for prefix, payload in detail_payloads.items():
+                metadata = detail_metadata.get(prefix, {})
+                if (
+                    payload.get("schemaVersion") != PORTFOLIO_SCHEMA_VERSION
+                    or payload.get("report") != report
+                    or payload.get("releaseId") != release_id
+                    or payload.get("cutoffDate") != manifest.get("cutoffDate")
+                    or payload.get("generatedAt") != manifest.get("generatedAt")
+                    or payload.get("fundFamilyKeyHashPrefix") != prefix
+                ):
+                    errors.append(f"基金详情分片 {prefix} 报告期或 releaseId 不一致")
+                if metadata.get("sha256") != sha256_bytes(json_utf8_bytes(payload)):
+                    errors.append(f"基金详情分片 {prefix} SHA-256 不一致")
+                details = payload.get("fundDetails", {})
+                if metadata.get("fundFamilyCount") != len(details):
+                    errors.append(f"基金详情分片 {prefix} 家族数不一致")
+                for family_key, detail in details.items():
+                    if detail.get("fundFamilyKey") != family_key:
+                        errors.append(f"基金详情分片 {prefix} family key 不一致")
+                    if portfolio_detail_shard_prefix(family_key) != prefix:
+                        errors.append(f"基金详情分片 {prefix} hash-prefix 不一致")
+                    if detail.get("detailStatus") == "available":
+                        if not detail.get("detailFundCode") or not detail.get("holdings"):
+                            errors.append(f"基金详情分片 {prefix} 可用详情无持仓")
+                        elif len(detail["holdings"]) > 10:
+                            errors.append(f"基金详情分片 {prefix} 超过详情展示上限")
+                    elif detail.get("detailStatus") != "not_captured_in_current_stock_detail_rows":
+                        errors.append(f"基金详情分片 {prefix} 披露状态无效")
+            if isinstance(coverage, dict):
+                detail_records = [
+                    detail
+                    for payload in detail_payloads.values()
+                    for detail in payload["fundDetails"].values()
+                ]
+                expected_detail_coverage = {
+                    "fundDetailShardCount": len(detail_payloads),
+                    "fundDetailFamilyCount": len(detail_records),
+                    "fundDetailAvailableFamilyCount": sum(
+                        detail["detailStatus"] == "available" for detail in detail_records
+                    ),
+                    "fundDetailNotCapturedFamilyCount": sum(
+                        detail["detailStatus"] == "not_captured_in_current_stock_detail_rows"
+                        for detail in detail_records
+                    ),
+                }
+                for field, expected in expected_detail_coverage.items():
+                    if coverage.get(field) != expected:
+                        errors.append(f"manifest coverage {field} 不一致")
+    return errors
+
+
+def write_portfolio_release(
+    manifest_path: Path,
+    release_dir: Path,
+    release_id: str,
+    manifest: dict[str, Any],
+    shards: dict[str, dict[str, Any]],
+) -> None:
+    """Stage and validate all immutable shards before atomically replacing the manifest."""
+    if manifest.get("releaseId") != release_id:
+        raise ValueError("releaseId 与 manifest 不一致")
+    errors = validate_portfolio_release(manifest, shards)
+    if errors:
+        raise ValueError("组合发布包校验失败：" + "；".join(errors))
+    if release_dir.exists():
+        raise FileExistsError(f"不可覆盖既有组合 release：{release_dir}")
+
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    release_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging_dir = release_dir.parent / f".{release_id}.tmp-{uuid.uuid4().hex}"
+    try:
+        staging_dir.mkdir()
+        for code, shard in shards.items():
+            shard_path = staging_dir / f"{code}.json"
+            shard_path.write_bytes(json_utf8_bytes(shard))
+        detail_payloads = manifest.get("_buildFundDetailPayloads", {})
+        for prefix, payload in detail_payloads.items():
+            detail_path = staging_dir / "fund-details" / f"{prefix}.json"
+            detail_path.parent.mkdir(parents=True, exist_ok=True)
+            detail_path.write_bytes(json_utf8_bytes(payload))
+        staged_shards = {
+            code: json.loads((staging_dir / f"{code}.json").read_text(encoding="utf-8"))
+            for code in shards
+        }
+        staged_manifest = dict(manifest)
+        staged_manifest["_buildFundDetailPayloads"] = {
+            prefix: json.loads(
+                (staging_dir / "fund-details" / f"{prefix}.json").read_text(encoding="utf-8")
+            )
+            for prefix in detail_payloads
+        }
+        staged_errors = validate_portfolio_release(staged_manifest, staged_shards)
+        if staged_errors:
+            raise ValueError("组合分片暂存校验失败：" + "；".join(staged_errors))
+        staging_dir.replace(release_dir)
+        temp_manifest = manifest_path.with_name(f".{manifest_path.name}.tmp-{uuid.uuid4().hex}")
+        try:
+            published_manifest = {
+                key: value
+                for key, value in manifest.items()
+                if key not in {"_buildFundDetailPayloads", "_buildExpectedFacts"}
+            }
+            temp_manifest.write_bytes(json_utf8_bytes(published_manifest))
+            temp_manifest.replace(manifest_path)
+        finally:
+            if temp_manifest.exists():
+                temp_manifest.unlink()
+    except Exception:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        raise
+
+
+def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     summary = load_summary()
     fetch_summary = load_fund_report_summary()
     purchase_limits = load_purchase_limits()
@@ -1007,6 +1906,12 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
     stock_rows: dict[str, dict[str, Any]] = {}
     stock_funds: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     indirect_exposures: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    portfolio_indirect_candidates: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    portfolio_indirect_coverage: dict[str, Any] = {
+        "unmappedCandidateRows": 0,
+        "unmappedByReason": {},
+        "ineligibleByReason": {},
+    }
     fund_profiles: dict[str, dict[str, Any]] = {}
     fund_holdings: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     source_rows: list[dict[str, str]] = []
@@ -1043,12 +1948,16 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
 
     alias_candidates = stock_alias_candidates(stock_rows, exposure_aliases)
     known_products = configured_known_products(exposure_aliases)
+    ignored_products = configured_ignored_products(exposure_aliases)
     for row in [*source_rows, *fund_investment_rows]:
         source_code = row.get("证券代码", "").strip()
         source_name = row.get("证券名称", "").strip()
         if not source_name:
             continue
         source_code_for_match = source_code or source_name
+        known_product = known_products.get(
+            normalize_alias_text(source_code_for_match).replace(" ", "")
+        )
         target_match = match_indirect_target(
             source_code_for_match,
             source_name,
@@ -1057,6 +1966,16 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
             known_products,
         )
         if target_match is None:
+            if is_leveraged_long_product(source_code_for_match, source_name, known_product):
+                portfolio_indirect_coverage["unmappedCandidateRows"] += 1
+                reason = (
+                    "ignored_product"
+                    if ignored_product_reason(row, ignored_products)
+                    else "unmapped_target"
+                )
+                portfolio_indirect_coverage["unmappedByReason"][reason] = (
+                    portfolio_indirect_coverage["unmappedByReason"].get(reason, 0) + 1
+                )
             continue
         target_code, known_product, match_reason = target_match
         fund = enrich_fund_record(
@@ -1071,6 +1990,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
         )
         if not fund["fundCode"]:
             continue
+        portfolio_indirect_candidates[target_code].append(fund)
         existing = indirect_exposures[target_code].get(fund["fundCode"])
         indirect_exposures[target_code][fund["fundCode"]] = better_indirect_exposure_record(
             existing,
@@ -1184,9 +2104,9 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
         if fund["fundCode"]
     }
     fund_top_holdings: dict[str, list[dict[str, Any]]] = {}
-    for fund_code in sorted(visible_fund_codes):
-        holdings_by_stock = fund_holdings.get(fund_code, {})
-        sorted_holdings = sorted(
+    portfolio_fund_holdings: dict[str, list[dict[str, Any]]] = {}
+    for fund_code, holdings_by_stock in fund_holdings.items():
+        portfolio_fund_holdings[fund_code] = sorted(
             holdings_by_stock.values(),
             key=lambda item: (
                 item["rank"] if item["rank"] > 0 else 9999,
@@ -1194,7 +2114,8 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
                 item["stockCode"],
             ),
         )[:10]
-        fund_top_holdings[fund_code] = sorted_holdings
+    for fund_code in sorted(visible_fund_codes):
+        fund_top_holdings[fund_code] = portfolio_fund_holdings.get(fund_code, [])
 
     public_stocks = [
         {
@@ -1253,17 +2174,33 @@ def build_index_with_audit() -> tuple[dict[str, Any], str]:
         indirect_exposures,
         exposure_aliases,
     )
-    return payload, audit_markdown
+    shipped_stock_codes = {stock["code"] for stock in export_stocks}
+    portfolio_inputs = {
+        "stockRows": {code: stock_rows[code] for code in shipped_stock_codes},
+        "directFunds": {
+            code: list(stock_funds[code].values())
+            for code in shipped_stock_codes
+            if code in stock_funds
+        },
+        "indirectCandidates": {
+            code: candidates
+            for code, candidates in portfolio_indirect_candidates.items()
+            if code in shipped_stock_codes
+        },
+        "indirectCoverage": portfolio_indirect_coverage,
+        "fundHoldings": portfolio_fund_holdings,
+    }
+    return payload, audit_markdown, portfolio_inputs
 
 
 def build_index() -> dict[str, Any]:
-    payload, _audit_markdown = build_index_with_audit()
+    payload, _audit_markdown, _portfolio_inputs = build_index_with_audit()
     return payload
 
 
 def main() -> None:
     TARGET_JSON.parent.mkdir(parents=True, exist_ok=True)
-    payload, audit_markdown = build_index_with_audit()
+    payload, audit_markdown, portfolio_inputs = build_index_with_audit()
     # fundHoldings 只在悬浮卡里使用，单独成文件供前端按需懒加载，
     # 首屏主索引体积可减少约 40%。
     fund_holdings = payload.pop("fundHoldings", {})
@@ -1286,12 +2223,50 @@ def main() -> None:
     temp_holdings.replace(holdings_json)
     INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
     INDIRECT_EXPOSURE_AUDIT_MD.write_text(audit_markdown + "\n", encoding="utf-8")
+    portfolio_generated_at = datetime.now().isoformat(timespec="microseconds")
+    portfolio_manifest, portfolio_shards = build_portfolio_release(
+        report=payload["meta"]["report"],
+        generated_at=portfolio_generated_at,
+        stock_rows=portfolio_inputs["stockRows"],
+        direct_funds=portfolio_inputs["directFunds"],
+        indirect_candidates=portfolio_inputs["indirectCandidates"],
+        cutoff_date=payload["meta"]["cutoffDate"],
+        source_metadata={
+            "inputHoldingRows": payload["meta"]["sourceRows"],
+            "source": "current-quarter-public-stock-detail-rows",
+            "sourceFile": SOURCE_CSV.name,
+            "fundInvestmentSourceFile": FUND_INVESTMENT_CSV.name,
+            "fundInvestmentSourceRows": payload["meta"]["fundInvestmentSourceRows"],
+            "auditPath": repo_relative(INDIRECT_EXPOSURE_AUDIT_MD),
+        },
+        indirect_coverage=portfolio_inputs["indirectCoverage"],
+        fund_holdings=portfolio_inputs["fundHoldings"],
+    )
+    portfolio_manifest_path = TARGET_JSON.with_name(
+        f"fund-portfolio-index-{payload['meta']['report'].lower()}.manifest.json"
+    )
+    portfolio_release_dir = (
+        TARGET_JSON.parent
+        / f"fund-portfolio-index-{payload['meta']['report'].lower()}"
+        / portfolio_manifest["releaseId"]
+    )
+    write_portfolio_release(
+        portfolio_manifest_path,
+        portfolio_release_dir,
+        portfolio_manifest["releaseId"],
+        portfolio_manifest,
+        portfolio_shards,
+    )
     print(
         f"Wrote {TARGET_JSON} with {payload['meta']['stockCount']} stocks "
         f"from {payload['meta']['sourceRows']} holding rows."
     )
     print(f"Wrote {holdings_json} with {holdings_payload['meta']['fundCount']} funds.")
     print(f"Wrote {INDIRECT_EXPOSURE_AUDIT_MD}.")
+    print(
+        f"Wrote {portfolio_manifest_path} with {len(portfolio_shards)} stock shards "
+        f"in release {portfolio_manifest['releaseId']}."
+    )
 
 
 if __name__ == "__main__":

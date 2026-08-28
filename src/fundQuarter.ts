@@ -34,6 +34,7 @@ function buildQuarterConfig(config: RawQuarterConfig) {
     dataFileName,
     dataUrl: `/${dataPath}?v=${slug}`,
     holdingsUrl: `/data/fund-holdings-${slug}.json?v=${slug}`,
+    portfolioManifestUrl: `/data/fund-portfolio-index-${slug}.manifest.json?v=${slug}`,
     releaseCheckUrl: `seo/quarter-release-check.json?v=${slug}`,
   };
 }

@@ -23,6 +23,9 @@
 ## 功能
 
 - 按股票名称或代码搜索海外标的，例如 `NVDA`、`00700`、`TSM`、`英伟达`、`腾讯控股`。
+- 研究页可在当前浏览器建立多个命名股票组合；每个组合限 1–10 只去重的当前可搜索海外股票。保存内容仅为组合名称和股票代码，不上传、不同浏览器之间不同步；单股票搜索与旧深链仍作为临时单股研究入口。
+- 组合结果按基金家族的“总估算经济暴露”排序，并拆分直接股票持仓与已识别正向杠杆 ETP 的间接估算；场外基金（含 ETF 联接）与场内 ETF / LOF 为互斥视图。该合计是披露期末、当前已采集公开股票持仓明细的方向性估算，不是实时仓位或投资建议。
+- 组合索引独立于旧单股票前十展示数组，按所选股票分片加载当前已采集明细；基金详情仍最多展示 10 条，`未出现不代表未持有`。
 - 场外口径沿用原有逻辑，剔除基金类型或基金名称中包含“指数”“ETF”“ETF联接”的基金。
 - 场内口径覆盖 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
 - 对海外个股杠杆 ETF / ETP / ETN 做单独的间接暴露识别，展示原始占净值比例和按杠杆倍数折算的估算经济暴露，不并入正股直接持仓口径。
@@ -47,6 +50,7 @@
 | 热门候选 | `60` 个 |
 | 基金持仓卡片索引 | `1,674` 个基金代码 |
 | 前端数据文件 | `public/data/fund-stock-index-<year>q<quarter>.json` |
+| 组合研究发布包 | `public/data/fund-portfolio-index-<year>q<quarter>.manifest.json` 与按股票分片 |
 | AI 战报热点来源 | `config/ai-battle-hotspot-sources.json` |
 | AI 战报热点生成配置 | `config/ai-battle-hotspots.json` |
 | 海外个股杠杆映射配置 | `config/stock-exposure-aliases.json` |
@@ -137,6 +141,17 @@ npm run verify-live-release
 
 该命令会直接请求 `https://fund.niliangrui.cloud/seo/quarter-release-check.json`、清单里记录的前端数据文件、线上首页 `/`、独立页面 `/research`、`/leverage`、`/methodology` 及首页脚本资产，以及旧 `/stocks/<code>/` 深链样例（`AMD`、`LITE`、`COHR`、`GLW`、`000660`、`005930`、`MU`、`SNDK`），并与本地 `config/fund-quarter.json`、`public/seo/quarter-release-check.json` 核对。全部通过时说明线上站点已经换成当前季度产物，首页 AI 战报卡片已挂出当前配置热点，三个栏目可直接访问，且旧股票链接会落到带 `?stock=` 的首页；失败时会列出不一致字段并以非零退出码结束。发布校验也会检查申购限额快照新鲜度：距离配置的季度截止日满 5 天会显示 `[WARN]`，满 10 天会显示 `[FAIL]` 并阻断发布校验。
 
+## 组合研究校验
+
+组合索引和前端聚合的本地回归与当前季度发布包校验分别运行：
+
+```powershell
+npm run test:portfolio
+npm run verify:portfolio
+```
+
+前者覆盖生成器、发布契约、存储、分片加载与组合聚合；后者会校验当前 manifest、全部股票分片与基金详情分片的哈希、季度和覆盖统计。
+
 ## 离线两融
 
 顶部“研究｜两融｜方法论”已拆为三个独立页面：`/research`、`/leverage`、`/methodology`。两融图表仅在打开 `/leverage` 时按需代码加载，并仅从本机静态发布包读取数据：
@@ -154,7 +169,9 @@ npm run test:leverage
 npm run verify:leverage:build
 ```
 
-校验会核对原始 UTF-8 发布包的 SHA-256、记录数、严格升序日期、DFCF-only 审计标记以及市值来源分段。`npm run verify:leverage:build` 会在 `D:\vcp_hunter` 下创建并删除临时构建目录，执行生产 TypeScript 检查和 Vite 打包，确认两融/ECharts 是异步 chunk；它不调用项目的 SEO 生成链，也不写 `config/`、`public/seo/`、`robots.txt`、`sitemap.xml` 或 OG 产物。融资余额从 `2011-08-03` 起完整展示；比例只在分子与分母精确同日时展示，单日市值缺失仍为 `N/A`，不补值、不移日。`2011-08-03` 至 `2016-12-30` 的分母仅在交易所官方原始链、哈希、日期绑定与 Decimal 校验全部通过时标记为 `official_exchange_pre2017_raw_chain_audited` 并启用；`2017-01-03` 起分母仍为东方财富 Choice 厂商口径，未经交易所复核和完整审计。前段已审计不改变后段的厂商未审计属性，且 DFCF 两融分子可能包含非 A 股融资标的；全段均不能称为严格沪深 A 股市值或正式财务比例（`UNSUPPORTED_RATIO_CONTRACT`）。融资余额变化仅作去杠杆压力代理，不据此证明强制平仓、市场底或必然反弹。
+组合结果可用后，右侧会惰性加载一个不含图表的“市场环境”摘要：取最近 20 个融资余额与上证指数 `000001` 共同有效交易日（不足 20 个则使用全部共同区间），两者起点均归一为 100，并展示区间变化与描述性差值。摘要不说明所选股票或基金结果的成因；完整图表、区间和指数控制仍只在 `/leverage` 页面加载。
+
+校验会核对原始 UTF-8 发布包的 SHA-256、记录数、严格升序日期、DFCF-only 审计标记以及市值来源分段。`npm run verify:leverage:build` 会在 `D:\vcp_hunter` 下创建并删除临时构建目录，执行生产 TypeScript 检查和 Vite 打包，确认完整两融/ECharts 与研究页市场摘要均为独立异步 chunk，且市场摘要不依赖 ECharts；它不调用项目的 SEO 生成链，也不写 `config/`、`public/seo/`、`robots.txt`、`sitemap.xml` 或 OG 产物。融资余额从 `2011-08-03` 起完整展示；比例只在分子与分母精确同日时展示，单日市值缺失仍为 `N/A`，不补值、不移日。`2011-08-03` 至 `2016-12-30` 的分母仅在交易所官方原始链、哈希、日期绑定与 Decimal 校验全部通过时标记为 `official_exchange_pre2017_raw_chain_audited` 并启用；`2017-01-03` 起分母仍为东方财富 Choice 厂商口径，未经交易所复核和完整审计。前段已审计不改变后段的厂商未审计属性，且 DFCF 两融分子可能包含非 A 股融资标的；全段均不能称为严格沪深 A 股市值或正式财务比例（`UNSUPPORTED_RATIO_CONTRACT`）。融资余额变化仅作去杠杆压力代理，不据此证明强制平仓、市场底或必然反弹。
 
 这两份 JSON 由 `D:\vcp_hunter\产业链投研` 的发布流程原子写入，不应在本项目手工改写；网页不会请求 DFCF、交易所、TDX、外部图片或其他外部行情接口。股票图标仅尝试本地 `stock-logos/` 文件，读取失败时使用页面内文本占位。
 
