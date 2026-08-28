@@ -30,6 +30,15 @@ const DFCF_INPUT_FILENAMES = [
   "dfcf_margin_balances.csv",
 ];
 const INDEX_CODES = ["000001", "399106", "399006"];
+const INDEX_VALUE_FIELDS = {
+  "000001": "index_000001_close",
+  "399106": "index_399106_close",
+  "399006": "index_399006_close",
+};
+const INDEX_SOURCE =
+  "本地 TDX 厂商日线（用于三指数收盘价；未做交易所或指数编制方原始链复核）";
+const INDEX_SNAPSHOT_HASH_RECORDED = "recorded";
+const INDEX_SNAPSHOT_HASH_TAIL_EVIDENCE_ABSENT = "tail_snapshot_evidence_absent";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dataDirectory = process.env.LEVERAGE_DASHBOARD_DATA_DIR
@@ -114,12 +123,13 @@ function assertSegment(segment, expected, index) {
   );
 }
 
-function assertIndexMetadata(indices) {
+function assertIndexMetadata(indices, records) {
   assert(isObject(indices), "指数元数据无效。");
   for (const code of INDEX_CODES) {
     const index = indices[code];
     assert(isObject(index), `指数 ${code} 元数据缺失。`);
-    assert(typeof index.source === "string" && index.source.trim(), `指数 ${code} 来源无效。`);
+    assert(index.source === INDEX_SOURCE, `指数 ${code} 来源描述无效。`);
+    assert(typeof index.path === "string" && index.path.trim(), `指数 ${code} 来源路径无效。`);
     assert(
       isValidDate(index.first_date) &&
         isValidDate(index.last_date) &&
@@ -127,6 +137,24 @@ function assertIndexMetadata(indices) {
       `指数 ${code} 日期范围无效。`,
     );
     assert(typeof index.sha256 === "string" && SHA256_PATTERN.test(index.sha256), `指数 ${code} SHA-256 无效。`);
+    const effectiveDates = records
+      .filter((record) => isFiniteNumber(record[INDEX_VALUE_FIELDS[code]]))
+      .map((record) => record.date);
+    assert(
+      effectiveDates.length > 0 &&
+        index.first_date <= effectiveDates[0] &&
+        index.last_date >= effectiveDates[effectiveDates.length - 1],
+      `指数 ${code} 来源日期未覆盖有效收盘价。`,
+    );
+    assert(
+      isValidDate(index.sha256_covers_through) &&
+        index.sha256_covers_through <= index.last_date &&
+        ((index.source_snapshot_hash_status === INDEX_SNAPSHOT_HASH_RECORDED &&
+          index.sha256_covers_through === index.last_date) ||
+          (index.source_snapshot_hash_status === INDEX_SNAPSHOT_HASH_TAIL_EVIDENCE_ABSENT &&
+            index.sha256_covers_through < index.last_date)),
+      `指数 ${code} 来源快照哈希元数据无效。`,
+    );
   }
 }
 
@@ -319,7 +347,7 @@ export function verifyLeverageDashboard(payloadText, manifestText) {
   const recordSummary = validateRecords(payload.records);
   assertDateRange(manifest.data_range, "发布清单数据范围", recordSummary.firstDate, recordSummary.lastDate);
   assertDfcfManifest(manifest.dfcf);
-  assertIndexMetadata(manifest.indices);
+  assertIndexMetadata(manifest.indices, payload.records);
 
   assert(isObject(payload.provenance), "发布包比例元数据无效。");
   assert(isObject(manifest.market_cap), "发布清单市值元数据无效。");

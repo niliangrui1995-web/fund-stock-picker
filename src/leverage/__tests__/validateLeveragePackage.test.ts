@@ -47,6 +47,38 @@ describe("validateLeveragePackage", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("拒绝指数来源日期早于发布包的最后有效收盘价", async () => {
+    const invalidIndexDate = packageWith(undefined, (manifest) => {
+      manifest.indices["000001"].last_date = "2016-12-30";
+    });
+
+    await expect(
+      validateLeveragePackage(
+        invalidIndexDate.payloadText,
+        invalidIndexDate.manifestText,
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "指数 000001 来源日期未覆盖有效收盘价。",
+    });
+  });
+
+  it("拒绝把本地 TDX 厂商指数来源伪装为官方来源", async () => {
+    const invalidIndexSource = packageWith(undefined, (manifest) => {
+      manifest.indices["399006"].source = "交易所官方日线";
+    });
+
+    await expect(
+      validateLeveragePackage(
+        invalidIndexSource.payloadText,
+        invalidIndexSource.manifestText,
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "指数 399006 来源描述无效。",
+    });
+  });
+
   it("接受 2011–2016 官方原始链已审计分母，并将比例起点前移至同日 DFCF 记录", async () => {
     const payloadText = makeOfficialPre2017PayloadText();
     const result = await validateLeveragePackage(
@@ -315,6 +347,11 @@ describe("validateLeveragePackage", () => {
     }, (manifest) => {
       manifest.market_cap.ratio_missing_records = 3;
       manifest.market_cap.source_segments[1].end = "2017-01-04";
+      const indices = manifest.indices as Record<string, JsonObject>;
+      for (const index of Object.values(indices)) {
+        index.last_date = "2017-01-04";
+        index.sha256_covers_through = "2017-01-04";
+      }
     });
 
     const result = await validateLeveragePackage(

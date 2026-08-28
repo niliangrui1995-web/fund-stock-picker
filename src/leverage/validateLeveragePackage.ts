@@ -32,6 +32,16 @@ const MX_MIXED_RATIO_REVIEW_STATUS =
 const MX_UNAVAILABLE_MIXED_RATIO_REVIEW_STATUS =
   "mixed_mx_pre2017_unavailable_eastmoney_vendor_unverified";
 const INDEX_CODES: LeverageIndexCode[] = ["000001", "399106", "399006"];
+const INDEX_VALUE_FIELDS: Record<LeverageIndexCode, string> = {
+  "000001": "index_000001_close",
+  "399106": "index_399106_close",
+  "399006": "index_399006_close",
+};
+const INDEX_SOURCE =
+  "本地 TDX 厂商日线（用于三指数收盘价；未做交易所或指数编制方原始链复核）";
+const INDEX_SNAPSHOT_HASH_RECORDED = "recorded";
+const INDEX_SNAPSHOT_HASH_TAIL_EVIDENCE_ABSENT =
+  "tail_snapshot_evidence_absent";
 const DFCF_INPUT_FILENAMES = [
   "dfcf_sse_margin.csv",
   "dfcf_szse_margin.csv",
@@ -233,26 +243,70 @@ async function calculateSha256(text: string): Promise<string | null> {
   ).join("");
 }
 
-function validateIndices(value: unknown): boolean {
+function validateIndices(value: unknown, records: unknown[]): string | null {
   if (!isObject(value)) {
-    return false;
+    return "指数来源元数据无效。";
   }
 
-  return INDEX_CODES.every((code) => {
+  for (const code of INDEX_CODES) {
     const entry = value[code];
     if (!isObject(entry)) {
-      return false;
+      return `指数 ${code} 元数据缺失。`;
     }
+    if (entry.source !== INDEX_SOURCE) {
+      return `指数 ${code} 来源描述无效。`;
+    }
+    if (!isNonEmptyString(entry.path)) {
+      return `指数 ${code} 来源路径无效。`;
+    }
+    if (
+      !isValidDate(entry.first_date) ||
+      !isValidDate(entry.last_date) ||
+      entry.first_date > entry.last_date
+    ) {
+      return `指数 ${code} 日期范围无效。`;
+    }
+    if (typeof entry.sha256 !== "string" || !SHA256_RE.test(entry.sha256)) {
+      return `指数 ${code} SHA-256 无效。`;
+    }
+    const effectiveDates = records.flatMap((record) => {
+      if (
+        !isObject(record) ||
+        !isValidDate(record.date) ||
+        !isFiniteNumber(record[INDEX_VALUE_FIELDS[code]])
+      ) {
+        return [];
+      }
+      return [record.date];
+    });
+    if (
+      effectiveDates.length === 0 ||
+      entry.first_date > effectiveDates[0] ||
+      entry.last_date < effectiveDates[effectiveDates.length - 1]
+    ) {
+      return `指数 ${code} 来源日期未覆盖有效收盘价。`;
+    }
+    if (
+      !isValidDate(entry.sha256_covers_through) ||
+      entry.sha256_covers_through > entry.last_date
+    ) {
+      return `指数 ${code} 来源快照哈希元数据无效。`;
+    }
+    if (
+      (entry.source_snapshot_hash_status === INDEX_SNAPSHOT_HASH_RECORDED &&
+        entry.sha256_covers_through !== entry.last_date) ||
+      (entry.source_snapshot_hash_status ===
+        INDEX_SNAPSHOT_HASH_TAIL_EVIDENCE_ABSENT &&
+        entry.sha256_covers_through >= entry.last_date) ||
+      (entry.source_snapshot_hash_status !== INDEX_SNAPSHOT_HASH_RECORDED &&
+        entry.source_snapshot_hash_status !==
+          INDEX_SNAPSHOT_HASH_TAIL_EVIDENCE_ABSENT)
+    ) {
+      return `指数 ${code} 来源快照哈希元数据无效。`;
+    }
+  }
 
-    return (
-      isNonEmptyString(entry.source) &&
-      isValidDate(entry.first_date) &&
-      isValidDate(entry.last_date) &&
-      entry.first_date <= entry.last_date &&
-      typeof entry.sha256 === "string" &&
-      SHA256_RE.test(entry.sha256)
-    );
-  });
+  return null;
 }
 
 function validateDfcf(value: unknown): boolean {
@@ -855,8 +909,9 @@ export async function validateLeveragePackage(
   if (!isObject(manifestValue.market_cap)) {
     return failure("市值发布元数据无效。");
   }
-  if (!validateIndices(manifestValue.indices)) {
-    return failure("指数来源元数据无效。");
+  const indexReason = validateIndices(manifestValue.indices, payloadValue.records);
+  if (indexReason !== null) {
+    return failure(indexReason);
   }
 
   const ratioMetadata = validateRatioMetadata(

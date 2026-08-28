@@ -125,9 +125,14 @@ export interface LeverageManifest {
     LeverageIndexCode,
     {
       source: string;
+      path: string;
       first_date: string;
       last_date: string;
       sha256: string;
+      sha256_covers_through: string;
+      source_snapshot_hash_status:
+        | "recorded"
+        | "tail_snapshot_evidence_absent";
     }
   >;
   description?: string;

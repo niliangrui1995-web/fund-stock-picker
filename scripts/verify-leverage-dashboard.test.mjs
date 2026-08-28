@@ -387,3 +387,29 @@ test("拒绝比例缺失记录数与实际 N/A 不一致", async () => {
     /比例缺失记录数与实际 N\/A 记录不一致/,
   );
 });
+
+test("拒绝指数来源日期早于发布包的最后有效收盘价", async () => {
+  const published = await readPublishedPackage();
+  const payload = clonePackage(published.payload);
+  const manifest = clonePackage(published.manifest);
+  manifest.indices["000001"].last_date = "2026-08-21";
+  const serialized = serializePackage(payload, manifest);
+
+  assert.throws(
+    () => verifyLeverageDashboard(serialized.payloadText, serialized.manifestText),
+    /指数 000001 来源日期未覆盖有效收盘价/,
+  );
+});
+
+test("拒绝把本地 TDX 厂商指数来源伪装为官方来源", async () => {
+  const published = await readPublishedPackage();
+  const payload = clonePackage(published.payload);
+  const manifest = clonePackage(published.manifest);
+  manifest.indices["399006"].source = "交易所官方日线";
+  const serialized = serializePackage(payload, manifest);
+
+  assert.throws(
+    () => verifyLeverageDashboard(serialized.payloadText, serialized.manifestText),
+    /指数 399006 来源描述无效/,
+  );
+});

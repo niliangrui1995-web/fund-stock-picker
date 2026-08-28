@@ -419,12 +419,18 @@ export function makeOfficialPre2017UnavailableManifestText(
 
 export function makeIndexManifest() {
   const entry = {
-    source: "TDX 本地当前数据",
+    source: "本地 TDX 厂商日线（用于三指数收盘价；未做交易所或指数编制方原始链复核）",
     first_date: "2011-08-03",
     last_date: "2017-01-03",
     sha256: "b".repeat(64),
+    sha256_covers_through: "2017-01-03",
+    source_snapshot_hash_status: "recorded" as const,
   };
-  return { "000001": entry, "399106": entry, "399006": entry };
+  return {
+    "000001": { ...entry, path: "fixture/000001.day" },
+    "399106": { ...entry, path: "fixture/399106.day" },
+    "399006": { ...entry, path: "fixture/399006.day" },
+  };
 }
 
 export function makeManifestWithPayloadHash(
