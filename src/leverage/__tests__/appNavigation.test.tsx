@@ -11,6 +11,14 @@ vi.mock("../LeverageDashboard", async () => {
   };
 });
 
+vi.mock("../../concentration/TradingConcentrationDashboard", async () => {
+  const { createElement } = await import("react");
+  return {
+    TradingConcentrationDashboard: () =>
+      createElement("div", { "data-testid": "loaded-concentration-dashboard" }, "交易集中度独立页面已加载"),
+  };
+});
+
 vi.mock("../LeverageMarketSummary", async () => {
   const { createElement } = await import("react");
   return {
@@ -110,19 +118,22 @@ afterEach(async () => {
 });
 
 describe("独立页面导航", () => {
-  it("/research 只呈现研究页，并提供三个真实页面链接", async () => {
+  it("/research 只呈现研究页，并提供四个真实页面链接", async () => {
     await renderAt("/research");
 
     expect(container.querySelector('[data-page="research"]')).not.toBeNull();
     expect(container.querySelector(".search-zone")).not.toBeNull();
     expect(container.querySelector(".methodology-section")).toBeNull();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-concentration-dashboard"]')).toBeNull();
     expect(container.querySelector('[data-testid="loaded-market-summary"]')).toBeNull();
     expect(navigationLink("研究").getAttribute("href")).toBe("/research");
     expect(navigationLink("两融").getAttribute("href")).toBe("/leverage");
+    expect(navigationLink("交易集中度").getAttribute("href")).toBe("/concentration");
     expect(navigationLink("方法论").getAttribute("href")).toBe("/methodology");
     expect(navigationLink("研究").getAttribute("aria-current")).toBe("page");
     expect(navigationLink("两融").hasAttribute("aria-current")).toBe(false);
+    expect(navigationLink("交易集中度").hasAttribute("aria-current")).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -133,6 +144,7 @@ describe("独立页面导航", () => {
     expect(container.querySelector('[data-testid="portfolio-workbench"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="loaded-market-summary"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-concentration-dashboard"]')).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -144,7 +156,20 @@ describe("独立页面导航", () => {
     expect(container.querySelector(".search-zone")).toBeNull();
     expect(container.querySelector(".methodology-section")).toBeNull();
     expect(container.querySelector('[data-testid="loaded-market-summary"]')).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-concentration-dashboard"]')).toBeNull();
     expect(navigationLink("两融").getAttribute("aria-current")).toBe("page");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("/concentration 只按需加载交易集中度页面，不读取基金持仓数据", async () => {
+    await renderAt("/concentration");
+
+    expect(container.querySelector('[data-page="concentration"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="loaded-concentration-dashboard"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(container.querySelector(".search-zone")).toBeNull();
+    expect(container.querySelector(".methodology-section")).toBeNull();
+    expect(navigationLink("交易集中度").getAttribute("aria-current")).toBe("page");
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -155,6 +180,7 @@ describe("独立页面导航", () => {
     expect(container.querySelector(".methodology-section")).not.toBeNull();
     expect(container.querySelector(".search-zone")).toBeNull();
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
+    expect(container.querySelector('[data-testid="loaded-concentration-dashboard"]')).toBeNull();
     expect(navigationLink("方法论").getAttribute("aria-current")).toBe("page");
     expect(fetch).not.toHaveBeenCalled();
   });

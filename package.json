@@ -19,6 +19,8 @@
     "verify:leverage": "node scripts/verify-leverage-dashboard.mjs",
     "verify:leverage:build": "node scripts/verify-leverage-build.mjs",
     "qa:leverage": "node scripts/qa-leverage-browser.mjs",
+    "verify:concentration": "node scripts/verify-trading-concentration-dashboard.mjs",
+    "test:concentration": "node --test scripts/verify-trading-concentration-dashboard.test.mjs && vitest run src/concentration/__tests__ && tsc --noEmit",
     "qa:research": "node scripts/qa-research-browser.mjs"
   },
   "dependencies": {

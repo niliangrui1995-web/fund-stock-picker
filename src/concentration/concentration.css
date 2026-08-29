@@ -1,0 +1,391 @@
+.concentration-dashboard {
+  margin-top: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(203, 93, 50, 0.1), transparent 26%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(252, 249, 246, 0.95)),
+    var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.concentration-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 30px 24px;
+  border-bottom: 1px solid var(--line-soft);
+  background:
+    repeating-linear-gradient(110deg, transparent 0 22px, rgba(203, 93, 50, 0.026) 22px 23px),
+    linear-gradient(135deg, rgba(245, 158, 11, 0.08), transparent 43%);
+}
+
+.concentration-eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #b44b29;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.concentration-dashboard-header h2,
+.concentration-dashboard-state h2 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: clamp(23px, 2.2vw, 31px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+
+.concentration-dashboard-header p,
+.concentration-dashboard-state p {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.concentration-header-status {
+  display: grid;
+  min-width: 176px;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid rgba(180, 75, 41, 0.18);
+  border-radius: 9px;
+  background: rgba(255, 252, 248, 0.75);
+  color: #9a4c31;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.concentration-header-status strong {
+  color: #425167;
+  font-size: 12px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.concentration-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 30px;
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.concentration-controls > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.concentration-period-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.concentration-period-toggle button {
+  min-height: 33px;
+  padding: 0 12px;
+  border: 1px solid rgba(71, 85, 105, 0.15);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #526178;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
+}
+
+.concentration-period-toggle button:hover {
+  border-color: rgba(203, 93, 50, 0.5);
+  color: #9e3e23;
+  transform: translateY(-1px);
+}
+
+.concentration-period-toggle button.is-active {
+  border-color: #b94e2c;
+  background: #b94e2c;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(185, 78, 44, 0.18);
+}
+
+.concentration-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px 30px;
+}
+
+.concentration-summary-card {
+  display: grid;
+  align-content: start;
+  min-height: 125px;
+  padding: 17px 18px;
+  border: 1px solid rgba(71, 85, 105, 0.12);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.concentration-summary-card > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.concentration-summary-card strong {
+  margin-top: 10px;
+  color: #1e293b;
+  font-size: clamp(17px, 1.6vw, 22px);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+.concentration-summary-card small {
+  margin-top: 9px;
+  color: #708097;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.concentration-summary-primary {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(203, 93, 50, 0.26);
+  background: linear-gradient(135deg, #fff8f3, #fff);
+}
+
+.concentration-summary-primary::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #cb5d32;
+  content: "";
+}
+
+.concentration-summary-primary strong,
+.concentration-summary-card strong.is-up {
+  color: #b64b2a;
+}
+
+.concentration-summary-card strong.is-down {
+  color: #16836f;
+}
+
+.concentration-summary-volume {
+  border-color: rgba(217, 134, 51, 0.18);
+  background: linear-gradient(135deg, #fffbf4, #fff);
+}
+
+.concentration-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(258px, 0.31fr);
+  gap: 16px;
+  padding: 0 30px 30px;
+}
+
+.concentration-chart-panel,
+.concentration-disclosure {
+  border: 1px solid rgba(71, 85, 105, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.concentration-chart-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.concentration-chart-panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.concentration-chart-panel-head span,
+.concentration-chart-panel-head em {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.concentration-chart-panel-head strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-strong);
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.concentration-chart-panel-head em {
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #f7f4f1;
+  color: #7c6258;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.concentration-chart-wrap {
+  min-height: 440px;
+  padding: 4px 6px 0;
+}
+
+.concentration-chart-canvas {
+  width: 100%;
+  min-height: 430px;
+}
+
+.concentration-disclosure {
+  align-self: start;
+  overflow: hidden;
+}
+
+.concentration-disclosure details {
+  height: 100%;
+}
+
+.concentration-disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 17px;
+  color: var(--ink-strong);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  list-style: none;
+}
+
+.concentration-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.concentration-disclosure summary small {
+  color: #8a6b5e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.concentration-disclosure-content {
+  display: grid;
+  gap: 10px;
+  padding: 0 17px 17px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.concentration-disclosure-content p {
+  margin: 0;
+  color: #58687d;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.concentration-disclosure-content .concentration-disclosure-warning {
+  padding: 9px 10px;
+  border-radius: 7px;
+  background: #fff8f3;
+  color: #9a5235;
+}
+
+.concentration-dashboard-state {
+  padding: 30px;
+}
+
+.concentration-dashboard-state.is-blocked {
+  border-color: rgba(185, 78, 44, 0.28);
+  background: linear-gradient(135deg, #fff8f4, #fff);
+}
+
+.concentration-dashboard-state small {
+  display: block;
+  margin-top: 12px;
+  color: #9a5235;
+  font-size: 11px;
+}
+
+@media (max-width: 1040px) {
+  .concentration-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .concentration-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .concentration-disclosure {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .concentration-dashboard-header,
+  .concentration-controls,
+  .concentration-chart-panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .concentration-dashboard-header,
+  .concentration-controls {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .concentration-header-status,
+  .concentration-period-toggle {
+    width: 100%;
+  }
+
+  .concentration-period-toggle {
+    justify-content: flex-start;
+  }
+
+  .concentration-period-toggle button {
+    flex: 1 1 64px;
+  }
+
+  .concentration-summary-grid,
+  .concentration-workspace {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .concentration-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .concentration-workspace {
+    padding-bottom: 18px;
+  }
+
+  .concentration-chart-panel-head {
+    padding: 16px;
+  }
+
+  .concentration-chart-panel-head em {
+    white-space: normal;
+  }
+
+  .concentration-chart-wrap,
+  .concentration-chart-canvas {
+    min-height: 360px;
+  }
+}

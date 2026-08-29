@@ -11,7 +11,7 @@ const SMTP_HOST = "smtp.qq.com";
 const SMTP_PORT = 465;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const APP_PAGE_PATHS = new Set(["/research", "/leverage", "/methodology"]);
+const APP_PAGE_PATHS = new Set(["/research", "/leverage", "/concentration", "/methodology"]);
 
 function jsonResponse(payload, init = {}) {
   return new Response(JSON.stringify(payload), {

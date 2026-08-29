@@ -26,6 +26,11 @@ const LazyLeverageDashboard = lazy(() =>
     default: LeverageDashboard,
   })),
 );
+const LazyTradingConcentrationDashboard = lazy(() =>
+  import("./concentration/TradingConcentrationDashboard").then(({ TradingConcentrationDashboard }) => ({
+    default: TradingConcentrationDashboard,
+  })),
+);
 const LazyLeverageMarketSummary = lazy(() =>
   import("./leverage/LeverageMarketSummary").then(({ LeverageMarketSummary }) => ({
     default: LeverageMarketSummary,
@@ -1184,6 +1189,18 @@ function LeverageModuleFallback() {
   );
 }
 
+function ConcentrationModuleFallback() {
+  return (
+    <div className="leverage-entry-card" role="status" aria-live="polite">
+      <span className="leverage-entry-kicker">交易集中度</span>
+      <span className="leverage-entry-copy">
+        <span className="leverage-entry-title">正在加载数据</span>
+        <span className="leverage-entry-description">请稍候。</span>
+      </span>
+    </div>
+  );
+}
+
 type TurnstileRenderOptions = {
   sitekey: string;
   action: string;
@@ -1755,7 +1772,7 @@ export function App() {
   // 如果加载失败，解除 isAppLoading，进入 EmptyState 显示红色的错误载入面板，方便用户排查。
   const isAppLoading = loading && !error;
   const disclaimerText =
-    page === "leverage"
+    page === "leverage" || page === "concentration"
       ? "数据仅供趋势参考，不构成投资建议。"
       : "本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。";
 
@@ -1768,6 +1785,8 @@ export function App() {
       <h1 className="visually-hidden">
         {page === "leverage"
           ? "两融数据看板"
+          : page === "concentration"
+            ? "A股交易集中度"
           : page === "methodology"
             ? "基金持仓穿透方法论"
             : "海外股票基金持仓查询与基金重仓股穿透"}
@@ -1795,6 +1814,14 @@ export function App() {
             两融
           </a>
           <a
+            href={appPagePath("concentration")}
+            className={page === "concentration" ? "active" : ""}
+            aria-current={page === "concentration" ? "page" : undefined}
+            onClick={handleTopNavigation}
+          >
+            交易集中度
+          </a>
+          <a
             href={appPagePath("methodology")}
             className={page === "methodology" ? "active" : ""}
             aria-current={page === "methodology" ? "page" : undefined}
@@ -1806,7 +1833,11 @@ export function App() {
         <div className="topbar-meta">
           <span>
             <CalendarDays size={16} />
-            {page === "leverage" ? "市场数据" : data?.meta.report ?? fundQuarter.report}
+            {page === "leverage"
+              ? "市场数据"
+              : page === "concentration"
+                ? "成交额集中度"
+                : data?.meta.report ?? fundQuarter.report}
           </span>
           <span>
             <Database size={16} />
@@ -1816,6 +1847,8 @@ export function App() {
                 : "载入中"
               : page === "leverage"
                 ? "融资与指数"
+                : page === "concentration"
+                  ? "通达信日线"
                 : "基金持仓口径"}
           </span>
         </div>
@@ -2092,6 +2125,14 @@ export function App() {
         <section className="leverage-section" aria-label="两融数据">
           <Suspense fallback={<LeverageModuleFallback />}>
             <LazyLeverageDashboard />
+          </Suspense>
+        </section>
+      )}
+
+      {page === "concentration" && (
+        <section className="leverage-section" aria-label="交易集中度数据">
+          <Suspense fallback={<ConcentrationModuleFallback />}>
+            <LazyTradingConcentrationDashboard />
           </Suspense>
         </section>
       )}

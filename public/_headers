@@ -22,6 +22,9 @@
 /leverage
   Cache-Control: no-cache
 
+/concentration
+  Cache-Control: no-cache
+
 /methodology
   Cache-Control: no-cache
 
@@ -46,6 +49,12 @@
   Cache-Control: public, max-age=3600, stale-while-revalidate=86400
 
 /data/leverage-dashboard.manifest.json
+  Cache-Control: no-cache
+
+/data/trading-concentration-dashboard.json
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/data/trading-concentration-dashboard.manifest.json
   Cache-Control: no-cache
 
 /seo/*

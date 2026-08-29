@@ -1,10 +1,11 @@
-export const appPages = ["research", "leverage", "methodology"] as const;
+export const appPages = ["research", "leverage", "concentration", "methodology"] as const;
 
 export type AppPage = (typeof appPages)[number];
 
 const pagePaths: Record<AppPage, string> = {
   research: "/research",
   leverage: "/leverage",
+  concentration: "/concentration",
   methodology: "/methodology",
 };
 
