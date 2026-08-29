@@ -1,4 +1,4 @@
-export type DenominatorSource = "sh000002_plus_sz399107" | "sh880005";
+export type DenominatorSource = "sh880008";
 export type NumeratorScope = "sh_sz_active_a" | "sh_sz_bj_active_a";
 
 export interface ConcentrationRecord {

@@ -12,7 +12,7 @@ const records: ConcentrationRecord[] = [
     market_amount_yi: 100,
     active_stock_count: 20,
     top5_stock_count: 1,
-    denominator_source: "sh880005",
+    denominator_source: "sh880008",
     numerator_scope: "sh_sz_bj_active_a",
   },
   {
@@ -23,7 +23,7 @@ const records: ConcentrationRecord[] = [
     market_amount_yi: 100,
     active_stock_count: 20,
     top5_stock_count: 1,
-    denominator_source: "sh880005",
+    denominator_source: "sh880008",
     numerator_scope: "sh_sz_bj_active_a",
   },
   {
@@ -34,7 +34,7 @@ const records: ConcentrationRecord[] = [
     market_amount_yi: 100,
     active_stock_count: 20,
     top5_stock_count: 1,
-    denominator_source: "sh880005",
+    denominator_source: "sh880008",
     numerator_scope: "sh_sz_bj_active_a",
   },
 ];

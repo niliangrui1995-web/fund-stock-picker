@@ -76,9 +76,7 @@ function Disclosure({ payload, manifest }: { payload: ConcentrationDashboardPayl
           <p>来源：{payload.provenance.source}。</p>
           <p>计算：{payload.provenance.definition}</p>
           <p>样本：{payload.provenance.active_stock_rule}</p>
-          <p>
-            分母：2016-01-26 前为 `sh000002 + sz399107`，其后为 `sh880005`。
-          </p>
+          <p>分母：全期间使用 `sh880008.day.amount`（通达信全A等权 AMOUNT 字段）。</p>
           <p>北交所：自 2022-08-02 起纳入分子候选池。</p>
           <p>
             叠加：{manifest.comparison_index_input.name}（{manifest.comparison_index_input.code}）取
@@ -158,7 +156,7 @@ export function TradingConcentrationDashboard() {
           <p>观察成交额是否向少数交易活跃 A 股集中；C5 越高，说明当日成交更集中。同步叠加创业板指观察市场风格。</p>
         </div>
         <div className="concentration-header-status">
-          <span>通达信市场汇总口径</span>
+          <span>{loaded.payload.provenance.metric_name}</span>
           <strong>数据截至 {latest.date}</strong>
         </div>
       </header>
@@ -184,7 +182,7 @@ export function TradingConcentrationDashboard() {
         <article className="concentration-summary-card concentration-summary-primary">
           <span>最新 C5</span>
           <strong>{latest.c5_pct.toFixed(2)}%</strong>
-          <small>{latest.date}，前 5% 个股成交额占全市场成交额</small>
+          <small>{latest.date}，前 5% 个股成交额占全A等权 AMOUNT</small>
         </article>
         <article className="concentration-summary-card">
           <span>较上一交易日</span>
@@ -199,7 +197,7 @@ export function TradingConcentrationDashboard() {
           <small>{universeLabel}范围，前 {latest.top5_stock_count.toLocaleString("zh-CN")} 只纳入分子</small>
         </article>
         <article className="concentration-summary-card concentration-summary-volume">
-          <span>市场成交额</span>
+          <span>全A等权 AMOUNT</span>
           <strong>{formatYi(latest.market_amount_yi)}</strong>
           <small>前 5% 合计 {formatYi(latest.top5_amount_yi)}</small>
         </article>

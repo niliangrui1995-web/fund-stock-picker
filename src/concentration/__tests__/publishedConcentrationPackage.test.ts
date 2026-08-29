@@ -22,7 +22,15 @@ describe("已发布交易集中度数据包", () => {
     expect(result.payload.records.length).toBeGreaterThan(3000);
     expect((result.payload.records[0]?.date ?? "") >= "2013-01-01").toBe(true);
     expect(result.payload.records[result.payload.records.length - 1]?.date).toBe(result.manifest.data_range.end);
-    expect(result.payload.records.some((record) => record.date === "2016-01-26" && record.denominator_source === "sh880005")).toBe(true);
+    expect(result.payload.records.every((record) => record.denominator_source === "sh880008")).toBe(true);
+    expect(result.manifest.denominator_segments).toEqual([
+      {
+        start: "2013-01-01",
+        end: result.manifest.data_range.end,
+        source: "sh880008",
+        formula: "sh880008.day.amount",
+      },
+    ]);
     expect(result.payload.records.some((record) => record.date === "2022-08-02" && record.numerator_scope === "sh_sz_bj_active_a")).toBe(true);
     expect(result.payload.records.some((record) => record.chinext_close !== null && record.chinext_close > 0)).toBe(true);
     expect(result.manifest.comparison_index_input.code).toBe("399006");

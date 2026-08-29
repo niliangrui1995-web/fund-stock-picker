@@ -69,7 +69,7 @@ function tooltipText(
     `创业板指：收盘 ${comparisonClose === null ? "暂无" : comparisonClose.toFixed(2)}；对比值 ${comparisonValue === null ? "暂无" : comparisonValue.toFixed(2)}`,
     `对比基准：${comparison.baseDate === null ? "暂无" : `${comparison.baseDate} = 100`}`,
     `前 5% 成交额：${record.top5_amount_yi.toFixed(0)} 亿元`,
-    `市场成交额：${record.market_amount_yi.toFixed(0)} 亿元`,
+    `全A等权 AMOUNT：${record.market_amount_yi.toFixed(0)} 亿元`,
     `成交活跃 A 股：${record.active_stock_count.toLocaleString("zh-CN")} 只`,
     `统计范围：${scope}（前 ${record.top5_stock_count.toLocaleString("zh-CN")} 只）`,
   ].join("<br/>");
@@ -147,10 +147,7 @@ export function buildConcentrationChartOption(records: ConcentrationRecord[]): E
           silent: true,
           lineStyle: { color: "rgba(71, 85, 105, 0.42)", type: "dashed" },
           label: { color: "#64748b", fontSize: 10 },
-          data: [
-            { xAxis: "2016-01-26", label: { formatter: "分母切换" } },
-            { xAxis: "2022-08-02", label: { formatter: "北交所纳入" } },
-          ],
+          data: [{ xAxis: "2022-08-02", label: { formatter: "北交所纳入" } }],
         },
       },
       {

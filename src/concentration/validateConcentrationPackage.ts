@@ -9,7 +9,6 @@ import type {
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const DENOMINATOR_SWITCH_DATE = "2016-01-26";
 const BEIJING_UNIVERSE_SWITCH_DATE = "2022-08-02";
 
 type JsonObject = Record<string, unknown>;
@@ -48,7 +47,7 @@ function isValidDate(value: unknown): value is string {
 }
 
 function isDenominatorSource(value: unknown): value is DenominatorSource {
-  return value === "sh000002_plus_sz399107" || value === "sh880005";
+  return value === "sh880008";
 }
 
 function isNumeratorScope(value: unknown): value is NumeratorScope {
@@ -96,10 +95,8 @@ function parseRecord(value: unknown, index: number): ConcentrationRecord | strin
   if (!isDenominatorSource(value.denominator_source) || !isNumeratorScope(value.numerator_scope)) {
     return `records[${index}] 的分子或分母口径无效。`;
   }
-  const expectedDenominator =
-    value.date < DENOMINATOR_SWITCH_DATE ? "sh000002_plus_sz399107" : "sh880005";
-  if (value.denominator_source !== expectedDenominator) {
-    return `records[${index}] 的分母切换日期不一致。`;
+  if (value.denominator_source !== "sh880008") {
+    return `records[${index}] 的分母来源不一致。`;
   }
   const expectedScope = value.date < BEIJING_UNIVERSE_SWITCH_DATE ? "sh_sz_active_a" : "sh_sz_bj_active_a";
   if (value.numerator_scope !== expectedScope) {
@@ -168,6 +165,17 @@ function parseManifest(value: unknown, records: ConcentrationRecord[]): Concentr
   }
   if (!Array.isArray(value.denominator_segments) || !Array.isArray(value.numerator_segments)) {
     return "发布清单分段信息无效。";
+  }
+  const [denominatorSegment] = value.denominator_segments;
+  if (
+    value.denominator_segments.length !== 1 ||
+    !isObject(denominatorSegment) ||
+    denominatorSegment.start !== "2013-01-01" ||
+    denominatorSegment.end !== lastRecord?.date ||
+    denominatorSegment.source !== "sh880008" ||
+    denominatorSegment.formula !== "sh880008.day.amount"
+  ) {
+    return "发布清单分母口径不一致。";
   }
   if (
     !isObject(value.comparison_index_input) ||

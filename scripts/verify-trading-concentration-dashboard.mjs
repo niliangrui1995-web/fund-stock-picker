@@ -59,8 +59,7 @@ function validateRecord(record, index, previousDate) {
   );
   const recomputed = (record.top5_amount_yi / record.market_amount_yi) * 100;
   assert(Math.abs(recomputed - record.c5_pct) <= 0.0002, `第 ${index + 1} 条记录 C5 反算不一致。`);
-  const expectedDenominator = record.date < "2016-01-26" ? "sh000002_plus_sz399107" : "sh880005";
-  assert(record.denominator_source === expectedDenominator, `第 ${index + 1} 条记录分母分段不一致。`);
+  assert(record.denominator_source === "sh880008", `第 ${index + 1} 条记录分母来源不一致。`);
   const expectedScope = record.date < "2022-08-02" ? "sh_sz_active_a" : "sh_sz_bj_active_a";
   assert(record.numerator_scope === expectedScope, `第 ${index + 1} 条记录北交所纳入口径不一致。`);
 }
@@ -97,9 +96,12 @@ export async function verifyTradingConcentrationDashboard({ dataDirectory = defa
   );
   assert(
     Array.isArray(manifest.denominator_segments) &&
-      manifest.denominator_segments.some((segment) => segment?.start === "2013-01-01" && segment?.end === "2016-01-25") &&
-      manifest.denominator_segments.some((segment) => segment?.start === "2016-01-26"),
-    "manifest 分母切换说明缺失。",
+      manifest.denominator_segments.length === 1 &&
+      manifest.denominator_segments[0]?.start === "2013-01-01" &&
+      manifest.denominator_segments[0]?.end === manifest.data_range.end &&
+      manifest.denominator_segments[0]?.source === "sh880008" &&
+      manifest.denominator_segments[0]?.formula === "sh880008.day.amount",
+    "manifest 统一分母说明缺失。",
   );
   assert(
     Array.isArray(manifest.numerator_segments) &&
@@ -128,7 +130,7 @@ export async function verifyTradingConcentrationDashboard({ dataDirectory = defa
   );
   assert(
     typeof manifest.scope_warning === "string" &&
-      manifest.scope_warning.includes("2016-01-26") &&
+      manifest.scope_warning.includes("sh880008.day.amount") &&
       manifest.scope_warning.includes("2022-08-02") &&
       manifest.scope_warning.includes("不插值"),
     "manifest 口径边界提示不完整。",
