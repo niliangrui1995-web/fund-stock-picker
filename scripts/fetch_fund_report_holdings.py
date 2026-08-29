@@ -9,11 +9,13 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import fitz
 import requests
 
+from atomic_publish import publish_staged_files
 from quarter_config import cutoff_date_for_quarter, load_quarter_config, report_label
 from spreadsheet_safety import safe_csv_row
 
@@ -544,12 +546,12 @@ def main() -> int:
     if args.limit:
         candidates = candidates[: args.limit]
 
-    output_path = ROOT / args.output_dir / f"holdings_fund_investment_{slug}.csv"
-    summary_path = ROOT / args.output_dir / f"fund_report_holdings_summary_{slug}.json"
+    published_output_path = ROOT / args.output_dir / f"holdings_fund_investment_{slug}.csv"
+    published_summary_path = ROOT / args.output_dir / f"fund_report_holdings_summary_{slug}.json"
     cache_root = ROOT / args.cache_dir / slug
     report_cache_dir = cache_root / "report_list"
     pdf_cache_dir = cache_root / "reports"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    published_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     started = time.time()
     status_counts: dict[str, int] = {}
@@ -557,37 +559,64 @@ def main() -> int:
     rows_written = 0
     processed = 0
 
-    with output_path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle, quoting=csv.QUOTE_ALL)
-        writer.writerow(safe_csv_row(HOLDING_HEADERS))
-        with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
-            futures = {
-                executor.submit(
-                    fetch_one_fund,
-                    fund,
-                    year=year,
-                    quarter=quarter_num,
-                    report_cache_dir=report_cache_dir,
-                    pdf_cache_dir=pdf_cache_dir,
-                    refresh=args.refresh,
-                    candidate_scope=args.candidate_scope,
-                ): fund
-                for fund in candidates
-            }
-            for future in as_completed(futures):
-                processed += 1
-                try:
-                    result = future.result()
-                except Exception as exc:
-                    result = {
-                        "fund": futures[future],
-                        "status": "error",
-                        "rows": [],
-                        "error": str(exc),
-                    }
-                    status = "error"
+    with TemporaryDirectory(prefix=f".{slug}-reports-", dir=published_output_path.parent) as staging_dir_text:
+        staging_dir = Path(staging_dir_text)
+        output_path = staging_dir / published_output_path.name
+        summary_path = staging_dir / published_summary_path.name
+
+        with output_path.open("w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.writer(handle, quoting=csv.QUOTE_ALL)
+            writer.writerow(safe_csv_row(HOLDING_HEADERS))
+            with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
+                futures = {
+                    executor.submit(
+                        fetch_one_fund,
+                        fund,
+                        year=year,
+                        quarter=quarter_num,
+                        report_cache_dir=report_cache_dir,
+                        pdf_cache_dir=pdf_cache_dir,
+                        refresh=args.refresh,
+                        candidate_scope=args.candidate_scope,
+                    ): fund
+                    for fund in candidates
+                }
+                for future in as_completed(futures):
+                    processed += 1
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        result = {
+                            "fund": futures[future],
+                            "status": "error",
+                            "rows": [],
+                            "error": str(exc),
+                        }
+                        status = "error"
+                        status_counts[status] = status_counts.get(status, 0) + 1
+                        candidate_results.append(candidate_result_record(result))
+                        if args.progress_every and processed % args.progress_every == 0:
+                            print(
+                                json.dumps(
+                                    {
+                                        "processed": processed,
+                                        "fund_count": len(candidates),
+                                        "rows_written": rows_written,
+                                        "status_counts": status_counts,
+                                        "last_error": str(exc),
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                                flush=True,
+                            )
+                        continue
+                    status = result["status"]
                     status_counts[status] = status_counts.get(status, 0) + 1
                     candidate_results.append(candidate_result_record(result))
+                    rows = result.get("rows", [])
+                    if rows:
+                        writer.writerows(safe_csv_row(row) for row in rows)
+                        rows_written += len(rows)
                     if args.progress_every and processed % args.progress_every == 0:
                         print(
                             json.dumps(
@@ -596,50 +625,40 @@ def main() -> int:
                                     "fund_count": len(candidates),
                                     "rows_written": rows_written,
                                     "status_counts": status_counts,
-                                    "last_error": str(exc),
+                                    "elapsed_seconds": round(time.time() - started, 1),
                                 },
                                 ensure_ascii=False,
                             ),
                             flush=True,
                         )
-                    continue
-                status = result["status"]
-                status_counts[status] = status_counts.get(status, 0) + 1
-                candidate_results.append(candidate_result_record(result))
-                rows = result.get("rows", [])
-                if rows:
-                    writer.writerows(safe_csv_row(row) for row in rows)
-                    rows_written += len(rows)
-                if args.progress_every and processed % args.progress_every == 0:
-                    print(
-                        json.dumps(
-                            {
-                                "processed": processed,
-                                "fund_count": len(candidates),
-                                "rows_written": rows_written,
-                                "status_counts": status_counts,
-                                "elapsed_seconds": round(time.time() - started, 1),
-                            },
-                            ensure_ascii=False,
-                        ),
-                        flush=True,
-                    )
 
-    candidate_results.sort(key=lambda item: item["fundCode"])
-    summary = {
-        "report": report_label(year, quarter_num),
-        "candidate_scope": args.candidate_scope,
-        "candidate_fund_count": len(candidates),
-        "rows_written": rows_written,
-        "output_csv": str(output_path),
-        "status_counts": status_counts,
-        "candidate_results": candidate_results,
-        "elapsed_seconds": round(time.time() - started, 1),
-        "source_stock_csv": str(stock_csv),
-        "cache_dir": str(cache_root),
-        "configured_quarter": quarter.report,
-    }
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        candidate_results.sort(key=lambda item: item["fundCode"])
+        error_count = status_counts.get("error", 0)
+        if error_count > 0:
+            raise RuntimeError(
+                f"基金定期报告抓取包含 error 状态 {error_count} 条，拒绝覆盖上一版发布文件"
+            )
+        summary = {
+            "report": report_label(year, quarter_num),
+            "candidate_scope": args.candidate_scope,
+            "candidate_fund_count": len(candidates),
+            "rows_written": rows_written,
+            "output_csv": str(published_output_path),
+            "status_counts": status_counts,
+            "candidate_results": candidate_results,
+            "elapsed_seconds": round(time.time() - started, 1),
+            "source_stock_csv": str(stock_csv),
+            "cache_dir": str(cache_root),
+            "configured_quarter": quarter.report,
+        }
+        summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        publish_staged_files(
+            [
+                (output_path, published_output_path),
+                (summary_path, published_summary_path),
+            ]
+        )
+
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 

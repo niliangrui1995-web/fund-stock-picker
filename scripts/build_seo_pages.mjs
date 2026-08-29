@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -243,6 +244,204 @@ export function validateQuarterPayload(quarterConfig, payload, dataPath = quarte
       `Configured cutoffDate is ${quarterConfig.cutoffDate}, but ${dataPath} contains ${payload?.meta?.cutoffDate || "unknown"}.`,
     );
   }
+
+  const meta = payload.meta;
+  for (const field of ["generatedAt", "sourceFile", "purchaseLimitFetchedAt", "purchaseLimitSource", "shippedStockScope"]) {
+    if (typeof meta[field] !== "string" || meta[field].trim().length === 0) {
+      throw new Error(`${dataPath} meta.${field} must be a non-empty string.`);
+    }
+  }
+  if (Number.isNaN(Date.parse(meta.generatedAt))) {
+    throw new Error(`${dataPath} meta.generatedAt must be a valid date-time.`);
+  }
+
+  for (const field of [
+    "sourceRows",
+    "fundInvestmentSourceRows",
+    "stockCount",
+    "totalStockCount",
+    "purchaseLimitCount",
+    "indirectExposureRows",
+    "overseasStockCount",
+    "shippedStockCount",
+  ]) {
+    if (!Number.isInteger(meta[field]) || meta[field] < 0) {
+      throw new Error(`${dataPath} meta.${field} must be a non-negative integer.`);
+    }
+  }
+  if (
+    !Array.isArray(meta.purchaseLimitNetValueDates)
+    || meta.purchaseLimitNetValueDates.length === 0
+    || meta.purchaseLimitNetValueDates.some((value) => typeof value !== "string" || value.trim().length === 0)
+  ) {
+    throw new Error(`${dataPath} meta.purchaseLimitNetValueDates must be a non-empty string array.`);
+  }
+  if (!["all", "overseas"].includes(meta.shippedStockScope)) {
+    throw new Error(`${dataPath} meta.shippedStockScope must be "all" or "overseas".`);
+  }
+
+  if (!Array.isArray(payload.popularStocks)) {
+    throw new Error(`${dataPath} popularStocks must be an array.`);
+  }
+  if (!Array.isArray(payload.stocks) || payload.stocks.length === 0) {
+    throw new Error(`${dataPath} stocks must be a non-empty array.`);
+  }
+  const stockCodes = new Set();
+  for (const [index, stock] of payload.stocks.entries()) {
+    if (typeof stock?.code !== "string" || stock.code.trim().length === 0) {
+      throw new Error(`${dataPath} stocks[${index}].code must be a non-empty string.`);
+    }
+    if (stockCodes.has(stock.code)) {
+      throw new Error(`${dataPath} contains duplicate stock code ${stock.code}.`);
+    }
+    stockCodes.add(stock.code);
+    if (typeof stock?.name !== "string" || stock.name.trim().length === 0) {
+      throw new Error(`${dataPath} stocks[${index}].name must be a non-empty string.`);
+    }
+    for (const field of ["fundCount", "activeFundCount", "excludedIndexFundCount"]) {
+      if (!Number.isInteger(stock[field]) || stock[field] < 0) {
+        throw new Error(`${dataPath} stocks[${index}].${field} must be a non-negative integer.`);
+      }
+    }
+    if (stock.activeFundCount > stock.fundCount) {
+      throw new Error(`${dataPath} stocks[${index}].activeFundCount cannot exceed fundCount.`);
+    }
+    if (
+      stock.totalMarketValueWan !== null
+      && (!Number.isFinite(stock.totalMarketValueWan) || stock.totalMarketValueWan < 0)
+    ) {
+      throw new Error(`${dataPath} stocks[${index}].totalMarketValueWan must be null or non-negative.`);
+    }
+    if (!Number.isFinite(stock.maxRatioPercent) || stock.maxRatioPercent < 0) {
+      throw new Error(`${dataPath} stocks[${index}].maxRatioPercent must be non-negative and finite.`);
+    }
+    for (const field of ["topByRatio", "topByValue"]) {
+      if (!Array.isArray(stock[field])) {
+        throw new Error(`${dataPath} stocks[${index}].${field} must be an array.`);
+      }
+    }
+  }
+  const popularCodes = new Set();
+  for (const [index, stock] of payload.popularStocks.entries()) {
+    if (typeof stock?.code !== "string" || stock.code.trim().length === 0) {
+      throw new Error(`${dataPath} popularStocks[${index}].code must be a non-empty string.`);
+    }
+    if (!stockCodes.has(stock.code)) {
+      throw new Error(`${dataPath} popularStocks[${index}].code must exist in stocks.`);
+    }
+    if (popularCodes.has(stock.code)) {
+      throw new Error(`${dataPath} contains duplicate popular stock code ${stock.code}.`);
+    }
+    popularCodes.add(stock.code);
+    if (typeof stock?.name !== "string" || stock.name.trim().length === 0) {
+      throw new Error(`${dataPath} popularStocks[${index}].name must be a non-empty string.`);
+    }
+    for (const field of ["fundCount", "activeFundCount"]) {
+      if (!Number.isInteger(stock[field]) || stock[field] < 0) {
+        throw new Error(`${dataPath} popularStocks[${index}].${field} must be a non-negative integer.`);
+      }
+    }
+    if (stock.activeFundCount > stock.fundCount) {
+      throw new Error(`${dataPath} popularStocks[${index}].activeFundCount cannot exceed fundCount.`);
+    }
+    if (!Number.isFinite(stock.maxRatioPercent) || stock.maxRatioPercent < 0) {
+      throw new Error(`${dataPath} popularStocks[${index}].maxRatioPercent must be non-negative and finite.`);
+    }
+  }
+  if (meta.stockCount !== payload.stocks.length) {
+    throw new Error(`${dataPath} meta.stockCount must equal stocks.length.`);
+  }
+  if (meta.shippedStockCount !== payload.stocks.length) {
+    throw new Error(`${dataPath} meta.shippedStockCount must equal stocks.length.`);
+  }
+  if (meta.totalStockCount < meta.stockCount) {
+    throw new Error(`${dataPath} meta.totalStockCount must be at least meta.stockCount.`);
+  }
+  if (meta.shippedStockScope === "overseas" && meta.overseasStockCount !== payload.stocks.length) {
+    throw new Error(`${dataPath} meta.overseasStockCount must equal stocks.length for overseas scope.`);
+  }
+  if (meta.shippedStockScope === "all" && meta.totalStockCount !== payload.stocks.length) {
+    throw new Error(`${dataPath} meta.totalStockCount must equal stocks.length for all scope.`);
+  }
+}
+
+export async function publishTextFiles(entries, {
+  copyPath = copyFile,
+  removePath = rm,
+  renamePath = rename,
+  writePath = writeFile,
+} = {}) {
+  const token = randomUUID();
+  const targets = entries.map((entry) => path.resolve(entry.path));
+  if (new Set(targets).size !== targets.length) {
+    throw new Error("SEO 发布事务不能包含重复目标文件。");
+  }
+  const artifacts = entries.map((entry) => {
+    const target = path.resolve(entry.path);
+    const basename = path.basename(target);
+    const parent = path.dirname(target);
+    return {
+      content: entry.content,
+      encoding: entry.encoding ?? "utf8",
+      target,
+      stage: path.join(parent, `.${basename}.stage-${token}`),
+      backup: path.join(parent, `.${basename}.rollback-${token}`),
+      hadTarget: false,
+    };
+  });
+  const published = [];
+  let preserveBackups = false;
+
+  try {
+    for (const artifact of artifacts) {
+      await mkdir(path.dirname(artifact.target), { recursive: true });
+      await writePath(artifact.stage, artifact.content, artifact.encoding);
+      try {
+        await copyPath(artifact.target, artifact.backup);
+        artifact.hadTarget = true;
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+    }
+
+    try {
+      for (const artifact of artifacts) {
+        await renamePath(artifact.stage, artifact.target);
+        published.push(artifact);
+      }
+    } catch (publishError) {
+      const rollbackErrors = [];
+      for (const artifact of [...published].reverse()) {
+        try {
+          if (artifact.hadTarget) {
+            await renamePath(artifact.backup, artifact.target);
+          } else {
+            await removePath(artifact.target, { force: true });
+          }
+        } catch (rollbackError) {
+          rollbackErrors.push(
+            `${artifact.target}: ${rollbackError.message}; backup=${artifact.backup}`,
+          );
+        }
+      }
+      if (rollbackErrors.length > 0) {
+        preserveBackups = true;
+        throw new Error(
+          `SEO 发布失败且部分文件无法回滚：${rollbackErrors.join("; ")}`,
+          { cause: publishError },
+        );
+      }
+      throw publishError;
+    }
+  } finally {
+    await Promise.allSettled(
+      artifacts.flatMap((artifact) => [
+        artifact.stage,
+        ...(preserveBackups ? [] : [artifact.backup]),
+      ])
+        .map((artifactPath) => removePath(artifactPath, { force: true })),
+    );
+  }
 }
 
 async function main() {
@@ -251,30 +450,29 @@ async function main() {
   const payload = await loadQuarterPayload(quarterConfig);
   validateQuarterPayload(quarterConfig, payload, dataPath);
 
-  await rm(STOCKS_DIR, { recursive: true, force: true });
-  await mkdir(SEO_DIR, { recursive: true });
-  await rm(path.join(SEO_DIR, "stock-page.css"), { force: true });
-  await rm(path.join(SEO_DIR, "share.js"), { force: true });
-
   const indirectExposure = await indirectExposureReleaseEvidence(quarterConfig, payload);
   indirectExposure.portfolioRelease = await portfolioReleaseEvidence(quarterConfig);
-  await writeFile(
-    quarterConfig.paths.releaseCheckJson,
-    releaseCheckManifest(quarterConfig, payload, indirectExposure),
-    "utf8",
-  );
-  await writeFile(path.join("public", "og-image.svg"), ogImage(quarterConfig.report), "utf8");
-  await writeFile(path.join("public", "sitemap.xml"), sitemap(), "utf8");
-  await writeFile(
-    path.join("public", "robots.txt"),
-    `User-agent: *
+  await publishTextFiles([
+    {
+      path: quarterConfig.paths.releaseCheckJson,
+      content: releaseCheckManifest(quarterConfig, payload, indirectExposure),
+    },
+    { path: path.join("public", "og-image.svg"), content: ogImage(quarterConfig.report) },
+    { path: path.join("public", "sitemap.xml"), content: sitemap() },
+    {
+      path: path.join("public", "robots.txt"),
+      content: `User-agent: *
 Allow: /
 Disallow: /api/
 
 Sitemap: ${SITE_URL}/sitemap.xml
 `,
-    "utf8",
-  );
+    },
+  ]);
+
+  await rm(STOCKS_DIR, { recursive: true, force: true });
+  await rm(path.join(SEO_DIR, "stock-page.css"), { force: true });
+  await rm(path.join(SEO_DIR, "share.js"), { force: true });
 
   console.log("Generated release assets without static stock pages.");
 }

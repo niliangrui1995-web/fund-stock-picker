@@ -285,16 +285,15 @@ async function main() {
   try {
     const currentReleaseManifest = await readJson(TARGET_EXPECTED.releaseCheckJson);
     addFreshnessCheck(
-      "current public/seo/quarter-release-check.json purchase-limit snapshot is fresh enough for the 2026-06-30 cutover",
+      "current public/seo/quarter-release-check.json purchase-limit snapshot is fresh enough on the verification date",
       evaluatePurchaseLimitSnapshotFreshness(currentReleaseManifest.dataMeta, {
-        asOfDate: TARGET_EXPECTED.cutoffDate,
         releaseLabel: TARGET_EXPECTED.report,
         snapshotPath: TARGET_EXPECTED.releaseCheckJson,
       }),
     );
   } catch (error) {
     addCheck(
-      "current public/seo/quarter-release-check.json purchase-limit snapshot is fresh enough for the 2026-06-30 cutover",
+      "current public/seo/quarter-release-check.json purchase-limit snapshot is fresh enough on the verification date",
       false,
       error.message,
     );
@@ -306,9 +305,8 @@ async function main() {
       validateQuarterPayload(targetQuarter, targetPayload);
       addCheck("existing 2026Q2 frontend data meta matches the target quarter", true);
       addFreshnessCheck(
-        "existing 2026Q2 frontend data purchase-limit snapshot is fresh enough for the 2026-06-30 cutover",
+        "existing 2026Q2 frontend data purchase-limit snapshot is fresh enough on the verification date",
         evaluatePurchaseLimitSnapshotFreshness(targetPayload.meta, {
-          asOfDate: TARGET_EXPECTED.cutoffDate,
           releaseLabel: TARGET_EXPECTED.report,
           snapshotPath: TARGET_EXPECTED.fundStockIndexJson,
         }),

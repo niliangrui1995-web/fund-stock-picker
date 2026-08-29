@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import copy
+import csv
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+import build_fund_stock_index as index_builder
 from build_fund_stock_index import (
     build_portfolio_release,
     json_utf8_bytes,
@@ -328,6 +330,242 @@ class PortfolioReleaseTests(unittest.TestCase):
                 )
 
             self.assertEqual(manifest_path.read_text(encoding="utf-8"), '{"releaseId":"old"}')
+
+    def test_main_keeps_previous_core_files_when_portfolio_publish_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / "data"
+            seo_dir = Path(temp_dir) / "seo"
+            data_dir.mkdir()
+            seo_dir.mkdir()
+            target_json = data_dir / "fund-stock-index-2026q2.json"
+            holdings_json = data_dir / "fund-holdings-2026q2.json"
+            audit_path = seo_dir / "indirect-exposure-audit-2026q2.md"
+            old_files = {
+                target_json: b"old index",
+                holdings_json: b"old holdings",
+                audit_path: b"old audit",
+            }
+            for path, content in old_files.items():
+                path.write_bytes(content)
+
+            payload = {
+                "meta": {
+                    "report": "2026Q2",
+                    "generatedAt": "2026-08-30T00:00:00",
+                    "cutoffDate": "2026-06-30",
+                    "sourceRows": 1,
+                    "fundInvestmentSourceRows": 0,
+                    "stockCount": 1,
+                },
+                "popularStocks": [],
+                "stocks": [],
+                "fundHoldings": {"000001": []},
+            }
+            portfolio_inputs = {
+                "stockRows": {},
+                "directFunds": {},
+                "indirectCandidates": {},
+                "indirectCoverage": {},
+                "fundHoldings": {},
+            }
+            manifest = {"releaseId": "2026q2-test-release"}
+
+            with (
+                mock.patch.object(index_builder, "TARGET_JSON", target_json),
+                mock.patch.object(index_builder, "INDIRECT_EXPOSURE_AUDIT_MD", audit_path),
+                mock.patch.object(
+                    index_builder,
+                    "build_index_with_audit",
+                    return_value=(copy.deepcopy(payload), "new audit", portfolio_inputs),
+                ),
+                mock.patch.object(
+                    index_builder,
+                    "build_portfolio_release",
+                    return_value=(manifest, {}),
+                ),
+                mock.patch.object(
+                    index_builder,
+                    "write_portfolio_release",
+                    side_effect=OSError("injected portfolio publish failure"),
+                ),
+            ):
+                with self.assertRaisesRegex(OSError, "injected portfolio publish failure"):
+                    index_builder.main()
+
+            for path, content in old_files.items():
+                self.assertEqual(path.read_bytes(), content)
+
+    def test_main_rolls_back_core_files_and_manifest_when_group_publish_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / "data"
+            seo_dir = Path(temp_dir) / "seo"
+            data_dir.mkdir()
+            seo_dir.mkdir()
+            target_json = data_dir / "fund-stock-index-2026q2.json"
+            holdings_json = data_dir / "fund-holdings-2026q2.json"
+            audit_path = seo_dir / "indirect-exposure-audit-2026q2.md"
+            manifest_path = data_dir / "fund-portfolio-index-2026q2.manifest.json"
+            old_files = {
+                target_json: b"old index",
+                holdings_json: b"old holdings",
+                audit_path: b"old audit",
+                manifest_path: b"old manifest",
+            }
+            for path, content in old_files.items():
+                path.write_bytes(content)
+
+            payload = {
+                "meta": {
+                    "report": "2026Q2",
+                    "generatedAt": "2026-08-30T00:00:00",
+                    "cutoffDate": "2026-06-30",
+                    "sourceRows": 1,
+                    "fundInvestmentSourceRows": 0,
+                    "stockCount": 1,
+                },
+                "popularStocks": [],
+                "stocks": [],
+                "fundHoldings": {"000001": []},
+            }
+            portfolio_inputs = {
+                "stockRows": {},
+                "directFunds": {},
+                "indirectCandidates": {},
+                "indirectCoverage": {},
+                "fundHoldings": {},
+            }
+            manifest = {"releaseId": "2026q2-test-release"}
+            release_dir = data_dir / "fund-portfolio-index-2026q2" / manifest["releaseId"]
+            original_replace = Path.replace
+
+            def fail_holdings_publish(path: Path, target: Path):
+                if Path(target) == holdings_json:
+                    raise OSError("injected grouped publish failure")
+                return original_replace(path, target)
+
+            def stage_portfolio(
+                target_manifest: Path,
+                target_release_dir: Path,
+                _release_id: str,
+                _manifest: dict,
+                _shards: dict,
+                *,
+                publish_manifest: bool = True,
+            ):
+                target_release_dir.mkdir(parents=True)
+                staged_manifest = target_manifest.with_name(".new-portfolio-manifest.json")
+                staged_manifest.write_bytes(b"new manifest")
+                if publish_manifest:
+                    staged_manifest.replace(target_manifest)
+                    return None
+                return staged_manifest
+
+            with (
+                mock.patch.object(index_builder, "TARGET_JSON", target_json),
+                mock.patch.object(index_builder, "INDIRECT_EXPOSURE_AUDIT_MD", audit_path),
+                mock.patch.object(
+                    index_builder,
+                    "build_index_with_audit",
+                    return_value=(copy.deepcopy(payload), "new audit", portfolio_inputs),
+                ),
+                mock.patch.object(
+                    index_builder,
+                    "build_portfolio_release",
+                    return_value=(manifest, {}),
+                ),
+                mock.patch.object(
+                    index_builder,
+                    "write_portfolio_release",
+                    side_effect=stage_portfolio,
+                ),
+                mock.patch.object(Path, "replace", new=fail_holdings_publish),
+            ):
+                with self.assertRaisesRegex(OSError, "injected grouped publish failure"):
+                    index_builder.main()
+
+            for path, content in old_files.items():
+                self.assertEqual(path.read_bytes(), content)
+            self.assertFalse(release_dir.exists())
+
+    def test_build_rejects_source_row_count_mismatch_with_run_summary(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_csv = Path(temp_dir) / "holdings_stock_2026q2.csv"
+            with source_csv.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=[
+                        "基金代码",
+                        "基金名称",
+                        "基金类型",
+                        "截止日期",
+                        "序号",
+                        "证券代码",
+                        "证券名称",
+                        "占净值比例数值",
+                        "持仓市值(万元)",
+                        "持股数(万股)",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "基金代码": "000001",
+                        "基金名称": "测试基金",
+                        "基金类型": "混合型",
+                        "截止日期": "2026-06-30",
+                        "序号": "1",
+                        "证券代码": "AMD",
+                        "证券名称": "AMD",
+                        "占净值比例数值": "0.01",
+                        "持仓市值(万元)": "100",
+                        "持股数(万股)": "1",
+                    }
+                )
+
+            with (
+                mock.patch.object(index_builder, "SOURCE_CSV", source_csv),
+                mock.patch.object(
+                    index_builder,
+                    "load_summary",
+                    return_value={
+                        "report": "2026Q2",
+                        "fund_count": 1,
+                        "status_rows": 1,
+                        "selected_types": ["stock"],
+                        "holding_rows": {"stock": 2},
+                        "status_counts": {"stock": {"ok": 1}},
+                    },
+                ),
+                mock.patch.object(index_builder, "load_fund_report_summary", return_value={}),
+                mock.patch.object(index_builder, "load_purchase_limits", return_value={}),
+                mock.patch.object(index_builder, "load_purchase_limit_metadata", return_value={}),
+                mock.patch.object(index_builder, "load_exposure_aliases", return_value={}),
+                mock.patch.object(index_builder, "load_fund_investment_rows", return_value=[]),
+            ):
+                with self.assertRaisesRegex(ValueError, "holding_rows.stock"):
+                    index_builder.build_index_with_audit()
+
+    def test_source_summary_rejects_incomplete_status_coverage(self):
+        summary = {
+            "fund_count": 10,
+            "status_rows": 9,
+            "holding_rows": {"stock": 1},
+        }
+
+        with self.assertRaisesRegex(ValueError, "status_rows"):
+            index_builder.validate_source_summary(summary, 1)
+
+    def test_source_summary_rejects_fetch_errors(self):
+        summary = {
+            "fund_count": 1,
+            "status_rows": 1,
+            "selected_types": ["stock"],
+            "holding_rows": {"stock": 0},
+            "status_counts": {"stock": {"error": 1}},
+        }
+
+        with self.assertRaisesRegex(ValueError, "error"):
+            index_builder.validate_source_summary(summary, 0)
 
     def test_writer_failure_does_not_replace_old_manifest_or_reference_new_release(self):
         manifest, shards = self.build_release(

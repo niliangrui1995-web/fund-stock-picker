@@ -11,6 +11,10 @@ const MANIFEST_URL = "/data/trading-concentration-dashboard.manifest.json";
 
 type Period = "1y" | "3y" | "5y" | "10y" | "all";
 
+type DashboardFailure =
+  | { kind: "load"; reason: string }
+  | { kind: "validation"; reason: string };
+
 const PERIODS: Array<{ value: Period; label: string }> = [
   { value: "1y", label: "1 年" },
   { value: "3y", label: "3 年" },
@@ -53,13 +57,13 @@ function LoadingState({ detail }: { detail: string }) {
   );
 }
 
-function ErrorState({ reason }: { reason: string }) {
+function ErrorState({ failure }: { failure: DashboardFailure }) {
   return (
     <section className="concentration-dashboard concentration-dashboard-state is-blocked" aria-live="polite">
       <span className="concentration-eyebrow">交易集中度</span>
-      <h2>数据包未通过校验</h2>
-      <p>{reason}</p>
-      <small>页面不会使用未经校验的集中度数据。</small>
+      <h2>{failure.kind === "validation" ? "数据包未通过校验" : "数据读取失败"}</h2>
+      <p>{failure.reason}</p>
+      {failure.kind === "validation" && <small>页面不会使用未经校验的集中度数据。</small>}
     </section>
   );
 }
@@ -100,7 +104,7 @@ export function TradingConcentrationDashboard() {
     payload: ConcentrationDashboardPayload;
     manifest: ConcentrationManifest;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<DashboardFailure | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -116,7 +120,7 @@ export function TradingConcentrationDashboard() {
           return;
         }
         if (!result.ok) {
-          setError(result.reason);
+          setFailure({ kind: "validation", reason: result.reason });
           return;
         }
         setLoaded({ payload: result.payload, manifest: result.manifest });
@@ -125,7 +129,10 @@ export function TradingConcentrationDashboard() {
         if (controller.signal.aborted) {
           return;
         }
-        setError(loadError instanceof Error ? loadError.message : "交易集中度数据读取失败。");
+        setFailure({
+          kind: "load",
+          reason: loadError instanceof Error ? loadError.message : "交易集中度数据读取失败。",
+        });
       });
     return () => controller.abort();
   }, []);
@@ -137,8 +144,8 @@ export function TradingConcentrationDashboard() {
   const latest = visibleRecords[visibleRecords.length - 1] ?? null;
   const previous = visibleRecords[visibleRecords.length - 2] ?? null;
 
-  if (error !== null) {
-    return <ErrorState reason={error} />;
+  if (failure !== null) {
+    return <ErrorState failure={failure} />;
   }
   if (loaded === null || latest === null) {
     return <LoadingState detail="正在校验同源静态数据包和日度口径。" />;

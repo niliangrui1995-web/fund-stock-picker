@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { loadQuarterConfig, ROOT } from "./quarter-config.mjs";
 import { evaluatePurchaseLimitSnapshotFreshness } from "./purchase-limit-freshness.mjs";
@@ -76,9 +77,18 @@ async function fetchText(url, label) {
 }
 
 async function fetchTextWithHeaders(url, label) {
+  const response = await fetchReleaseBytes(url, label);
+  return {
+    ...response,
+    text: new TextDecoder().decode(response.bytes),
+  };
+}
+
+export async function fetchReleaseBytes(url, label) {
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
+      "accept-encoding": "identity",
       "cache-control": "no-cache",
       pragma: "no-cache",
     },
@@ -88,23 +98,14 @@ async function fetchTextWithHeaders(url, label) {
     throw new Error(`${label} returned ${response.status} ${response.statusText}`);
   }
 
-  return { text: await response.text(), headers: response.headers };
+  return {
+    bytes: new Uint8Array(await response.arrayBuffer()),
+    headers: response.headers,
+  };
 }
 
 async function fetchJson(url, label) {
-  const response = await fetch(url, {
-    cache: "no-store",
-    headers: {
-      "cache-control": "no-cache",
-      pragma: "no-cache",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`${label} returned ${response.status} ${response.statusText}`);
-  }
-
-  const text = await response.text();
+  const { text } = await fetchTextWithHeaders(url, label);
   try {
     return JSON.parse(text);
   } catch (error) {
@@ -198,6 +199,16 @@ function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function compareReleaseBytes(localBytes, liveBytes) {
+  const localSha256 = sha256(localBytes);
+  const liveSha256 = sha256(liveBytes);
+  return {
+    localSha256,
+    liveSha256,
+    matches: localSha256 === liveSha256,
+  };
+}
+
 function cacheHeaderMatches(header, expected) {
   const value = String(header ?? "").toLowerCase();
   if (expected === "no-cache") return /(?:^|,)\s*no-cache\b/.test(value);
@@ -209,6 +220,73 @@ function cacheHeaderMatches(header, expected) {
 
 function portfolioBrowserPath(quarterConfig) {
   return `data/fund-portfolio-index-${quarterConfig.slug}.manifest.json`;
+}
+
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), Math.max(1, items.length));
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index]);
+    }
+  }));
+  return results;
+}
+
+export async function verifyDeclaredPortfolioShards(manifest, {
+  concurrency = 8,
+  fetchBytes = fetchTextWithHeaders,
+  recordCheck = addCheck,
+  urlFor = liveUrl,
+} = {}) {
+  const groups = [
+    ["stock", Object.entries(manifest?.shards ?? {})],
+    ["fund detail", Object.entries(manifest?.fundDetailShards ?? {})],
+  ];
+  const entries = groups.flatMap(([kind, groupEntries]) =>
+    groupEntries.map(([key, metadata]) => ({ kind, key, metadata })),
+  );
+  const failures = [];
+  for (const [kind, groupEntries] of groups) {
+    if (groupEntries.length === 0) failures.push(`${kind}: manifest has no declared shards`);
+  }
+
+  const results = await mapWithConcurrency(entries, concurrency, async ({ kind, key, metadata }) => {
+    if (!metadata?.path || !metadata?.sha256) {
+      return `${kind} ${key}: manifest does not declare a path and SHA-256`;
+    }
+    const browserPath = `data/${metadata.path}`;
+    try {
+      const response = await fetchBytes(
+        urlFor(browserPath),
+        `live portfolio ${kind} shard ${metadata.path}`,
+      );
+      const liveHash = sha256(response.bytes);
+      const entryFailures = [];
+      if (liveHash !== metadata.sha256) {
+        entryFailures.push(`SHA-256 declared=${metadata.sha256}, live=${liveHash}`);
+      }
+      const cacheControl = response.headers.get("cache-control");
+      if (!cacheHeaderMatches(cacheControl, "release")) {
+        entryFailures.push(`Cache-Control=${cacheControl ?? "missing"}`);
+      }
+      return entryFailures.length > 0
+        ? `${kind} ${metadata.path}: ${entryFailures.join(", ")}`
+        : null;
+    } catch (error) {
+      return `${kind} ${metadata.path}: ${error.message}`;
+    }
+  });
+  failures.push(...results.filter(Boolean));
+  recordCheck(
+    `all ${entries.length} declared live portfolio shards match SHA-256 and cache policy`,
+    failures.length === 0,
+    failures.length === 0 ? `checked=${entries.length}` : failures.join("; "),
+  );
+  return { checked: entries.length, failures };
 }
 
 async function verifyLivePortfolioRelease(quarterConfig) {
@@ -229,7 +307,7 @@ async function verifyLivePortfolioRelease(quarterConfig) {
   let livePortfolioManifest;
   try {
     const response = await fetchTextWithHeaders(liveUrl(manifestPath), `live portfolio manifest ${manifestPath}`);
-    const liveManifestSha256 = sha256(response.text);
+    const liveManifestSha256 = sha256(response.bytes);
     livePortfolioManifest = JSON.parse(response.text);
     addCheck(`live portfolio manifest ${manifestPath} is reachable`, true);
     addCheck(
@@ -257,31 +335,7 @@ async function verifyLivePortfolioRelease(quarterConfig) {
     `releaseId=${formatValue(livePortfolioManifest?.releaseId)}; report=${formatValue(livePortfolioManifest?.report)}; cutoffDate=${formatValue(livePortfolioManifest?.cutoffDate)}`,
   );
 
-  const stockEntry = Object.entries(livePortfolioManifest?.shards ?? {})[0];
-  const detailEntry = Object.entries(livePortfolioManifest?.fundDetailShards ?? {})[0];
-  for (const [kind, entry] of [["stock", stockEntry], ["fund detail", detailEntry]]) {
-    if (!entry || !entry[1]?.path || !entry[1]?.sha256) {
-      addCheck(`live portfolio ${kind} manifest declaration is present`, false, "manifest does not declare a path and SHA-256");
-      continue;
-    }
-    try {
-      const response = await fetchTextWithHeaders(liveUrl(`data/${entry[1].path}`), `live portfolio ${kind} shard ${entry[1].path}`);
-      const liveHash = sha256(response.text);
-      addCheck(`live portfolio ${kind} shard ${entry[1].path} is reachable`, true);
-      addCheck(
-        `live portfolio ${kind} shard ${entry[1].path} matches declared SHA-256`,
-        liveHash === entry[1].sha256,
-        `declared=${entry[1].sha256}; live=${liveHash}`,
-      );
-      addCheck(
-        `live portfolio ${kind} shard ${entry[1].path} uses immutable-release cache policy`,
-        cacheHeaderMatches(response.headers.get("cache-control"), "release"),
-        `Cache-Control=${response.headers.get("cache-control") ?? "missing"}`,
-      );
-    } catch (error) {
-      addCheck(`live portfolio ${kind} shard ${entry[1].path} is reachable`, false, error.message);
-    }
-  }
+  await verifyDeclaredPortfolioShards(livePortfolioManifest);
 }
 
 function getHtmlAttribute(tag, name) {
@@ -543,14 +597,14 @@ async function main() {
   };
 
   const localManifestPath = path.join(ROOT, quarterConfig.paths.releaseCheckJson);
-  const localManifest = await readJson(localManifestPath);
+  const localManifestBytes = await readFile(localManifestPath);
+  const localManifest = JSON.parse(new TextDecoder().decode(localManifestBytes));
   const localManifestMismatches = manifestMismatches(localManifest, expected);
   addGroupedCheck("local config matches public/seo/quarter-release-check.json", localManifestMismatches);
   addGroupedCheck("local release manifest declares purchase limit snapshot", purchaseLimitManifestMismatches(localManifest));
   addFreshnessCheck(
-    "local release manifest purchase-limit snapshot is fresh enough for the configured cutoff",
+    "local release manifest purchase-limit snapshot is fresh enough on the verification date",
     evaluatePurchaseLimitSnapshotFreshness(localManifest.dataMeta, {
-      asOfDate: expected.cutoffDate,
       releaseLabel: expected.report,
       snapshotPath: "public/seo/quarter-release-check.json",
     }),
@@ -558,8 +612,18 @@ async function main() {
 
   let liveManifest = null;
   try {
-    liveManifest = await fetchJson(liveUrl(RELEASE_CHECK_PATH), "live quarter-release-check.json");
+    const response = await fetchTextWithHeaders(
+      liveUrl(RELEASE_CHECK_PATH),
+      "live quarter-release-check.json",
+    );
+    liveManifest = JSON.parse(response.text);
+    const comparison = compareReleaseBytes(localManifestBytes, response.bytes);
     addCheck("live seo/quarter-release-check.json is reachable", true);
+    addCheck(
+      "live quarter-release-check bytes match the local release",
+      comparison.matches,
+      `local=${comparison.localSha256}; live=${comparison.liveSha256}`,
+    );
   } catch (error) {
     addCheck("live seo/quarter-release-check.json is reachable", false, error.message);
     printResult(expected, localManifest, liveManifest);
@@ -569,9 +633,8 @@ async function main() {
   addGroupedCheck("live manifest matches local config", manifestMismatches(liveManifest, expected));
   addGroupedCheck("live release manifest declares purchase limit snapshot", purchaseLimitManifestMismatches(liveManifest));
   addFreshnessCheck(
-    "live release manifest purchase-limit snapshot is fresh enough for the configured cutoff",
+    "live release manifest purchase-limit snapshot is fresh enough on the verification date",
     evaluatePurchaseLimitSnapshotFreshness(liveManifest.dataMeta, {
-      asOfDate: expected.cutoffDate,
       releaseLabel: expected.report,
       snapshotPath: `${LIVE_ORIGIN}/${RELEASE_CHECK_PATH}`,
     }),
@@ -592,8 +655,18 @@ async function main() {
 
   let liveData = null;
   try {
-    liveData = await fetchJson(liveUrl(liveDataPath), `live data file ${liveDataPath}`);
+    const [localDataBytes, response] = await Promise.all([
+      readFile(path.join(ROOT, quarterConfig.paths.fundStockIndexJson)),
+      fetchTextWithHeaders(liveUrl(liveDataPath), `live data file ${liveDataPath}`),
+    ]);
+    liveData = JSON.parse(response.text);
+    const comparison = compareReleaseBytes(localDataBytes, response.bytes);
     addCheck(`live data file ${liveDataPath} is reachable`, true);
+    addCheck(
+      "live main fund-stock-index bytes match the local release",
+      comparison.matches,
+      `local=${comparison.localSha256}; live=${comparison.liveSha256}`,
+    );
   } catch (error) {
     addCheck(`live data file ${liveDataPath} is reachable`, false, error.message);
     printResult(expected, localManifest, liveManifest);
@@ -718,7 +791,12 @@ async function main() {
   printResult(expected, localManifest, liveManifest, liveData);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const isMainModule = process.argv[1]
+  && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+
+if (isMainModule) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

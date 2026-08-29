@@ -12,6 +12,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import requests
@@ -20,6 +21,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from atomic_publish import publish_staged_files
 from quarter_config import cutoff_date_for_quarter, load_quarter_config, month_for_quarter, report_label
 from spreadsheet_safety import append_safe_xlsx_row, safe_csv_row, safe_xlsx_value
 
@@ -557,106 +559,143 @@ def main() -> int:
         funds = funds[: args.limit]
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    fund_csv = output_dir / f"fund_list_{label}.csv"
-    status_csv = output_dir / f"fetch_status_{label}.csv"
-    holding_csvs = {
+    published_fund_csv = output_dir / f"fund_list_{label}.csv"
+    published_status_csv = output_dir / f"fetch_status_{label}.csv"
+    published_holding_csvs = {
         holding_type: output_dir / f"holdings_{holding_type}_{label}.csv" for holding_type in selected_types
     }
-    workbook_path = output_dir / f"fund_holdings_{label}.xlsx"
-    summary_path = output_dir / f"run_summary_{label}.json"
+    published_workbook_path = output_dir / f"fund_holdings_{label}.xlsx"
+    published_summary_path = output_dir / f"run_summary_{label}.json"
 
-    write_fund_list(funds, fund_csv)
-
-    started = time.time()
-    status_counts: dict[str, Counter[str]] = {holding_type: Counter() for holding_type in selected_types}
-    processed = 0
-
-    holding_handles = {
-        holding_type: holding_csvs[holding_type].open("w", newline="", encoding="utf-8-sig")
-        for holding_type in selected_types
-    }
-    try:
-        holding_writers = {
-            holding_type: csv.writer(handle, quoting=csv.QUOTE_ALL) for holding_type, handle in holding_handles.items()
+    with TemporaryDirectory(prefix=f".{label}-", dir=output_dir) as staging_dir_text:
+        staging_dir = Path(staging_dir_text)
+        fund_csv = staging_dir / published_fund_csv.name
+        status_csv = staging_dir / published_status_csv.name
+        holding_csvs = {
+            holding_type: staging_dir / path.name for holding_type, path in published_holding_csvs.items()
         }
-        for writer in holding_writers.values():
-            writer.writerow(safe_csv_row(HOLDING_HEADERS))
+        workbook_path = staging_dir / published_workbook_path.name
+        summary_path = staging_dir / published_summary_path.name
 
-        with status_csv.open("w", newline="", encoding="utf-8-sig") as status_handle:
-            status_writer = csv.writer(status_handle, quoting=csv.QUOTE_ALL)
-            status_writer.writerow(safe_csv_row(build_status_header(selected_types)))
+        write_fund_list(funds, fund_csv)
 
-            with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
-                futures = [
-                    executor.submit(
-                        fetch_one_fund,
-                        fund,
-                        selected_types,
-                        cache_root,
-                        args.refresh,
-                        args.year,
-                        args.quarter,
-                        args.topline,
-                    )
-                    for fund in funds
-                ]
-                for future in as_completed(futures):
-                    record = future.result()
-                    processed += 1
-                    for holding_type in selected_types:
-                        rows = record["holdings"].get(holding_type, [])
-                        holding_writers[holding_type].writerows(safe_csv_row(row) for row in rows)
-                        status = record["status"].get(holding_type, {}).get("status", "missing")
-                        status_counts[holding_type][status] += 1
-                    status_writer.writerow(safe_csv_row(status_row(record, selected_types)))
+        started = time.time()
+        status_counts: dict[str, Counter[str]] = {holding_type: Counter() for holding_type in selected_types}
+        processed = 0
 
-                    if args.progress_every and processed % args.progress_every == 0:
-                        elapsed = time.time() - started
-                        print(
-                            json.dumps(
-                                {
-                                    "processed": processed,
-                                    "fund_count": len(funds),
-                                    "elapsed_seconds": round(elapsed, 1),
-                                    "status_counts": {k: dict(v) for k, v in status_counts.items()},
-                                },
-                                ensure_ascii=False,
-                            ),
-                            flush=True,
+        holding_handles = {
+            holding_type: holding_csvs[holding_type].open("w", newline="", encoding="utf-8-sig")
+            for holding_type in selected_types
+        }
+        try:
+            holding_writers = {
+                holding_type: csv.writer(handle, quoting=csv.QUOTE_ALL)
+                for holding_type, handle in holding_handles.items()
+            }
+            for writer in holding_writers.values():
+                writer.writerow(safe_csv_row(HOLDING_HEADERS))
+
+            with status_csv.open("w", newline="", encoding="utf-8-sig") as status_handle:
+                status_writer = csv.writer(status_handle, quoting=csv.QUOTE_ALL)
+                status_writer.writerow(safe_csv_row(build_status_header(selected_types)))
+
+                with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as executor:
+                    futures = [
+                        executor.submit(
+                            fetch_one_fund,
+                            fund,
+                            selected_types,
+                            cache_root,
+                            args.refresh,
+                            args.year,
+                            args.quarter,
+                            args.topline,
                         )
-    finally:
-        for handle in holding_handles.values():
-            handle.close()
+                        for fund in funds
+                    ]
+                    for future in as_completed(futures):
+                        record = future.result()
+                        processed += 1
+                        for holding_type in selected_types:
+                            rows = record["holdings"].get(holding_type, [])
+                            holding_writers[holding_type].writerows(safe_csv_row(row) for row in rows)
+                            status = record["status"].get(holding_type, {}).get("status", "missing")
+                            status_counts[holding_type][status] += 1
+                        status_writer.writerow(safe_csv_row(status_row(record, selected_types)))
 
-    holding_rows = {holding_type: read_csv_row_count(path) for holding_type, path in holding_csvs.items()}
-    status_rows = read_csv_row_count(status_csv)
-    summary: dict[str, Any] = {
-        "report": report_label(args.year, args.quarter),
-        "fund_count": len(funds),
-        "status_rows": status_rows,
-        "selected_types": selected_types,
-        "holding_rows": holding_rows,
-        "status_counts": {holding_type: dict(status_counts[holding_type]) for holding_type in selected_types},
-        "fund_csv": str(fund_csv),
-        "holding_csvs": {holding_type: str(path) for holding_type, path in holding_csvs.items()},
-        "status_csv": str(status_csv),
-        "workbook": str(workbook_path),
-    }
+                        if args.progress_every and processed % args.progress_every == 0:
+                            elapsed = time.time() - started
+                            print(
+                                json.dumps(
+                                    {
+                                        "processed": processed,
+                                        "fund_count": len(funds),
+                                        "elapsed_seconds": round(elapsed, 1),
+                                        "status_counts": {k: dict(v) for k, v in status_counts.items()},
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                                flush=True,
+                            )
+        finally:
+            for handle in holding_handles.values():
+                handle.close()
 
-    sheet_summaries = build_workbook(
-        workbook_path,
-        fund_csv,
-        holding_csvs,
-        status_csv,
-        args.year,
-        args.quarter,
-        selected_types,
-        summary,
-    )
-    summary["workbook_sheets"] = sheet_summaries
-    summary["workbook_validation"] = validate_workbook(workbook_path)
-    summary["elapsed_seconds"] = round(time.time() - started, 1)
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        holding_rows = {holding_type: read_csv_row_count(path) for holding_type, path in holding_csvs.items()}
+        status_rows = read_csv_row_count(status_csv)
+        summary: dict[str, Any] = {
+            "report": report_label(args.year, args.quarter),
+            "fund_count": len(funds),
+            "status_rows": status_rows,
+            "selected_types": selected_types,
+            "holding_rows": holding_rows,
+            "status_counts": {holding_type: dict(status_counts[holding_type]) for holding_type in selected_types},
+            "fund_csv": str(published_fund_csv),
+            "holding_csvs": {
+                holding_type: str(path) for holding_type, path in published_holding_csvs.items()
+            },
+            "status_csv": str(published_status_csv),
+            "workbook": str(published_workbook_path),
+        }
+
+        failed_types = {
+            holding_type: status_counts[holding_type].get("error", 0)
+            for holding_type in selected_types
+            if status_counts[holding_type].get("error", 0) > 0
+        }
+        if failed_types:
+            raise RuntimeError(
+                "基金持仓抓取包含 error 状态，拒绝覆盖上一版发布文件："
+                + json.dumps(failed_types, ensure_ascii=False, sort_keys=True)
+            )
+
+        sheet_summaries = build_workbook(
+            workbook_path,
+            fund_csv,
+            holding_csvs,
+            status_csv,
+            args.year,
+            args.quarter,
+            selected_types,
+            summary,
+        )
+        summary["workbook_sheets"] = sheet_summaries
+        summary["workbook_validation"] = validate_workbook(workbook_path)
+        summary["elapsed_seconds"] = round(time.time() - started, 1)
+        summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        publish_staged_files(
+            [
+                (fund_csv, published_fund_csv),
+                *[
+                    (holding_csvs[holding_type], published_holding_csvs[holding_type])
+                    for holding_type in selected_types
+                ],
+                (status_csv, published_status_csv),
+                (workbook_path, published_workbook_path),
+                (summary_path, published_summary_path),
+            ]
+        )
 
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0

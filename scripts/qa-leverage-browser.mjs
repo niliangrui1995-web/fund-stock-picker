@@ -705,8 +705,8 @@ async function runMobileScenario(browser, result, baseUrl) {
       "移动端导航滚动区域尺寸无效。",
     );
     const navLinks = page.locator(".topbar-nav a");
-    assert.equal(await navLinks.count(), 3, "移动端导航应保留研究、两融、方法论。");
-    for (const expectedName of ["研究", "两融", "方法论"]) {
+    assert.equal(await navLinks.count(), 4, "移动端导航应保留研究、两融、交易集中度、方法论。");
+    for (const expectedName of ["研究", "两融", "交易集中度", "方法论"]) {
       await page.getByRole("link", { name: expectedName, exact: true }).waitFor({ state: "visible" });
     }
     const buttonMetrics = await navLinks.evaluateAll((elements) =>

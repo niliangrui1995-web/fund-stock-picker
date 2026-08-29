@@ -8,6 +8,7 @@
     "hotspots": "node scripts/build_ai_battle_hotspots.mjs",
     "seo": "npm run hotspots && node scripts/build_seo_pages.mjs",
     "preflight:2026q2": "node scripts/preflight-2026q2-release.mjs",
+    "test:release-gates": "node --test scripts/purchase-limit-freshness.test.mjs scripts/build-seo-pages.test.mjs scripts/verify-live-release.test.mjs && python -B scripts/test_atomic_generators.py -v && python -B scripts/test_build_fund_portfolio_index.py -v",
     "test:portfolio": "python scripts/test_build_fund_portfolio_index.py -v && node --test scripts/verify-portfolio-index.test.mjs && vitest run src/portfolio/__tests__",
     "verify:portfolio": "node scripts/verify-portfolio-index.mjs",
     "verify-live-release": "node scripts/verify-live-release.mjs",
@@ -21,6 +22,7 @@
     "qa:leverage": "node scripts/qa-leverage-browser.mjs",
     "verify:concentration": "node scripts/verify-trading-concentration-dashboard.mjs",
     "test:concentration": "node --test scripts/verify-trading-concentration-dashboard.test.mjs && vitest run src/concentration/__tests__ && tsc --noEmit",
+    "qa:concentration": "node scripts/qa-concentration-browser.mjs",
     "qa:research": "node scripts/qa-research-browser.mjs"
   },
   "dependencies": {

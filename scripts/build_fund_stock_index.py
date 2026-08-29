@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from atomic_publish import publish_staged_files
 from quarter_config import load_quarter_config
 
 
@@ -158,6 +159,53 @@ def load_summary() -> dict[str, Any]:
         return {}
     with SUMMARY_JSON.open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
+
+
+def validate_source_summary(summary: dict[str, Any], actual_stock_rows: int) -> None:
+    summary_holding_rows = summary.get("holding_rows")
+    expected_stock_rows = (
+        summary_holding_rows.get("stock") if isinstance(summary_holding_rows, dict) else None
+    )
+    if not isinstance(expected_stock_rows, int) or isinstance(expected_stock_rows, bool):
+        raise ValueError("run summary holding_rows.stock 缺失或不是整数")
+    if expected_stock_rows != actual_stock_rows:
+        raise ValueError(
+            "run summary holding_rows.stock 与实际有效股票持仓行数不一致："
+            f"summary={expected_stock_rows}, actual={actual_stock_rows}"
+        )
+    fund_count = summary.get("fund_count")
+    status_rows = summary.get("status_rows")
+    if not isinstance(fund_count, int) or isinstance(fund_count, bool) or fund_count < 0:
+        raise ValueError("run summary fund_count 缺失或不是非负整数")
+    if not isinstance(status_rows, int) or isinstance(status_rows, bool) or status_rows < 0:
+        raise ValueError("run summary status_rows 缺失或不是非负整数")
+    if status_rows != fund_count:
+        raise ValueError(
+            "run summary status_rows 未覆盖全部基金："
+            f"status_rows={status_rows}, fund_count={fund_count}"
+        )
+    selected_types = summary.get("selected_types")
+    if not isinstance(selected_types, list) or "stock" not in selected_types:
+        raise ValueError("run summary selected_types 必须包含 stock")
+    status_counts = summary.get("status_counts")
+    stock_status_counts = status_counts.get("stock") if isinstance(status_counts, dict) else None
+    if not isinstance(stock_status_counts, dict):
+        raise ValueError("run summary status_counts.stock 缺失或不是对象")
+    normalized_counts: dict[str, int] = {}
+    for status, count in stock_status_counts.items():
+        if not isinstance(status, str) or not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise ValueError("run summary status_counts.stock 包含无效状态计数")
+        normalized_counts[status] = count
+    if sum(normalized_counts.values()) != fund_count:
+        raise ValueError(
+            "run summary status_counts.stock 未覆盖全部基金："
+            f"counted={sum(normalized_counts.values())}, fund_count={fund_count}"
+        )
+    if normalized_counts.get("error", 0) > 0:
+        raise ValueError(
+            "run summary status_counts.stock 包含 error 状态，拒绝生成发布包："
+            f"error={normalized_counts['error']}"
+        )
 
 
 def load_fund_report_summary() -> dict[str, Any]:
@@ -1840,7 +1888,9 @@ def write_portfolio_release(
     release_id: str,
     manifest: dict[str, Any],
     shards: dict[str, dict[str, Any]],
-) -> None:
+    *,
+    publish_manifest: bool = True,
+) -> Path | None:
     """Stage and validate all immutable shards before atomically replacing the manifest."""
     if manifest.get("releaseId") != release_id:
         raise ValueError("releaseId 与 manifest 不一致")
@@ -1879,6 +1929,7 @@ def write_portfolio_release(
             raise ValueError("组合分片暂存校验失败：" + "；".join(staged_errors))
         staging_dir.replace(release_dir)
         temp_manifest = manifest_path.with_name(f".{manifest_path.name}.tmp-{uuid.uuid4().hex}")
+        keep_temp_manifest = False
         try:
             published_manifest = {
                 key: value
@@ -1886,9 +1937,13 @@ def write_portfolio_release(
                 if key not in {"_buildFundDetailPayloads", "_buildExpectedFacts"}
             }
             temp_manifest.write_bytes(json_utf8_bytes(published_manifest))
-            temp_manifest.replace(manifest_path)
+            if publish_manifest:
+                temp_manifest.replace(manifest_path)
+                return None
+            keep_temp_manifest = True
+            return temp_manifest
         finally:
-            if temp_manifest.exists():
+            if temp_manifest.exists() and not keep_temp_manifest:
                 temp_manifest.unlink()
     except Exception:
         if staging_dir.exists():
@@ -1945,6 +2000,8 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             holding_existing = fund_holdings[fund["fundCode"]].get(code)
             fund_holdings[fund["fundCode"]][code] = better_holding_record(holding_existing, holding)
             row_count += 1
+
+    validate_source_summary(summary, row_count)
 
     alias_candidates = stock_alias_candidates(stock_rows, exposure_aliases)
     known_products = configured_known_products(exposure_aliases)
@@ -2212,17 +2269,7 @@ def main() -> None:
         },
         "fundHoldings": fund_holdings,
     }
-    temp_json = TARGET_JSON.with_name(f".{TARGET_JSON.name}.tmp")
-    with temp_json.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
-    temp_json.replace(TARGET_JSON)
     holdings_json = TARGET_JSON.with_name(TARGET_JSON.name.replace("fund-stock-index-", "fund-holdings-"))
-    temp_holdings = holdings_json.with_name(f".{holdings_json.name}.tmp")
-    with temp_holdings.open("w", encoding="utf-8") as handle:
-        json.dump(holdings_payload, handle, ensure_ascii=False, separators=(",", ":"))
-    temp_holdings.replace(holdings_json)
-    INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
-    INDIRECT_EXPOSURE_AUDIT_MD.write_text(audit_markdown + "\n", encoding="utf-8")
     portfolio_generated_at = datetime.now().isoformat(timespec="microseconds")
     portfolio_manifest, portfolio_shards = build_portfolio_release(
         report=payload["meta"]["report"],
@@ -2250,13 +2297,50 @@ def main() -> None:
         / f"fund-portfolio-index-{payload['meta']['report'].lower()}"
         / portfolio_manifest["releaseId"]
     )
-    write_portfolio_release(
-        portfolio_manifest_path,
-        portfolio_release_dir,
-        portfolio_manifest["releaseId"],
-        portfolio_manifest,
-        portfolio_shards,
+    stage_token = uuid.uuid4().hex
+    temp_json = TARGET_JSON.with_name(f".{TARGET_JSON.name}.tmp-{stage_token}")
+    temp_holdings = holdings_json.with_name(f".{holdings_json.name}.tmp-{stage_token}")
+    temp_audit = INDIRECT_EXPOSURE_AUDIT_MD.with_name(
+        f".{INDIRECT_EXPOSURE_AUDIT_MD.name}.tmp-{stage_token}"
     )
+    INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
+    staged_portfolio_manifest: Path | None = None
+    try:
+        with temp_json.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+        with temp_holdings.open("w", encoding="utf-8") as handle:
+            json.dump(holdings_payload, handle, ensure_ascii=False, separators=(",", ":"))
+        temp_audit.write_text(audit_markdown + "\n", encoding="utf-8")
+
+        staged_portfolio_manifest = write_portfolio_release(
+            portfolio_manifest_path,
+            portfolio_release_dir,
+            portfolio_manifest["releaseId"],
+            portfolio_manifest,
+            portfolio_shards,
+            publish_manifest=False,
+        )
+        if staged_portfolio_manifest is None:
+            raise RuntimeError("组合发布 manifest 未完成暂存")
+        publish_staged_files(
+            [
+                (temp_audit, INDIRECT_EXPOSURE_AUDIT_MD),
+                (temp_holdings, holdings_json),
+                (temp_json, TARGET_JSON),
+                (staged_portfolio_manifest, portfolio_manifest_path),
+            ]
+        )
+    except Exception:
+        if portfolio_release_dir.exists():
+            shutil.rmtree(portfolio_release_dir)
+        raise
+    finally:
+        staged_paths = [temp_json, temp_holdings, temp_audit]
+        if staged_portfolio_manifest is not None:
+            staged_paths.append(staged_portfolio_manifest)
+        for staged_path in staged_paths:
+            if staged_path.exists():
+                staged_path.unlink()
     print(
         f"Wrote {TARGET_JSON} with {payload['meta']['stockCount']} stocks "
         f"from {payload['meta']['sourceRows']} holding rows."

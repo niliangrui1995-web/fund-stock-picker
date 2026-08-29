@@ -1264,16 +1264,22 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const turnstileContainerRef = useRef<HTMLDivElement>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
+  const submitControllerRef = useRef<AbortController | null>(null);
+  const submitAttemptRef = useRef(0);
   const onCloseRef = useRef(onClose);
-  const statusRef = useRef(status);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
+    if (!open) return;
+    setContact("");
+    setMessage("");
+    setWebsite("");
+    setStatus("idle");
+    setErrorText("");
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -1283,9 +1289,9 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
     });
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && statusRef.current !== "submitting") {
+      if (event.key === "Escape") {
         event.preventDefault();
-        onCloseRef.current();
+        closeDialog();
         return;
       }
 
@@ -1315,6 +1321,12 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
+
+  useEffect(() => () => {
+    submitAttemptRef.current += 1;
+    submitControllerRef.current?.abort();
+    submitControllerRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -1370,6 +1382,20 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
     if (widgetId) window.turnstile?.reset(widgetId);
   }
 
+  function closeDialog() {
+    submitAttemptRef.current += 1;
+    submitControllerRef.current?.abort();
+    submitControllerRef.current = null;
+    setContact("");
+    setMessage("");
+    setWebsite("");
+    setStatus("idle");
+    setErrorText("");
+    setTurnstileToken("");
+    setTurnstileError("");
+    onCloseRef.current();
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!turnstileToken) {
@@ -1380,11 +1406,17 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
     setStatus("submitting");
     setErrorText("");
+    submitControllerRef.current?.abort();
+    const controller = new AbortController();
+    const attemptId = submitAttemptRef.current + 1;
+    submitAttemptRef.current = attemptId;
+    submitControllerRef.current = controller;
 
     try {
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           contact,
           message,
@@ -1398,6 +1430,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
       if (!response.ok) {
         throw new Error(payload.error || "反馈发送失败，请稍后再试。");
       }
+      if (controller.signal.aborted || attemptId !== submitAttemptRef.current) return;
 
       setStatus("success");
       setContact("");
@@ -1405,9 +1438,14 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
       setWebsite("");
       resetTurnstile();
     } catch (submitError) {
+      if (controller.signal.aborted || attemptId !== submitAttemptRef.current) return;
       setStatus("error");
       setErrorText(submitError instanceof Error ? submitError.message : "反馈发送失败，请稍后再试。");
       resetTurnstile();
+    } finally {
+      if (attemptId === submitAttemptRef.current && submitControllerRef.current === controller) {
+        submitControllerRef.current = null;
+      }
     }
   }
 
@@ -1417,7 +1455,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
         type="button"
         className="feedback-backdrop"
         aria-label="关闭意见反馈"
-        onClick={() => status !== "submitting" && onClose()}
+        onClick={closeDialog}
       />
       <section
         ref={dialogRef}
@@ -1437,7 +1475,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
             type="button"
             className="feedback-close"
             aria-label="关闭意见反馈"
-            onClick={onClose}
+            onClick={closeDialog}
           >
             <X size={18} />
           </button>
@@ -1448,7 +1486,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
             <MessageSquareText size={26} />
             <strong>已收到</strong>
             <p>我会在邮箱里查看你的反馈。</p>
-            <button type="button" onClick={onClose}>完成</button>
+            <button type="button" onClick={closeDialog}>完成</button>
           </div>
         ) : (
           <form className="feedback-form" onSubmit={handleSubmit}>

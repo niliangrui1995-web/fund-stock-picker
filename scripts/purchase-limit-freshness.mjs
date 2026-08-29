@@ -34,8 +34,16 @@ function parseCalendarDay(value, fieldName) {
   };
 }
 
+function currentLocalCalendarDay() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function evaluatePurchaseLimitSnapshotFreshness(meta, {
-  asOfDate,
+  verificationDate,
   releaseLabel = "the release",
   warnAgeDays = PURCHASE_LIMIT_SNAPSHOT_WARN_AGE_DAYS,
   failAgeDays = PURCHASE_LIMIT_SNAPSHOT_FAIL_AGE_DAYS,
@@ -52,13 +60,25 @@ export function evaluatePurchaseLimitSnapshotFreshness(meta, {
 
   try {
     const fetched = parseCalendarDay(fetchedAt, "purchaseLimitFetchedAt");
-    const asOf = parseCalendarDay(asOfDate ?? new Date().toISOString().slice(0, 10), "asOfDate");
+    const asOf = parseCalendarDay(
+      verificationDate ?? currentLocalCalendarDay(),
+      "verificationDate",
+    );
     const rawAgeDays = asOf.dayIndex - fetched.dayIndex;
-    const ageDays = Math.max(0, rawAgeDays);
+    if (rawAgeDays < 0) {
+      return {
+        status: "fail",
+        passed: false,
+        reasonCode: "future_snapshot",
+        ageDays: rawAgeDays,
+        fetchedDate: fetched.date,
+        asOfDate: asOf.date,
+        message: `${snapshotPath} purchaseLimitFetchedAt=${fetchedAt} is ${Math.abs(rawAgeDays)} calendar day(s) later than verification date ${asOf.date}; future snapshots are not publishable for ${releaseLabel}.`,
+      };
+    }
+    const ageDays = rawAgeDays;
     const status = ageDays >= failAgeDays ? "fail" : ageDays >= warnAgeDays ? "warn" : "ok";
-    const ageText = rawAgeDays >= 0
-      ? `${ageDays} calendar day(s) old as of ${asOf.date}`
-      : `${Math.abs(rawAgeDays)} calendar day(s) newer than ${asOf.date}`;
+    const ageText = `${ageDays} calendar day(s) old as of ${asOf.date}`;
     const source = meta?.purchaseLimitSource || "N/A";
     const rows = meta?.purchaseLimitCount ?? "N/A";
 
