@@ -13,10 +13,34 @@ export interface ConcentrationRecord {
   numerator_scope: NumeratorScope;
 }
 
+export interface AiChainRecord {
+  date: string;
+  ai_chain_amount_pct: number | null;
+  ai_chain_amount_yi: number | null;
+  ai_chain_active_stock_count: number;
+}
+
+export interface AiChainSeries {
+  name: "AI产业链成交额占比";
+  field: "ai_chain_amount_pct";
+  start_date: "2025-01-01";
+  records: AiChainRecord[];
+  definition: string;
+  active_stock_rule: string;
+  universe: {
+    workbook: string;
+    sheet: string;
+    code_column: string;
+    code_count: number;
+    codes_sha256: string;
+  };
+}
+
 export interface ConcentrationDashboardPayload {
   schema_version: "1";
   generated_at_beijing: string;
   records: ConcentrationRecord[];
+  ai_chain_series?: AiChainSeries;
   provenance: {
     evidence_level: "market_data_vendor";
     source: string;
@@ -31,6 +55,33 @@ export interface ConcentrationDashboardPayload {
     };
     raw_data_copied: false;
     scope_warning: string;
+  };
+}
+
+export interface AiChainManifestSeries {
+  name: "AI产业链成交额占比";
+  field: "ai_chain_amount_pct";
+  start_date: "2025-01-01";
+  data_range: { start: string | null; end: string | null };
+  records: number;
+  missing_output_records: number;
+  formula: string;
+  active_stock_rule: string;
+  universe: {
+    workbook_path: string;
+    workbook_sha256: string;
+    sheet: string;
+    code_column: string;
+    input_code_count: number;
+    resolved_code_count: number;
+    resolved_code_sha256: string;
+    non_stock_code_rows_excluded: number;
+    code_aliases: Array<{
+      source_code: string;
+      resolved_code: string;
+      source: string;
+    }>;
+    tdx_candidate_file_count: number;
   };
 }
 
@@ -71,6 +122,7 @@ export interface ConcentrationManifest {
     scope: NumeratorScope;
   }>;
   omitted_dates: Array<{ date: string; reason: string }>;
+  ai_chain_series?: AiChainManifestSeries;
 }
 
 export type ConcentrationValidationResult =

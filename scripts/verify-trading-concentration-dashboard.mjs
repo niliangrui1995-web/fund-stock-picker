@@ -18,6 +18,34 @@ function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isNonNegativeInteger(value) {
+  return Number.isInteger(value) && value >= 0;
+}
+
+function isCodeAliasList(value) {
+  return Array.isArray(value) && value.every(
+    (item) => isObject(item)
+      && typeof item.source_code === "string"
+      && /^\d{6}$/.test(item.source_code)
+      && typeof item.resolved_code === "string"
+      && /^\d{6}$/.test(item.resolved_code)
+      && isNonEmptyString(item.source),
+  );
+}
+
+function baseNameFromPath(value) {
+  const pathParts = value.replace(/\\/g, "/").split("/").filter(Boolean);
+  return pathParts[pathParts.length - 1] ?? "";
+}
+
 function isValidDate(value) {
   if (typeof value !== "string" || !DATE_RE.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);
@@ -64,6 +92,138 @@ function validateRecord(record, index, previousDate) {
   assert(record.numerator_scope === expectedScope, `第 ${index + 1} 条记录北交所纳入口径不一致。`);
 }
 
+function validateAiChainSeries(aiChainSeries, legacyRecords) {
+  assert(isObject(aiChainSeries), "AI 产业链子序列不是对象。");
+  assert(
+    aiChainSeries.name === "AI产业链成交额占比"
+      && aiChainSeries.field === "ai_chain_amount_pct"
+      && aiChainSeries.start_date === "2025-01-01"
+      && Array.isArray(aiChainSeries.records),
+    "AI 产业链子序列名称、字段、起始日或记录结构无效。",
+  );
+  assert(
+    isNonEmptyString(aiChainSeries.definition) && isNonEmptyString(aiChainSeries.active_stock_rule),
+    "AI 产业链子序列缺少定义或活跃成分规则。",
+  );
+  assert(
+    isObject(aiChainSeries.universe)
+      && isNonEmptyString(aiChainSeries.universe.workbook)
+      && isNonEmptyString(aiChainSeries.universe.sheet)
+      && isNonEmptyString(aiChainSeries.universe.code_column)
+      && Number.isInteger(aiChainSeries.universe.code_count)
+      && aiChainSeries.universe.code_count > 0
+      && typeof aiChainSeries.universe.codes_sha256 === "string"
+      && SHA256_RE.test(aiChainSeries.universe.codes_sha256),
+    "AI 产业链子序列宇宙快照无效。",
+  );
+
+  const expectedRecords = legacyRecords.filter((record) => record.date >= "2025-01-01");
+  if (aiChainSeries.records.length > 0) {
+    assert(
+      aiChainSeries.records.length === expectedRecords.length,
+      "AI 产业链子序列未完整覆盖起始日后的分母交易日。",
+    );
+  }
+  let missingOutputRecords = 0;
+  for (const [index, record] of aiChainSeries.records.entries()) {
+    const legacyRecord = expectedRecords[index];
+    assert(isObject(record) && legacyRecord !== undefined, `AI 产业链 records[${index}] 无效。`);
+    assert(
+      isValidDate(record.date) && record.date === legacyRecord.date,
+      `AI 产业链 records[${index}] 日期未与分母交易日对齐。`,
+    );
+    assert(
+      isNonNegativeInteger(record.ai_chain_active_stock_count),
+      `AI 产业链 records[${index}] 活跃成分数量无效。`,
+    );
+    const amount = record.ai_chain_amount_yi;
+    const percentage = record.ai_chain_amount_pct;
+    if (amount === null || percentage === null) {
+      assert(
+        amount === null && percentage === null && record.ai_chain_active_stock_count === 0,
+        `AI 产业链 records[${index}] 缺口字段不一致。`,
+      );
+      missingOutputRecords += 1;
+      continue;
+    }
+    assert(
+      typeof amount === "number"
+        && Number.isFinite(amount)
+        && amount > 0
+        && typeof percentage === "number"
+        && Number.isFinite(percentage)
+        && percentage > 0
+        && percentage <= 100
+        && Number.isInteger(record.ai_chain_active_stock_count)
+        && record.ai_chain_active_stock_count > 0
+        && record.ai_chain_active_stock_count <= legacyRecord.active_stock_count
+        && record.ai_chain_active_stock_count <= aiChainSeries.universe.code_count,
+      `AI 产业链 records[${index}] 成交额、占比或活跃成分数量无效。`,
+    );
+    const recomputedPercentage = (amount / legacyRecord.market_amount_yi) * 100;
+    assert(
+      Math.abs(recomputedPercentage - percentage) <= 0.0002,
+      `AI 产业链 records[${index}] 未使用同日全A等权 AMOUNT 分母反算。`,
+    );
+  }
+  return { expectedRecords, missingOutputRecords };
+}
+
+function validateAiChainManifest(aiChainManifest, aiChainSeries, missingOutputRecords) {
+  assert(isObject(aiChainManifest), "AI 产业链发布清单子序列不是对象。");
+  const expectedStart = aiChainSeries.records[0]?.date ?? null;
+  const expectedEnd = aiChainSeries.records[aiChainSeries.records.length - 1]?.date ?? null;
+  assert(
+    aiChainManifest.name === aiChainSeries.name
+      && aiChainManifest.field === aiChainSeries.field
+      && aiChainManifest.start_date === aiChainSeries.start_date
+      && isObject(aiChainManifest.data_range)
+      && aiChainManifest.data_range.start === expectedStart
+      && aiChainManifest.data_range.end === expectedEnd
+      && Number.isInteger(aiChainManifest.records)
+      && aiChainManifest.records >= 0
+      && aiChainManifest.records === aiChainSeries.records.length
+      && isNonNegativeInteger(aiChainManifest.missing_output_records)
+      && isNonEmptyString(aiChainManifest.formula)
+      && aiChainManifest.formula.includes("sh880008.day.amount")
+      && aiChainManifest.active_stock_rule === aiChainSeries.active_stock_rule,
+    "AI 产业链发布清单子序列口径或记录数无效。",
+  );
+  assert(
+    aiChainManifest.missing_output_records === missingOutputRecords,
+    "AI 产业链发布清单缺口统计不一致。",
+  );
+  const universe = aiChainManifest.universe;
+  assert(
+    isObject(universe)
+      && isNonEmptyString(universe.workbook_path)
+      && typeof universe.workbook_sha256 === "string"
+      && SHA256_RE.test(universe.workbook_sha256)
+      && universe.sheet === aiChainSeries.universe.sheet
+      && universe.code_column === aiChainSeries.universe.code_column
+      && Number.isInteger(universe.input_code_count)
+      && universe.input_code_count > 0
+      && Number.isInteger(universe.resolved_code_count)
+      && universe.resolved_code_count > 0
+      && universe.input_code_count === universe.resolved_code_count
+      && typeof universe.resolved_code_sha256 === "string"
+      && SHA256_RE.test(universe.resolved_code_sha256)
+      && isNonNegativeInteger(universe.non_stock_code_rows_excluded)
+      && isCodeAliasList(universe.code_aliases)
+      && Number.isInteger(universe.tdx_candidate_file_count)
+      && universe.tdx_candidate_file_count > 0,
+    "AI 产业链发布清单宇宙快照无效。",
+  );
+  assert(
+    aiChainSeries.universe.code_count === universe.input_code_count
+      && aiChainSeries.universe.code_count === universe.resolved_code_count
+      && aiChainSeries.universe.codes_sha256 === universe.resolved_code_sha256
+      && aiChainSeries.universe.code_count === universe.tdx_candidate_file_count
+      && baseNameFromPath(aiChainSeries.universe.workbook) === baseNameFromPath(universe.workbook_path),
+    "AI 产业链 payload 与 manifest 宇宙快照不一致。",
+  );
+}
+
 export async function verifyTradingConcentrationDashboard({ dataDirectory = defaultDataDirectory } = {}) {
   const directory = resolve(dataDirectory);
   const payloadPath = resolve(directory, "trading-concentration-dashboard.json");
@@ -87,6 +247,16 @@ export async function verifyTradingConcentrationDashboard({ dataDirectory = defa
   for (const [index, record] of payload.records.entries()) {
     validateRecord(record, index, previousDate);
     previousDate = record.date;
+  }
+  const hasPayloadAiChainSeries = hasOwn(payload, "ai_chain_series");
+  const hasManifestAiChainSeries = hasOwn(manifest, "ai_chain_series");
+  assert(
+    hasPayloadAiChainSeries === hasManifestAiChainSeries,
+    "AI 产业链子序列必须同时存在于 payload 与 manifest。",
+  );
+  if (hasPayloadAiChainSeries) {
+    const { missingOutputRecords } = validateAiChainSeries(payload.ai_chain_series, payload.records);
+    validateAiChainManifest(manifest.ai_chain_series, payload.ai_chain_series, missingOutputRecords);
   }
   assert(
     isObject(manifest.data_range) &&
@@ -142,6 +312,7 @@ export async function verifyTradingConcentrationDashboard({ dataDirectory = defa
     start: payload.records[0].date,
     end: payload.records[payload.records.length - 1].date,
     payloadSha256: manifest.payload_sha256,
+    aiChainRecords: hasPayloadAiChainSeries ? payload.ai_chain_series.records.length : 0,
   };
 }
 

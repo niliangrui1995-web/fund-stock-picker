@@ -1,6 +1,6 @@
 import type { EChartsOption } from "echarts";
 
-import type { ConcentrationRecord } from "./types";
+import type { AiChainSeries, ConcentrationRecord } from "./types";
 
 type TimeValue = [string, number | null];
 
@@ -49,6 +49,8 @@ function dateFromTooltipParams(params: unknown): string | null {
 
 function tooltipText(
   recordsByDate: Map<string, ConcentrationRecord>,
+  aiChainRecordsByDate: Map<string, AiChainSeries["records"][number]>,
+  aiChainSeries: AiChainSeries | undefined,
   comparison: ChinextComparisonSeries,
   params: unknown,
 ): string {
@@ -63,7 +65,7 @@ function tooltipText(
     comparisonClose === null || comparison.baseClose === null
       ? null
       : (comparisonClose / comparison.baseClose) * 100;
-  return [
+  const lines = [
     `<strong>${record.date}</strong>`,
     `前 5% 成交额占比：${record.c5_pct.toFixed(2)}%`,
     `创业板指：收盘 ${comparisonClose === null ? "暂无" : comparisonClose.toFixed(2)}；对比值 ${comparisonValue === null ? "暂无" : comparisonValue.toFixed(2)}`,
@@ -72,15 +74,32 @@ function tooltipText(
     `全A等权 AMOUNT：${record.market_amount_yi.toFixed(0)} 亿元`,
     `成交活跃 A 股：${record.active_stock_count.toLocaleString("zh-CN")} 只`,
     `统计范围：${scope}（前 ${record.top5_stock_count.toLocaleString("zh-CN")} 只）`,
-  ].join("<br/>");
+  ];
+  if (aiChainSeries) {
+    const aiChainRecord = aiChainRecordsByDate.get(record.date);
+    const aiChainPercentage = aiChainRecord?.ai_chain_amount_pct;
+    const aiChainAmount = aiChainRecord?.ai_chain_amount_yi;
+    lines.push(
+      `${aiChainSeries.name}：${aiChainPercentage === null || aiChainPercentage === undefined ? "暂无" : `${aiChainPercentage.toFixed(2)}%`}`,
+      `AI 产业链成交额：${aiChainAmount === null || aiChainAmount === undefined ? "暂无" : `${aiChainAmount.toFixed(0)} 亿元`}`,
+      `AI 产业链活跃成分：${aiChainRecord === undefined ? "暂无" : `${aiChainRecord.ai_chain_active_stock_count.toLocaleString("zh-CN")} 只`}`,
+    );
+  }
+  return lines.join("<br/>");
 }
 
-export function buildConcentrationChartOption(records: ConcentrationRecord[]): EChartsOption {
+export function buildConcentrationChartOption(
+  records: ConcentrationRecord[],
+  aiChainSeries?: AiChainSeries,
+): EChartsOption {
   const recordsByDate = new Map(records.map((record) => [record.date, record]));
+  const aiChainRecordsByDate = new Map(
+    (aiChainSeries?.records ?? []).map((record) => [record.date, record]),
+  );
   const comparison = buildChinextComparisonSeries(records);
   return {
     animation: false,
-    color: ["#cb5d32", "#3f6fbb"],
+    color: ["#cb5d32", "#3f6fbb", "#16836f"],
     legend: {
       top: 10,
       left: 18,
@@ -92,7 +111,13 @@ export function buildConcentrationChartOption(records: ConcentrationRecord[]): E
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "cross", label: { backgroundColor: "#253247" } },
-      formatter: (params: unknown) => tooltipText(recordsByDate, comparison, params),
+      formatter: (params: unknown) => tooltipText(
+        recordsByDate,
+        aiChainRecordsByDate,
+        aiChainSeries,
+        comparison,
+        params,
+      ),
     },
     xAxis: {
       type: "time",
@@ -103,7 +128,7 @@ export function buildConcentrationChartOption(records: ConcentrationRecord[]): E
     yAxis: [
       {
         type: "value",
-        name: "C5（%）",
+        name: "成交额占比（%）",
         position: "left",
         min: (value: { min: number }) => Math.max(0, Math.floor(value.min - 2)),
         splitLine: { lineStyle: { color: "rgba(71, 85, 105, 0.12)" } },
@@ -161,6 +186,19 @@ export function buildConcentrationChartOption(records: ConcentrationRecord[]): E
         lineStyle: { width: 2.1 },
         emphasis: { focus: "series" },
       },
+      ...(aiChainSeries
+        ? [{
+          type: "line" as const,
+          name: aiChainSeries.name,
+          data: aiChainSeries.records.map((record) => [record.date, record.ai_chain_amount_pct]),
+          yAxisIndex: 0,
+          showSymbol: false,
+          connectNulls: false,
+          sampling: "lttb" as const,
+          lineStyle: { width: 2.2 },
+          emphasis: { focus: "series" as const },
+        }]
+        : []),
     ],
   } as unknown as EChartsOption;
 }

@@ -11,7 +11,7 @@ import {
 import { CanvasRenderer } from "echarts/renderers";
 
 import { buildConcentrationChartOption } from "./concentrationChartOption";
-import type { ConcentrationRecord } from "./types";
+import type { AiChainSeries, ConcentrationRecord } from "./types";
 
 echarts.use([
   LineChart,
@@ -23,7 +23,13 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-export function TradingConcentrationChart({ records }: { records: ConcentrationRecord[] }) {
+export function TradingConcentrationChart({
+  records,
+  aiChainSeries,
+}: {
+  records: ConcentrationRecord[];
+  aiChainSeries?: AiChainSeries;
+}) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
 
@@ -49,11 +55,11 @@ export function TradingConcentrationChart({ records }: { records: ConcentrationR
   }, []);
 
   useEffect(() => {
-    chartRef.current?.setOption(buildConcentrationChartOption(records), {
+    chartRef.current?.setOption(buildConcentrationChartOption(records, aiChainSeries), {
       notMerge: true,
       lazyUpdate: true,
     });
-  }, [records]);
+  }, [aiChainSeries, records]);
 
   return (
     <div className="concentration-chart-wrap">
@@ -61,7 +67,9 @@ export function TradingConcentrationChart({ records }: { records: ConcentrationR
         ref={elementRef}
         className="concentration-chart-canvas"
         role="img"
-        aria-label="成交活跃 A 股前百分之五个股成交额占比与创业板指双轴趋势图"
+        aria-label={aiChainSeries
+          ? "C5、AI产业链成交额占比与创业板指趋势图"
+          : "成交活跃 A 股前百分之五个股成交额占比与创业板指双轴趋势图"}
       />
     </div>
   );

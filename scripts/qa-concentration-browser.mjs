@@ -245,9 +245,11 @@ async function openConcentrationPage(page, baseUrl) {
   assertCondition(response !== null && response.ok(), "交易集中度页面导航未返回成功响应。");
 }
 
-async function waitForPaintedChart(page) {
+async function waitForPaintedChart(page, hasAiChainSeries) {
   const chart = page.getByRole("img", {
-    name: "成交活跃 A 股前百分之五个股成交额占比与创业板指双轴趋势图",
+    name: hasAiChainSeries
+      ? "C5、AI产业链成交额占比与创业板指趋势图"
+      : "成交活跃 A 股前百分之五个股成交额占比与创业板指双轴趋势图",
     exact: true,
   });
   await chart.waitFor({ state: "visible", timeout: 30_000 });
@@ -284,13 +286,25 @@ async function runViewportScenario(browser, baseUrl, viewport) {
   const observed = observePage(page);
   try {
     await openConcentrationPage(page, baseUrl);
-    await page.getByRole("heading", { name: "前 5% 个股成交额占比", exact: true })
-      .waitFor({ state: "visible", timeout: 30_000 });
+    const dashboardTitle = page.locator("#concentration-dashboard-title");
+    await dashboardTitle.waitFor({ state: "visible", timeout: 30_000 });
+    const title = (await dashboardTitle.textContent())?.trim() ?? "";
+    const hasAiChainSeries = title === "交易集中度与 AI 产业链成交额占比";
+    assertCondition(
+      hasAiChainSeries || title === "前 5% 个股成交额占比",
+      `交易集中度标题不正确：${title}`,
+    );
 
     const summaryCards = page.locator(".concentration-summary-card");
     await summaryCards.first().waitFor({ state: "visible", timeout: 30_000 });
-    assertCondition(await summaryCards.count() === 4, "交易集中度关键指标卡应为 4 张。");
-    for (const label of ["最新 C5", "较上一交易日", "成交活跃 A 股", "全A等权 AMOUNT"]) {
+    const summaryLabels = hasAiChainSeries
+      ? ["最新 C5", "最新 AI产业链成交额占比", "较上一交易日", "成交活跃 A 股", "全A等权 AMOUNT"]
+      : ["最新 C5", "较上一交易日", "成交活跃 A 股", "全A等权 AMOUNT"];
+    assertCondition(
+      await summaryCards.count() === summaryLabels.length,
+      `交易集中度关键指标卡应为 ${summaryLabels.length} 张。`,
+    );
+    for (const label of summaryLabels) {
       const cardLabel = summaryCards.getByText(label, { exact: true });
       assertCondition(await cardLabel.count() === 1, `缺少关键指标卡：${label}。`);
       const card = cardLabel.locator("..");
@@ -323,7 +337,7 @@ async function runViewportScenario(browser, baseUrl, viewport) {
     assertCondition(initialRange.length > 0 && switchedRange.length > 0, "图表日期范围缺失。");
     assertCondition(initialRange !== switchedRange, "切换到 1 年后图表日期范围没有变化。");
 
-    const canvas = await waitForPaintedChart(page);
+    const canvas = await waitForPaintedChart(page, hasAiChainSeries);
     const overflow = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       documentScrollWidth: document.documentElement.scrollWidth,
@@ -343,6 +357,7 @@ async function runViewportScenario(browser, baseUrl, viewport) {
       overflow: false,
       canvas,
       periods: 5,
+      ai_chain_series: hasAiChainSeries,
       range_changed: true,
       runtime_errors: 0,
     };

@@ -127,6 +127,10 @@
   padding: 20px 30px;
 }
 
+.concentration-summary-grid.has-ai-chain-series {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .concentration-summary-card {
   display: grid;
   align-content: start;
@@ -177,6 +181,15 @@
 .concentration-summary-primary strong,
 .concentration-summary-card strong.is-up {
   color: #b64b2a;
+}
+
+.concentration-summary-ai {
+  border-color: rgba(22, 131, 111, 0.2);
+  background: linear-gradient(135deg, #f2fbf8, #fff);
+}
+
+.concentration-summary-ai strong {
+  color: #16836f;
 }
 
 .concentration-summary-card strong.is-down {
@@ -319,6 +332,12 @@
   margin-top: 12px;
   color: #9a5235;
   font-size: 11px;
+}
+
+@media (max-width: 1240px) {
+  .concentration-summary-grid.has-ai-chain-series {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1040px) {
