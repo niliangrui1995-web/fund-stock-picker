@@ -25,14 +25,14 @@
 - 按股票名称或代码搜索海外标的，例如 `NVDA`、`00700`、`TSM`、`英伟达`、`腾讯控股`。
 - 研究页可在当前浏览器建立多个命名股票组合；每个组合限 1–10 只去重的当前可搜索海外股票。保存内容仅为组合名称和股票代码，不上传、不同浏览器之间不同步；单股票搜索与旧深链仍作为临时单股研究入口。
 - 组合结果按基金家族的“总估算经济暴露”排序，并拆分直接股票持仓与已识别正向杠杆 ETP 的间接估算；场外基金（含 ETF 联接）与场内 ETF / LOF 为互斥视图。该合计是披露期末、当前已采集公开股票持仓明细的方向性估算，不是实时仓位或投资建议。
-- 组合索引独立于旧单股票前十展示数组，按所选股票分片加载当前已采集明细；基金详情仍最多展示 10 条，`未出现不代表未持有`。
+- 组合索引独立于旧单股票前十展示数组，按所选股票分片加载当前已采集明细；普通基金详情仍最多展示 10 条。2026H1 起，QDII 直接股票展示中期报告全部已披露明细，基金 / ETF 投资严格限定为报告披露的前十项；`未出现不代表未持有`。
 - 场外口径沿用原有逻辑，剔除基金类型或基金名称中包含“指数”“ETF”“ETF联接”的基金。
 - 场内口径覆盖 ETF、LOF、封闭式基金和 REIT，并排除 ETF 联接基金。
 - 对海外个股杠杆 ETF / ETP / ETN 做单独的间接暴露识别，展示原始占净值比例和按杠杆倍数折算的估算经济暴露，不并入正股直接持仓口径。
 - 首页展示海外热门标的，并支持按美股、港股、日股、韩股和其他市场筛选。
 - 首页内置“AI 战报热点”专题区，把最近高频 AI 产业链标的做成快捷卡片，点击后直接进入对应穿透结果。
 - 结果展示基金代码、合并份额代码、基金类型、净值占比、持仓市值、持股数、申购状态、赎回状态、起购金额和限购额度。
-- 点击或悬停基金行可查看该基金前十大持仓，并高亮当前查询标的。
+- 点击基金行可查看持仓详情：普通基金为当前已采集的前十大；QDII 为中期报告完整权益明细及报告披露的前十大基金 / ETF 投资，并高亮当前查询标的。
 - 页面内置意见反馈入口；反馈发送依赖部署环境变量，不在代码中保存邮箱密码或收件人地址。
 
 ## 数据快照
@@ -51,13 +51,14 @@
 | 基金持仓卡片索引 | `1,674` 个基金代码 |
 | 前端数据文件 | `public/data/fund-stock-index-<year>q<quarter>.json` |
 | 组合研究发布包 | `public/data/fund-portfolio-index-<year>q<quarter>.manifest.json` 与按股票分片 |
+| QDII 半年度详情包 | `public/data/qdii-fund-holdings-<year>h1.json`（权益全披露；基金 / ETF 前十披露） |
 | AI 战报热点来源 | `config/ai-battle-hotspot-sources.json` |
 | AI 战报热点生成配置 | `config/ai-battle-hotspots.json` |
 | 海外个股杠杆映射配置 | `config/stock-exposure-aliases.json` |
 | 季度发布自检清单 | `public/seo/quarter-release-check.json` |
 | 间接暴露维护审计 | `public/seo/indirect-exposure-audit-<year>q<quarter>.md` |
 
-前端只发布海外股票检索范围，完整源股票数量保存在数据文件的 `meta.totalStockCount` 中。`data/eastmoney_cache/` 和 `outputs/` 是本地采集、缓存和中间产物目录，不应提交到公开仓库。
+前端只发布海外股票检索范围，完整源股票数量保存在数据文件的 `meta.totalStockCount` 中。`data/eastmoney_cache/`、`data/eid_cache/` 和 `outputs/` 是本地采集、缓存和中间产物目录，不应提交到公开仓库。
 
 ## 技术栈
 
@@ -188,6 +189,7 @@ public/data/fund-stock-index-<year>q<quarter>.json
 ```powershell
 python scripts\fetch_fund_holdings.py
 python scripts\fetch_fund_report_holdings.py
+python scripts\fetch_qdii_half_year_holdings.py --year 2026 --workers 3
 python scripts\analyze_overseas_ai_exposure.py
 python scripts\build_fund_stock_index.py
 npm run build

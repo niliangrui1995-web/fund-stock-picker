@@ -1,6 +1,7 @@
 node_modules/
 dist/
 data/eastmoney_cache/
+data/eid_cache/
 outputs/
 .env
 .env.*

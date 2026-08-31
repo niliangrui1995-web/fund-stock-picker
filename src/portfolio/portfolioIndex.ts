@@ -148,8 +148,15 @@ function releaseMetadataMatches(value: JsonObject, manifest: PortfolioManifest):
   );
 }
 
+function stockFileStem(stockCode: string): string {
+  const utf8Hex = Array.from(new TextEncoder().encode(stockCode))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `stock-${utf8Hex}`;
+}
+
 function expectedStockPath(manifest: PortfolioManifest, stockCode: string): string {
-  return `fund-portfolio-index-${manifest.report.toLowerCase()}/${manifest.releaseId}/${stockCode}.json`;
+  return `fund-portfolio-index-${manifest.report.toLowerCase()}/${manifest.releaseId}/${stockFileStem(stockCode)}.json`;
 }
 
 function expectedDetailPath(manifest: PortfolioManifest, prefix: string): string {
@@ -158,9 +165,9 @@ function expectedDetailPath(manifest: PortfolioManifest, prefix: string): string
 
 function assertSafeStockCode(stockCode: string) {
   assertCondition(
-    stockCode.length > 0 &&
+      stockCode.length > 0 &&
       stockCode.trim() === stockCode &&
-      !/[\\/?#%\u0000-\u001f\u007f]/.test(stockCode),
+      !/[\u0000-\u001f\u007f]/.test(stockCode),
     `股票代码 ${stockCode || "(空)"} 不安全。`,
   );
 }
@@ -482,6 +489,7 @@ function validateProfile(
       new Set(value.fundVariantCodes).size === value.fundVariantCodes.length,
     `基金家族 ${familyKey} 份额代码无效。`,
   );
+  assertCondition(typeof value.isQdii === "boolean", `基金家族 ${familyKey} QDII 分类无效。`);
   assertCondition(typeof value.isOnExchangeFund === "boolean", `基金家族 ${familyKey} 场内分类无效。`);
   assertCondition(value.view === (value.isOnExchangeFund ? "onExchange" : "offExchange"), `基金家族 ${familyKey} 视图分类冲突。`);
   assertCondition(
@@ -660,6 +668,7 @@ function comparableProfile(profile: FundFamilyProfile): string {
     fundDisplayName: profile.fundDisplayName,
     fundType: profile.fundType,
     fundVariantCodes: profile.fundVariantCodes,
+    isQdii: profile.isQdii,
     isOnExchangeFund: profile.isOnExchangeFund,
     view: profile.view,
     detailShardKey: profile.detailShardKey,

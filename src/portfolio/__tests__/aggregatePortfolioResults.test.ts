@@ -22,6 +22,7 @@ function profile(
     fundDisplayName: fundFamilyKey,
     fundType: isOnExchangeFund ? "ETF-海外股票" : "QDII-普通股票",
     fundVariantCodes: [fundCode],
+    isQdii: !isOnExchangeFund,
     isOnExchangeFund,
     view: isOnExchangeFund ? "onExchange" : "offExchange",
     detailShardKey: "aa",

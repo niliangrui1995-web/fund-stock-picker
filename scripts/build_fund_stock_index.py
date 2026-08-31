@@ -25,7 +25,11 @@ PURCHASE_LIMIT_CSV = ROOT / "outputs" / "fund_purchase_limit_snapshot.csv"
 EXPOSURE_ALIASES_JSON = ROOT / "config" / "stock-exposure-aliases.json"
 TARGET_JSON = QUARTER.fund_stock_index_json
 FUND_REPORT_SUMMARY_JSON = ROOT / "outputs" / f"fund_report_holdings_summary_{QUARTER.slug}.json"
+QDII_H1_CSV = ROOT / "outputs" / f"holdings_qdii_{QUARTER.year}h1.csv"
+QDII_H1_SUMMARY_JSON = ROOT / "outputs" / f"qdii_half_year_holdings_summary_{QUARTER.year}.json"
+FUND_LIST_CSV = ROOT / "outputs" / f"fund_list_{QUARTER.slug}.csv"
 INDIRECT_EXPOSURE_AUDIT_MD = ROOT / "public" / "seo" / f"indirect-exposure-audit-{QUARTER.slug}.md"
+QDII_RICH_JSON = TARGET_JSON.with_name(f"qdii-fund-holdings-{QUARTER.year}h1.json")
 INDEX_FUND_MARKERS = ("指数", "ETF", "ETF联接")
 ON_EXCHANGE_FUND_MARKERS = ("ETF", "LOF", "封闭", "REIT")
 LEVERAGED_LONG_MARKERS_RE = re.compile(
@@ -43,6 +47,12 @@ CURRENCY_MARKERS = (
     "港元",
     "欧元",
 )
+
+
+def csv_text(value: str | None) -> str:
+    """Undo the CSV formula guard only when this reader needs the source value."""
+    value = (value or "").strip()
+    return value[1:] if value.startswith("\t") else value
 
 
 def parse_float(value: str | None) -> float:
@@ -81,7 +91,8 @@ JAPANESE_STOCK_NAME_RE = re.compile(
     r"东京|丰田|索尼|日立|三菱|任天堂|软银|本田|东京电子|三井|住友|瑞穗|武田|迅销|基恩士|信越|村田|电装|佳能|尼康|日本"
 )
 KOREAN_STOCK_NAME_RE = re.compile(
-    r"三星电子|SK海力士|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华|韩国电力"
+    r"三星电子|SK\s*(?:海力士|HYNIX)|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华|韩国电力",
+    re.IGNORECASE,
 )
 
 
@@ -266,16 +277,36 @@ def load_fund_investment_rows() -> list[dict[str, str]]:
 
 def load_exposure_aliases() -> dict[str, Any]:
     if not EXPOSURE_ALIASES_JSON.exists():
-        return {"stockAliases": {}, "knownProducts": []}
+        return {"stockAliases": {}, "stockCodeAliases": {}, "knownProducts": []}
     with EXPOSURE_ALIASES_JSON.open("r", encoding="utf-8-sig") as handle:
         parsed = json.load(handle)
     if isinstance(parsed, dict):
         return parsed
-    return {"stockAliases": {}, "knownProducts": []}
+    return {"stockAliases": {}, "stockCodeAliases": {}, "knownProducts": []}
 
 
 def normalize_alias_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().upper())
+
+
+def configured_stock_code_aliases(alias_config: dict[str, Any]) -> dict[str, str]:
+    raw_aliases = alias_config.get("stockCodeAliases", {})
+    if not isinstance(raw_aliases, dict):
+        return {}
+    aliases: dict[str, str] = {}
+    for raw_code, target_code in raw_aliases.items():
+        if not isinstance(raw_code, str) or not isinstance(target_code, str):
+            continue
+        normalized = normalize_alias_text(raw_code).replace(" ", "")
+        target = target_code.strip()
+        if normalized and target:
+            aliases[normalized] = target
+    return aliases
+
+
+def canonical_stock_code(code: str, aliases: dict[str, str]) -> str:
+    raw_code = code.strip()
+    return aliases.get(normalize_alias_text(raw_code).replace(" ", ""), raw_code)
 
 
 def is_ascii_alias(value: str) -> bool:
@@ -935,6 +966,7 @@ def make_fund_record(row: dict[str, str]) -> dict[str, Any]:
         "ratioPercent": rounded(ratio * 100, 2),
         "marketValueWan": rounded_optional(market_value, 2),
         "sharesWan": rounded(shares, 2),
+        "isQdii": is_qdii_record(row),
     }
 
 
@@ -950,6 +982,271 @@ def make_holding_record(row: dict[str, str]) -> dict[str, Any]:
         "ratioPercent": rounded(ratio * 100, 2),
         "marketValueWan": rounded_optional(market_value, 2),
         "sharesWan": rounded(shares, 2),
+        "securityId": row.get("证券标识", "").strip()
+        or row.get("证券代码", "").strip()
+        or f"holding-{row.get('序号', '').strip()}-{row.get('证券名称', '').strip()}",
+        "holdingType": row.get("持仓类别", "股票").strip() or "股票",
+        "disclosureScope": row.get("披露范围", "quarter_top10_equity").strip()
+        or "quarter_top10_equity",
+        "sourceUrl": row.get("来源URL", "").strip(),
+        "sourcePage": int(parse_float(row.get("页码"))) if row.get("页码", "").strip() else None,
+    }
+
+
+def is_qdii_record(row: dict[str, str]) -> bool:
+    return (
+        row.get("是否QDII", "").strip().upper() in {"Y", "YES", "TRUE", "1"}
+        or "QDII" in f"{row.get('基金名称', '')} {row.get('基金类型', '')}".upper()
+    )
+
+
+def qdii_fund_variants(report_codes: Iterable[str] = ()) -> dict[str, list[dict[str, str]]]:
+    """Return QDII share classes grouped by local family identity.
+
+    Some valid QDII products are labelled as ``指数型-海外股票`` in the
+    fund-list snapshot and do not carry a QDII marker.  A code that appears in
+    the official EID QDII report result is authoritative for this release, so
+    seed its local family and include its A/C/etc. variants as well.
+    """
+    if not FUND_LIST_CSV.exists():
+        return {}
+    report_code_set = {str(code).strip() for code in report_codes if str(code).strip()}
+    normalized_rows: list[dict[str, str]] = []
+    families_for_official_reports: set[str] = set()
+    with FUND_LIST_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+        for raw in csv.DictReader(handle):
+            row = {key: csv_text(value) for key, value in raw.items() if key}
+            normalized = {
+                "基金代码": row.get("基金代码", ""),
+                "基金名称": row.get("基金名称", ""),
+                "基金类型": row.get("基金类型", ""),
+                "是否QDII": row.get("是否QDII", ""),
+            }
+            if not normalized["基金代码"]:
+                continue
+            normalized_rows.append(normalized)
+            if normalized["基金代码"] in report_code_set:
+                families_for_official_reports.add(fund_family_key({"fundName": normalized["基金名称"]}))
+    grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for normalized in normalized_rows:
+        key = fund_family_key({"fundName": normalized["基金名称"]})
+        if not is_qdii_record(normalized) and key not in families_for_official_reports:
+            continue
+        grouped[key].append(normalized)
+    return {
+        key: sorted(value, key=lambda item: item["基金代码"])
+        for key, value in sorted(grouped.items())
+    }
+
+
+def validate_qdii_h1_summary(summary: dict[str, Any], rows: list[dict[str, str]]) -> None:
+    expected_report = f"{QUARTER.year}H1"
+    if summary.get("report") != expected_report:
+        raise ValueError(f"QDII H1 摘要报告期不一致：expected={expected_report}")
+    if summary.get("cutoffDate") != QUARTER.cutoff_date:
+        raise ValueError("QDII H1 摘要截止日期与当前基金数据期不一致")
+    if summary.get("fundType") != "6020-6050" or summary.get("reportType") != "FB020":
+        raise ValueError("QDII H1 摘要不是证监会 QDII 中期报告检索结果")
+    if summary.get("isComplete") is not True:
+        raise ValueError("QDII H1 摘要不是完整抓取结果，拒绝使用 --limit 或 --fund-code 冒烟数据")
+    report_results = summary.get("reportResults")
+    if not isinstance(report_results, list) or not report_results:
+        raise ValueError("QDII H1 摘要缺少逐报告结果")
+    if int(summary.get("reportCount") or -1) != len(report_results):
+        raise ValueError("QDII H1 摘要 reportCount 与逐报告结果数不一致")
+    errors = [item for item in report_results if isinstance(item, dict) and item.get("status") in {"error", "invalid_report_id"}]
+    if errors:
+        raise ValueError(f"QDII H1 摘要含 {len(errors)} 个失败报告，拒绝生成发布包")
+    scope_counts = summary.get("scopeCounts")
+    if not isinstance(scope_counts, dict):
+        raise ValueError("QDII H1 摘要缺少披露范围行数")
+    actual_scope_counts = Counter(row.get("披露范围", "") for row in rows)
+    if sum(actual_scope_counts.values()) != int(summary.get("holdingRows") or -1):
+        raise ValueError("QDII H1 摘要 holdingRows 与 CSV 实际行数不一致")
+    for scope in ("all_disclosed_equity", "top10_disclosed_fund_investments"):
+        if int(scope_counts.get(scope) or 0) != actual_scope_counts[scope]:
+            raise ValueError(f"QDII H1 摘要 {scope} 行数与 CSV 不一致")
+    invalid_rows = [
+        row
+        for row in rows
+        if row.get("报告期") != expected_report
+        or row.get("截止日期") != QUARTER.cutoff_date
+        or row.get("披露范围") not in {"all_disclosed_equity", "top10_disclosed_fund_investments"}
+    ]
+    if invalid_rows:
+        raise ValueError(f"QDII H1 CSV 存在 {len(invalid_rows)} 行报告期、截止日或披露范围无效")
+
+
+def load_qdii_h1_source() -> dict[str, Any] | None:
+    """Load the official H1 overlay, or return None for a normal non-H1 rebuild."""
+    if not QDII_H1_CSV.exists() and not QDII_H1_SUMMARY_JSON.exists():
+        return None
+    if not QDII_H1_CSV.exists() or not QDII_H1_SUMMARY_JSON.exists():
+        raise ValueError("QDII H1 CSV 与摘要必须同时存在，拒绝使用半成品")
+    with QDII_H1_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+        rows = [{key: csv_text(value) for key, value in raw.items() if key} for raw in csv.DictReader(handle)]
+    with QDII_H1_SUMMARY_JSON.open("r", encoding="utf-8-sig") as handle:
+        summary = json.load(handle)
+    if not isinstance(summary, dict):
+        raise ValueError("QDII H1 摘要不是对象")
+    validate_qdii_h1_summary(summary, rows)
+    report_results = [item for item in summary["reportResults"] if isinstance(item, dict)]
+    reports_by_code = {
+        str(item.get("fundCode", "")).strip(): item
+        for item in report_results
+        if str(item.get("fundCode", "")).strip()
+    }
+    if len(reports_by_code) != len(report_results):
+        raise ValueError("QDII H1 摘要包含重复或空基金代码")
+    return {
+        "rows": rows,
+        "summary": summary,
+        "reportsByCode": reports_by_code,
+        "variantsByFamily": qdii_fund_variants(reports_by_code),
+    }
+
+
+def report_family_key(report: dict[str, Any]) -> str:
+    return fund_family_key({"fundName": str(report.get("fundName", "")).strip()})
+
+
+def h1_variants_for_report(
+    report: dict[str, Any],
+    variants_by_family: dict[str, list[dict[str, str]]],
+) -> list[dict[str, str]]:
+    report_code = str(report.get("fundCode", "")).strip()
+    report_name = str(report.get("fundName", "")).strip()
+    matching_families = [
+        family_key
+        for family_key, candidates in variants_by_family.items()
+        if any(candidate["基金代码"] == report_code for candidate in candidates)
+    ]
+    if len(matching_families) > 1:
+        raise ValueError(f"QDII 报告基金代码映射到多个本地基金家族：{report_code}")
+    variants = list(variants_by_family.get(matching_families[0], [])) if matching_families else []
+    if not variants:
+        variants = list(variants_by_family.get(report_family_key(report), []))
+    if not any(item["基金代码"] == report_code for item in variants) and report_code:
+        variants.append(
+            {
+                "基金代码": report_code,
+                "基金名称": report_name,
+                "基金类型": "QDII",
+            }
+        )
+    return sorted(variants, key=lambda item: item["基金代码"])
+
+
+def expanded_h1_rows(source: dict[str, Any], *, scope: str) -> list[dict[str, str]]:
+    expanded: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    report_by_code: dict[str, dict[str, Any]] = source["reportsByCode"]
+    for row in source["rows"]:
+        if row.get("披露范围") != scope:
+            continue
+        report_code = row.get("基金代码", "").strip()
+        report = report_by_code.get(report_code)
+        if report is None:
+            raise ValueError(f"QDII H1 行未能匹配报告摘要基金代码：{report_code}")
+        for variant in h1_variants_for_report(report, source["variantsByFamily"]):
+            expanded_row = dict(row)
+            expanded_row.update(variant)
+            # The official EID QDII result set is authoritative even when the
+            # local fund-list label merely says "指数型-海外股票".
+            expanded_row["是否QDII"] = "Y"
+            expanded_row["报告基金代码"] = report_code
+            identity = (
+                expanded_row["基金代码"],
+                scope,
+                expanded_row.get("证券标识", ""),
+                expanded_row.get("证券代码", ""),
+                expanded_row.get("证券名称", ""),
+            )
+            # A/C report entries can point to the same pooled portfolio PDF.
+            # Each local share class receives that holding once, with the first
+            # official report code as its deterministic provenance.
+            if identity in seen:
+                continue
+            seen.add(identity)
+            expanded.append(expanded_row)
+    return expanded
+
+
+def qdii_rich_payload(source: dict[str, Any]) -> dict[str, Any]:
+    report_by_code: dict[str, dict[str, Any]] = source["reportsByCode"]
+    rows_by_code: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in source["rows"]:
+        rows_by_code[row.get("基金代码", "").strip()].append(row)
+    aliases: dict[str, str] = {}
+    statuses: dict[str, dict[str, Any]] = {}
+    holdings: dict[str, dict[str, Any]] = {}
+    for report_code, report in sorted(report_by_code.items()):
+        report_rows = rows_by_code.get(report_code, [])
+        equity_holdings = [
+            make_holding_record(row)
+            for row in report_rows
+            if row.get("披露范围") == "all_disclosed_equity"
+        ]
+        fund_investments = [
+            make_holding_record(row)
+            for row in report_rows
+            if row.get("披露范围") == "top10_disclosed_fund_investments"
+        ]
+        if len(fund_investments) > 10:
+            raise ValueError(f"QDII 报告 {report_code} 的前十名基金投资明细解析出 {len(fund_investments)} 条，拒绝发布")
+        holdings[report_code] = {
+            "status": "available",
+            "fundCode": report_code,
+            "fundName": str(report.get("fundName", "")).strip(),
+            "fundType": "QDII",
+            "report": f"{QUARTER.year}H1",
+            "cutoffDate": QUARTER.cutoff_date,
+            "equityDisclosureScope": "all_disclosed_equity",
+            "fundInvestmentDisclosureScope": "top10_disclosed_fund_investments",
+            "sourceUrl": str(report.get("sourceUrl", "")).strip(),
+            "sourceTitle": str(report.get("reportName", "")).strip(),
+            "publishedAt": str(report.get("reportSendDate", "")).strip(),
+            "equityHoldings": sorted(equity_holdings, key=lambda item: (item["rank"], item["securityId"])),
+            "fundInvestments": sorted(fund_investments, key=lambda item: (item["rank"], item["securityId"])),
+        }
+        aliases[report_code] = report_code
+        for variant in h1_variants_for_report(report, source["variantsByFamily"]):
+            code = variant["基金代码"]
+            aliases.setdefault(code, report_code)
+            statuses[code] = {
+                "status": "available",
+                "detailFundCode": report_code,
+                "fundName": variant["基金名称"],
+                "fundType": variant["基金类型"],
+            }
+    for variants in source["variantsByFamily"].values():
+        for variant in variants:
+            statuses.setdefault(
+                variant["基金代码"],
+                {
+                    "status": "not_reported_in_eid_h1",
+                    "fundName": variant["基金名称"],
+                    "fundType": variant["基金类型"],
+                    "reason": "未在本次证监会 QDII 中期报告检索结果中匹配到该份额；这不代表基金没有持仓。",
+                },
+            )
+    summary = source["summary"]
+    return {
+        "schemaVersion": "1",
+        "meta": {
+            "report": f"{QUARTER.year}H1",
+            "cutoffDate": QUARTER.cutoff_date,
+            "generatedAt": datetime.now().isoformat(timespec="seconds"),
+            "sourceFile": QDII_H1_CSV.name,
+            "sourceSummaryFile": QDII_H1_SUMMARY_JSON.name,
+            "reportCount": summary.get("reportCount"),
+            "scopeCounts": summary.get("scopeCounts"),
+            "equityDisclosure": "all_disclosed_equity：中期报告 7.4 至 7.5 的全部已披露权益投资明细。",
+            "fundInvestmentDisclosure": "top10_disclosed_fund_investments：中期报告 7.10 至 7.11 的前十名基金投资明细，ETF 亦不应被理解为全部持仓。",
+        },
+        "fundCodeAliases": dict(sorted(aliases.items())),
+        "fundStatuses": dict(sorted(statuses.items())),
+        "fundHoldings": holdings,
     }
 
 
@@ -1168,6 +1465,7 @@ def portfolio_profile(fund: dict[str, Any], family_key: str, variant_codes: set[
         "fundDisplayName": fund_family_display_name(fund),
         "fundType": fund.get("fundType", ""),
         "fundVariantCodes": sorted(variant_codes),
+        "isQdii": bool(fund.get("isQdii", False)),
         "isOnExchangeFund": is_on_exchange_fund(fund),
         "view": portfolio_view_for(fund),
         "detailShardKey": portfolio_detail_shard_prefix(family_key),
@@ -1213,6 +1511,20 @@ def build_portfolio_profile_registry(
 
 def portfolio_detail_shard_prefix(fund_family_key_value: str) -> str:
     return sha256_bytes(fund_family_key_value.encode("utf-8"))[:2]
+
+
+def portfolio_stock_file_stem(stock_code: str) -> str:
+    """Return a path-safe, collision-free filename stem for any exchange code.
+
+    Overseas codes such as ``BA/LN`` and ``BRK/B`` are valid disclosure values
+    but cannot be used as Windows/URL path segments verbatim.  Keep the exact
+    code inside the shard and use a deterministic UTF-8 hex filename only for
+    storage.  The client validates the same mapping before fetching.
+    """
+    normalized = str(stock_code).strip()
+    if not normalized:
+        raise ValueError("股票代码为空，不能生成组合分片文件名")
+    return f"stock-{normalized.encode('utf-8').hex()}"
 
 
 def portfolio_holding_sort_key(holding: dict[str, Any]) -> tuple[Any, ...]:
@@ -1545,7 +1857,7 @@ def build_portfolio_release(
         total_direct_published_rows += len(direct_edges)
         total_indirect_published_rows += len(indirect_edges)
         manifest_shards[code] = {
-            "path": f"fund-portfolio-index-{report_slug}/{release_id}/{code}.json",
+            "path": f"fund-portfolio-index-{report_slug}/{release_id}/{portfolio_stock_file_stem(code)}.json",
             "sha256": sha256_bytes(json_utf8_bytes(shard)),
             "directEdgeCount": len(direct_edges),
             "qualifiedIndirectEdgeCount": len(indirect_edges),
@@ -1734,7 +2046,7 @@ def validate_portfolio_release(
         if shard.get("stock", {}).get("code") != code:
             errors.append(f"{code} shard 股票代码不一致")
         expected_hash = metadata.get("sha256")
-        expected_path = f"fund-portfolio-index-{str(report).lower()}/{release_id}/{code}.json"
+        expected_path = f"fund-portfolio-index-{str(report).lower()}/{release_id}/{portfolio_stock_file_stem(code)}.json"
         if metadata.get("path") != expected_path:
             errors.append(f"{code} shard path 无效")
         if not re.fullmatch(r"[0-9a-f]{64}", str(expected_hash)):
@@ -1906,7 +2218,7 @@ def write_portfolio_release(
     try:
         staging_dir.mkdir()
         for code, shard in shards.items():
-            shard_path = staging_dir / f"{code}.json"
+            shard_path = staging_dir / f"{portfolio_stock_file_stem(code)}.json"
             shard_path.write_bytes(json_utf8_bytes(shard))
         detail_payloads = manifest.get("_buildFundDetailPayloads", {})
         for prefix, payload in detail_payloads.items():
@@ -1914,7 +2226,7 @@ def write_portfolio_release(
             detail_path.parent.mkdir(parents=True, exist_ok=True)
             detail_path.write_bytes(json_utf8_bytes(payload))
         staged_shards = {
-            code: json.loads((staging_dir / f"{code}.json").read_text(encoding="utf-8"))
+            code: json.loads((staging_dir / f"{portfolio_stock_file_stem(code)}.json").read_text(encoding="utf-8"))
             for code in shards
         }
         staged_manifest = dict(manifest)
@@ -1957,7 +2269,12 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     purchase_limits = load_purchase_limits()
     purchase_limit_metadata = load_purchase_limit_metadata()
     exposure_aliases = load_exposure_aliases()
-    fund_investment_rows = load_fund_investment_rows()
+    stock_code_aliases = configured_stock_code_aliases(exposure_aliases)
+    qdii_h1_source = load_qdii_h1_source()
+    base_fund_investment_rows = [
+        {key: csv_text(value) for key, value in row.items() if key}
+        for row in load_fund_investment_rows()
+    ]
     stock_rows: dict[str, dict[str, Any]] = {}
     stock_funds: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     indirect_exposures: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
@@ -1969,39 +2286,79 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     }
     fund_profiles: dict[str, dict[str, Any]] = {}
     fund_holdings: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    q2_source_rows: list[dict[str, str]] = []
     source_rows: list[dict[str, str]] = []
     row_count = 0
 
     with SOURCE_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
-        for row in reader:
+        for raw_row in reader:
+            row = {key: csv_text(value) for key, value in raw_row.items() if key}
             code = row.get("证券代码", "").strip()
             name = row.get("证券名称", "").strip()
             if not code or not name:
                 continue
-            source_rows.append(row)
+            q2_source_rows.append(row)
 
-            fund = enrich_fund_record(make_fund_record(row), purchase_limits)
-            if not fund["fundCode"]:
-                continue
-            fund_profiles[fund["fundCode"]] = fund
+    # Validate the unmodified Q2 extraction before replacing its QDII subset.
+    validate_source_summary(summary, len(q2_source_rows))
+    if qdii_h1_source is None:
+        source_rows = q2_source_rows
+        fund_investment_rows = base_fund_investment_rows
+        qdii_rich = None
+    else:
+        qdii_h1_codes = {
+            variant["基金代码"]
+            for variants in qdii_h1_source["variantsByFamily"].values()
+            for variant in variants
+        }
+        q2_non_qdii_rows = [
+            row
+            for row in q2_source_rows
+            if row.get("基金代码", "").strip() not in qdii_h1_codes and not is_qdii_record(row)
+        ]
+        h1_equity_rows = expanded_h1_rows(qdii_h1_source, scope="all_disclosed_equity")
+        source_rows = [*q2_non_qdii_rows, *h1_equity_rows]
+        h1_fund_investment_rows = expanded_h1_rows(
+            qdii_h1_source,
+            scope="top10_disclosed_fund_investments",
+        )
+        fund_investment_rows = [
+            *[
+                row
+                for row in base_fund_investment_rows
+                if row.get("基金代码", "").strip() not in qdii_h1_codes and not is_qdii_record(row)
+            ],
+            *h1_fund_investment_rows,
+        ]
+        qdii_rich = qdii_rich_payload(qdii_h1_source)
 
-            stock_rows.setdefault(
-                code,
-                {
-                    "code": code,
-                    "name": name,
-                },
-            )
-            existing = stock_funds[code].get(fund["fundCode"])
-            stock_funds[code][fund["fundCode"]] = better_record(existing, fund)
+    for row in source_rows:
+        code = canonical_stock_code(row.get("证券代码", ""), stock_code_aliases)
+        name = row.get("证券名称", "").strip()
+        if not code or not name:
+            continue
 
-            holding = make_holding_record(row)
-            holding_existing = fund_holdings[fund["fundCode"]].get(code)
-            fund_holdings[fund["fundCode"]][code] = better_holding_record(holding_existing, holding)
-            row_count += 1
+        fund = enrich_fund_record(make_fund_record(row), purchase_limits)
+        if not fund["fundCode"]:
+            continue
+        fund_profiles[fund["fundCode"]] = fund
 
-    validate_source_summary(summary, row_count)
+        stock_rows.setdefault(
+            code,
+            {
+                "code": code,
+                "name": name,
+            },
+        )
+        existing = stock_funds[code].get(fund["fundCode"])
+        stock_funds[code][fund["fundCode"]] = better_record(existing, fund)
+
+        holding = make_holding_record(row)
+        holding_key = holding["securityId"]
+        holding_existing = fund_holdings[fund["fundCode"]].get(holding_key)
+        fund_holdings[fund["fundCode"]][holding_key] = better_holding_record(holding_existing, holding)
+        row_count += 1
 
     alias_candidates = stock_alias_candidates(stock_rows, exposure_aliases)
     known_products = configured_known_products(exposure_aliases)
@@ -2190,11 +2547,40 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
         for stock in export_stocks
     ]
 
+    qdii_h1_meta = None
+    if qdii_h1_source is not None and qdii_rich is not None:
+        statuses = qdii_rich["fundStatuses"].values()
+        qdii_h1_meta = {
+            "report": f"{QUARTER.year}H1",
+            "cutoffDate": QUARTER.cutoff_date,
+            "sourceFile": QDII_H1_CSV.name,
+            "sourceSummaryFile": QDII_H1_SUMMARY_JSON.name,
+            "richDetailFile": QDII_RICH_JSON.name,
+            "equityRows": qdii_h1_source["summary"]["scopeCounts"].get("all_disclosed_equity", 0),
+            "fundInvestmentRows": qdii_h1_source["summary"]["scopeCounts"].get("top10_disclosed_fund_investments", 0),
+            "reportCount": qdii_h1_source["summary"].get("reportCount", 0),
+            "fundStatusCounts": dict(sorted(Counter(item["status"] for item in statuses).items())),
+            "equityDisclosure": "中期报告 7.4 至 7.5 的全部已披露权益投资明细。",
+            "fundInvestmentDisclosure": "中期报告 7.10 至 7.11 的前十名基金投资明细；ETF 亦仅限报告披露范围。",
+        }
+
     payload = {
         "meta": {
             "report": report,
-            "sourceFile": SOURCE_CSV.name,
-            "fundInvestmentSourceFile": FUND_INVESTMENT_CSV.name if FUND_INVESTMENT_CSV.exists() else "",
+            "sourceFile": (
+                f"{SOURCE_CSV.name} + {QDII_H1_CSV.name}"
+                if qdii_h1_source is not None
+                else SOURCE_CSV.name
+            ),
+            "sourceFiles": [
+                SOURCE_CSV.name,
+                *([QDII_H1_CSV.name] if qdii_h1_source is not None else []),
+            ],
+            "fundInvestmentSourceFile": (
+                f"{FUND_INVESTMENT_CSV.name} + {QDII_H1_CSV.name}"
+                if qdii_h1_source is not None
+                else (FUND_INVESTMENT_CSV.name if FUND_INVESTMENT_CSV.exists() else "")
+            ),
             "generatedAt": datetime.now().isoformat(timespec="seconds"),
             "sourceRows": row_count,
             "fundInvestmentSourceRows": len(fund_investment_rows),
@@ -2208,7 +2594,8 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             "indirectExposureFilter": "股票持仓明细或定期报告基金投资明细中，证券名称或代码匹配海外个股杠杆 ETF/ETP/ETN/产品，并映射到对应正股后单独展示",
             "cutoffDate": cutoff_dates[-1] if cutoff_dates else "",
             "fundCount": summary.get("fund_count"),
-            "holdingRows": summary.get("holding_rows", {}).get("stock"),
+            "holdingRows": row_count,
+            "baseQ2HoldingRows": summary.get("holding_rows", {}).get("stock"),
             "purchaseLimitCount": len(purchase_limits),
             **purchase_limit_metadata,
             "indirectExposureRows": sum(len(items) for items in indirect_exposures.values()),
@@ -2219,6 +2606,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             "shippedStockScope": "overseas" if overseas_stocks else "all",
             "shippedStockCount": len(public_stocks),
             "popularMarketMix": popular_market_mix,
+            "qdiiH1": qdii_h1_meta,
         },
         "popularStocks": popular,
         "stocks": public_stocks,
@@ -2246,6 +2634,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
         },
         "indirectCoverage": portfolio_indirect_coverage,
         "fundHoldings": portfolio_fund_holdings,
+        "qdiiRichPayload": qdii_rich,
     }
     return payload, audit_markdown, portfolio_inputs
 
@@ -2280,9 +2669,12 @@ def main() -> None:
         cutoff_date=payload["meta"]["cutoffDate"],
         source_metadata={
             "inputHoldingRows": payload["meta"]["sourceRows"],
-            "source": "current-quarter-public-stock-detail-rows",
-            "sourceFile": SOURCE_CSV.name,
-            "fundInvestmentSourceFile": FUND_INVESTMENT_CSV.name,
+            "source": "current-quarter-public-stock-detail-rows-with-official-qdii-h1-overlay",
+            "sourceFile": payload["meta"].get("sourceFile", SOURCE_CSV.name),
+            "fundInvestmentSourceFile": payload["meta"].get(
+                "fundInvestmentSourceFile",
+                FUND_INVESTMENT_CSV.name,
+            ),
             "fundInvestmentSourceRows": payload["meta"]["fundInvestmentSourceRows"],
             "auditPath": repo_relative(INDIRECT_EXPOSURE_AUDIT_MD),
         },
@@ -2303,6 +2695,12 @@ def main() -> None:
     temp_audit = INDIRECT_EXPOSURE_AUDIT_MD.with_name(
         f".{INDIRECT_EXPOSURE_AUDIT_MD.name}.tmp-{stage_token}"
     )
+    qdii_rich_payload = portfolio_inputs.get("qdiiRichPayload")
+    temp_qdii_rich = (
+        QDII_RICH_JSON.with_name(f".{QDII_RICH_JSON.name}.tmp-{stage_token}")
+        if qdii_rich_payload is not None
+        else None
+    )
     INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
     staged_portfolio_manifest: Path | None = None
     try:
@@ -2310,6 +2708,9 @@ def main() -> None:
             json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
         with temp_holdings.open("w", encoding="utf-8") as handle:
             json.dump(holdings_payload, handle, ensure_ascii=False, separators=(",", ":"))
+        if temp_qdii_rich is not None:
+            with temp_qdii_rich.open("w", encoding="utf-8") as handle:
+                json.dump(qdii_rich_payload, handle, ensure_ascii=False, separators=(",", ":"))
         temp_audit.write_text(audit_markdown + "\n", encoding="utf-8")
 
         staged_portfolio_manifest = write_portfolio_release(
@@ -2322,20 +2723,23 @@ def main() -> None:
         )
         if staged_portfolio_manifest is None:
             raise RuntimeError("组合发布 manifest 未完成暂存")
-        publish_staged_files(
-            [
-                (temp_audit, INDIRECT_EXPOSURE_AUDIT_MD),
-                (temp_holdings, holdings_json),
-                (temp_json, TARGET_JSON),
-                (staged_portfolio_manifest, portfolio_manifest_path),
-            ]
-        )
+        replacements = [
+            (temp_audit, INDIRECT_EXPOSURE_AUDIT_MD),
+            (temp_holdings, holdings_json),
+            (temp_json, TARGET_JSON),
+            (staged_portfolio_manifest, portfolio_manifest_path),
+        ]
+        if temp_qdii_rich is not None:
+            replacements.append((temp_qdii_rich, QDII_RICH_JSON))
+        publish_staged_files(replacements)
     except Exception:
         if portfolio_release_dir.exists():
             shutil.rmtree(portfolio_release_dir)
         raise
     finally:
         staged_paths = [temp_json, temp_holdings, temp_audit]
+        if temp_qdii_rich is not None:
+            staged_paths.append(temp_qdii_rich)
         if staged_portfolio_manifest is not None:
             staged_paths.append(staged_portfolio_manifest)
         for staged_path in staged_paths:
@@ -2346,6 +2750,8 @@ def main() -> None:
         f"from {payload['meta']['sourceRows']} holding rows."
     )
     print(f"Wrote {holdings_json} with {holdings_payload['meta']['fundCount']} funds.")
+    if qdii_rich_payload is not None:
+        print(f"Wrote {QDII_RICH_JSON} with {len(qdii_rich_payload['fundHoldings'])} official QDII reports.")
     print(f"Wrote {INDIRECT_EXPOSURE_AUDIT_MD}.")
     print(
         f"Wrote {portfolio_manifest_path} with {len(portfolio_shards)} stock shards "

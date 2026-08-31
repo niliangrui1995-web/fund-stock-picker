@@ -1,5 +1,13 @@
 {
-  "description": "把海外个股杠杆 ETF/ETP/ETN 等产品映射回对应正股，用于单独展示间接经济暴露；不要把它们并入正股直接持仓口径。",
+  "description": "把海外个股杠杆 ETF/ETP/ETN 等产品映射回对应正股，用于单独展示间接经济暴露；不要把它们并入正股直接持仓口径。stockCodeAliases 仅归并已由同一份官方报告证券名称核对过的多市场代码，原始证券标识仍保留在 QDII 明细中。",
+  "stockCodeAliases": {
+    "000660KS": "000660",
+    "000660KP": "000660",
+    "KR7000660001": "000660",
+    "HY9HGF": "000660",
+    "005930KS": "005930",
+    "005930KP": "005930"
+  },
   "stockAliases": {
     "000660": ["SK Hynix", "SK hynix", "SK海力士", "海力士"],
     "005930": ["Samsung Electronics", "Samsung Elec", "三星电子"],

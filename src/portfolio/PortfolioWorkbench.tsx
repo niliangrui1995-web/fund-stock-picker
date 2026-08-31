@@ -21,6 +21,7 @@ export interface PortfolioWorkbenchProps {
   temporaryStockCode?: string | null;
   temporarySelection?: { code: string; requestId: number; trigger: HTMLElement | null } | null;
   manifestUrl: string;
+  fundHoldingsUrl: string;
   fetchImpl?: typeof fetch;
   afterResultsReady?: ReactNode;
   focusResult?: boolean;
@@ -41,12 +42,187 @@ function formatPickerStock(stock: PortfolioStockOption): string {
   return `${stock.name} · ${stock.code}`;
 }
 
+type QdiiHolding = {
+  securityId: string;
+  rank: number;
+  stockCode: string;
+  stockName: string;
+  ratioPercent: number;
+  holdingType: string;
+};
+
+type QdiiH1Detail = {
+  status: "available";
+  fundCode: string;
+  fundName: string;
+  report: string;
+  cutoffDate: string;
+  sourceUrl: string;
+  sourceTitle: string;
+  equityHoldings: QdiiHolding[];
+  fundInvestments: QdiiHolding[];
+};
+
+type QdiiH1Payload = {
+  fundCodeAliases: Record<string, string>;
+  fundStatuses: Record<string, { status?: string; reason?: string }>;
+  fundHoldings: Record<string, QdiiH1Detail>;
+};
+
+type QdiiDetailState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "available"; detail: QdiiH1Detail }
+  | { kind: "status"; reason: string }
+  | { kind: "missing" }
+  | { kind: "error"; reason: string };
+
+const qdiiPayloadCache = new Map<typeof fetch, Map<string, Promise<QdiiH1Payload>>>();
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeQdiiHolding(value: unknown): QdiiHolding | null {
+  if (!isObject(value) || typeof value.securityId !== "string" || typeof value.stockName !== "string") return null;
+  if (!Number.isInteger(value.rank) || (value.rank as number) < 1 || typeof value.ratioPercent !== "number" || !Number.isFinite(value.ratioPercent)) return null;
+  return {
+    securityId: value.securityId,
+    rank: value.rank as number,
+    stockCode: typeof value.stockCode === "string" ? value.stockCode : "",
+    stockName: value.stockName,
+    ratioPercent: value.ratioPercent,
+    holdingType: typeof value.holdingType === "string" ? value.holdingType : "基金投资",
+  };
+}
+
+function normalizeQdiiDetail(value: unknown): QdiiH1Detail | null {
+  if (!isObject(value) || value.status !== "available" || typeof value.fundCode !== "string" || typeof value.fundName !== "string") return null;
+  if (!Array.isArray(value.equityHoldings) || !Array.isArray(value.fundInvestments)) return null;
+  const equityHoldings = value.equityHoldings.map(normalizeQdiiHolding);
+  const fundInvestments = value.fundInvestments.map(normalizeQdiiHolding);
+  if (
+    equityHoldings.some((holding) => holding === null) ||
+    fundInvestments.some((holding) => holding === null) ||
+    fundInvestments.length > 10
+  ) return null;
+  return {
+    status: "available",
+    fundCode: value.fundCode,
+    fundName: value.fundName,
+    report: typeof value.report === "string" ? value.report : "2026H1",
+    cutoffDate: typeof value.cutoffDate === "string" ? value.cutoffDate : "",
+    sourceUrl: typeof value.sourceUrl === "string" ? value.sourceUrl : "",
+    sourceTitle: typeof value.sourceTitle === "string" ? value.sourceTitle : "证监会基金电子披露平台中期报告",
+    equityHoldings: equityHoldings as QdiiHolding[],
+    fundInvestments: fundInvestments as QdiiHolding[],
+  };
+}
+
+function normalizeQdiiPayload(value: unknown): QdiiH1Payload {
+  if (!isObject(value) || !isObject(value.fundCodeAliases) || !isObject(value.fundStatuses) || !isObject(value.fundHoldings)) {
+    throw new Error("QDII 半年度持仓数据格式无效。");
+  }
+  const aliases = Object.fromEntries(Object.entries(value.fundCodeAliases).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+  const statuses = Object.fromEntries(Object.entries(value.fundStatuses).filter((entry): entry is [string, { status?: string; reason?: string }] => isObject(entry[1])));
+  const holdings = Object.fromEntries(Object.entries(value.fundHoldings).map(([code, detail]) => [code, normalizeQdiiDetail(detail)]).filter((entry): entry is [string, QdiiH1Detail] => entry[1] !== null));
+  return { fundCodeAliases: aliases, fundStatuses: statuses, fundHoldings: holdings };
+}
+
+function loadQdiiPayload(url: string, fetchImpl?: typeof fetch): Promise<QdiiH1Payload> {
+  const client = fetchImpl ?? fetch;
+  let cache = qdiiPayloadCache.get(client);
+  if (!cache) {
+    cache = new Map<string, Promise<QdiiH1Payload>>();
+    qdiiPayloadCache.set(client, cache);
+  }
+  const existing = cache.get(url);
+  if (existing) return existing;
+  const pending = client(url)
+    .then((response) => {
+      if (!response.ok) throw new Error(`QDII 半年度持仓请求失败 (HTTP ${response.status})`);
+      return response.json();
+    })
+    .then(normalizeQdiiPayload)
+    .catch((error: unknown) => {
+      cache?.delete(url);
+      throw error;
+    });
+  cache.set(url, pending);
+  return pending;
+}
+
+function isQdiiFund(fund: AggregatedFundResult | null): boolean {
+  return fund !== null && (fund.isQdii || /QDII/i.test(`${fund.fundName} ${fund.fundType}`));
+}
+
+function useQdiiH1Detail(
+  fund: AggregatedFundResult | null,
+  url: string,
+  fetchImpl?: typeof fetch,
+): QdiiDetailState {
+  const [state, setState] = useState<QdiiDetailState>({ kind: "idle" });
+  const fundCodes = fund ? [fund.fundCode, ...fund.fundVariantCodes].join("\u0000") : "";
+  const qdii = isQdiiFund(fund);
+
+  useEffect(() => {
+    if (!qdii || fund === null) {
+      setState({ kind: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setState({ kind: "loading" });
+    void loadQdiiPayload(url, fetchImpl).then((payload) => {
+      if (cancelled) return;
+      const codes = [fund.fundCode, ...fund.fundVariantCodes];
+      for (const code of codes) {
+        const canonicalCode = payload.fundCodeAliases[code] ?? code;
+        const detail = payload.fundHoldings[canonicalCode];
+        if (detail) {
+          setState({ kind: "available", detail });
+          return;
+        }
+      }
+      const status = codes.map((code) => payload.fundStatuses[code]).find(Boolean);
+      if (status?.reason) {
+        setState({ kind: "status", reason: status.reason });
+        return;
+      }
+      setState({ kind: "missing" });
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setState({ kind: "error", reason: error instanceof Error ? error.message : "QDII 半年度持仓暂时不可用。" });
+    });
+    return () => { cancelled = true; };
+  }, [fetchImpl, fund, fundCodes, qdii, url]);
+  return state;
+}
+
+function QdiiHoldingList({ holdings }: { holdings: QdiiHolding[] }) {
+  return (
+    <ol className="portfolio-detail-holdings">
+      {holdings.map((holding) => (
+        <li key={holding.securityId}>
+          <span>{holding.rank}</span>
+          <strong>{holding.stockName}{holding.holdingType === "ETF" ? "（ETF）" : holding.holdingType === "基金投资" ? "（基金）" : ""}</strong>
+          <code>{holding.stockCode || "报告未披露代码"}</code>
+          <b>{formatPercent(holding.ratioPercent)}</b>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function DetailDialog({
   model,
   onClose,
+  fundHoldingsUrl,
+  fetchImpl,
 }: {
   model: PortfolioResearchModel;
   onClose(): void;
+  fundHoldingsUrl: string;
+  fetchImpl?: typeof fetch;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -81,8 +257,10 @@ function DetailDialog({
     };
   }, [model, model.detail]);
 
-  if (model.detail.kind === "idle") return null;
-  const fund = model.detail.fund;
+  const fund = model.detail.kind === "idle" ? null : model.detail.fund;
+  const qdiiFund = isQdiiFund(fund);
+  const qdiiDetail = useQdiiH1Detail(fund, fundHoldingsUrl, fetchImpl);
+  if (model.detail.kind === "idle" || fund === null) return null;
   return (
     <div className="portfolio-dialog-backdrop" role="presentation">
       <section ref={dialogRef} className="portfolio-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-detail-title">
@@ -93,8 +271,22 @@ function DetailDialog({
           </div>
           <button ref={closeRef} type="button" onClick={onClose} aria-label="关闭基金持仓详情">关闭</button>
         </div>
-        {model.detail.kind === "loading" ? <p role="status">正在加载基金详情…</p> : null}
-        {model.detail.kind === "available" ? (
+        {model.detail.kind === "loading" && qdiiDetail.kind !== "available" ? <p role="status">正在加载基金详情…</p> : null}
+        {qdiiDetail.kind === "loading" ? <p className="portfolio-detail-scope" role="status">正在加载 QDII 中期报告完整持仓…</p> : null}
+        {qdiiDetail.kind === "available" ? (
+          <div className="portfolio-qdii-detail">
+            <p className="portfolio-detail-scope">{qdiiDetail.detail.report}（截至 {qdiiDetail.detail.cutoffDate}）：权益投资为完整披露；基金与 ETF 投资仅为报告披露的前十项。</p>
+            <h4>权益投资（完整披露）· {qdiiDetail.detail.equityHoldings.length} 条</h4>
+            {qdiiDetail.detail.equityHoldings.length ? <QdiiHoldingList holdings={qdiiDetail.detail.equityHoldings} /> : <p className="portfolio-detail-not-captured">该中期报告未披露权益投资明细；这不代表基金没有其他资产。</p>}
+            <h4>基金 / ETF 投资（报告仅前十）· {qdiiDetail.detail.fundInvestments.length} 条</h4>
+            {qdiiDetail.detail.fundInvestments.length ? <QdiiHoldingList holdings={qdiiDetail.detail.fundInvestments} /> : <p className="portfolio-detail-not-captured">该中期报告未披露基金或 ETF 投资明细。</p>}
+            {qdiiDetail.detail.sourceUrl ? <a className="portfolio-detail-source" href={qdiiDetail.detail.sourceUrl} target="_blank" rel="noreferrer">查看官方原始报告：{qdiiDetail.detail.sourceTitle}</a> : null}
+          </div>
+        ) : null}
+        {qdiiDetail.kind === "status" ? <p className="portfolio-detail-not-captured">{qdiiDetail.reason}</p> : null}
+        {qdiiDetail.kind === "missing" ? <p className="portfolio-detail-not-captured">QDII 半年度完整明细暂未匹配到该基金；这不代表基金没有持仓。</p> : null}
+        {qdiiDetail.kind === "error" ? <p className="portfolio-detail-error" role="alert">{qdiiDetail.reason}</p> : null}
+        {model.detail.kind === "available" && (!qdiiFund || qdiiDetail.kind === "status" || qdiiDetail.kind === "missing" || qdiiDetail.kind === "error") ? (
           <ol className="portfolio-detail-holdings">
             {model.detail.record.holdings.slice(0, 10).map((holding) => (
               <li key={`${holding.rank}-${holding.stockCode}`}>
@@ -106,10 +298,10 @@ function DetailDialog({
             ))}
           </ol>
         ) : null}
-        {model.detail.kind === "notCaptured" ? (
+        {model.detail.kind === "notCaptured" && qdiiDetail.kind !== "available" && qdiiDetail.kind !== "loading" ? (
           <p className="portfolio-detail-not-captured">{model.detail.message} 未出现不代表未持有，也不代表基金没有持仓。</p>
         ) : null}
-        {model.detail.kind === "unavailable" ? (
+        {model.detail.kind === "unavailable" && qdiiDetail.kind !== "available" && qdiiDetail.kind !== "loading" ? (
           <div className="portfolio-detail-error" role="alert">
             <p>{model.detail.reason}</p>
             <button type="button" onClick={model.retryDetail}>重试详情</button>
@@ -488,14 +680,19 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
             <aside className="portfolio-disclosure">
               <strong>总估算经济暴露排序说明</strong>
               <p>这是公开披露期末、当前已采集公开股票持仓明细的方向性穿透估算，不等同于基金直接持有正股，不是实时持仓或投资建议。</p>
-              <p>数据来源：{model.manifest?.source ?? "当前季度已采集公开股票持仓明细"}；发布季度 {model.manifest?.report ?? props.report}。公式：直接持仓 + 已识别正向杠杆 ETP 的间接估算。{model.results.coverage.disclosure} 未出现不代表未持有。基金详情最多展示 10 条。</p>
+              <p>数据来源：{model.manifest?.source ?? "当前季度已采集公开股票持仓明细"}；发布季度 {model.manifest?.report ?? props.report}。公式：直接持仓 + 已识别正向杠杆 ETP 的间接估算。{model.results.coverage.disclosure} 未出现不代表未持有。普通基金详情最多展示 10 条；QDII 直接股票按中期报告的全部已披露明细展示，基金/ETF 投资仅为报告披露的前十。</p>
             </aside>
           </div>
           {props.afterResultsReady ? <aside className="portfolio-ready-aside">{props.afterResultsReady}</aside> : null}
         </div>
       ) : null}
       <UnsavedDialog model={model} />
-      <DetailDialog model={model} onClose={closeDetail} />
+      <DetailDialog
+        model={model}
+        onClose={closeDetail}
+        fundHoldingsUrl={props.fundHoldingsUrl}
+        fetchImpl={props.fetchImpl}
+      />
     </section>
   );
 }

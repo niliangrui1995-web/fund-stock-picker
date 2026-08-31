@@ -8,6 +8,7 @@ import { PortfolioWorkbench } from "../PortfolioWorkbench";
 import { aggregatePortfolioResults } from "../aggregatePortfolioResults";
 import { loadPortfolioIndex } from "../portfolioIndex";
 import { PORTFOLIO_STORAGE_KEY } from "../portfolioStorage";
+import type { AvailablePortfolioDetailRecord, PortfolioFundHoldingDetail } from "../types";
 import { usePortfolioResearch, type AggregatedFundResult, type PortfolioResearchModel } from "../usePortfolioResearch";
 import { App } from "../../App";
 
@@ -31,8 +32,9 @@ function fund(index: number, onExchange = false): AggregatedFundResult {
     fundCode: String(index).padStart(6, "0"),
     fundName: `基金 ${index}`,
     fundDisplayName: `基金 ${index}`,
-    fundType: onExchange ? "ETF" : "QDII",
+    fundType: onExchange ? "ETF" : "混合型",
     fundVariantCodes: [String(index).padStart(6, "0")],
+    isQdii: false,
     isOnExchangeFund: onExchange,
     view: onExchange ? "onExchange" : "offExchange",
     detailShardKey: "aa",
@@ -46,6 +48,65 @@ function fund(index: number, onExchange = false): AggregatedFundResult {
       indirectEstimatedRatioPercent: 0,
       indirectSources: [],
     }],
+  };
+}
+
+function availableDetailRecord(fundValue: AggregatedFundResult, count: number): AvailablePortfolioDetailRecord {
+  const holdings = Array.from({ length: count }, (_, index) => ({
+    rank: index + 1,
+    stockCode: `Q2-${index + 1}`,
+    stockName: `季度持仓 ${index + 1}`,
+    ratioPercent: 10 - index / 10,
+  })) as [PortfolioFundHoldingDetail, ...PortfolioFundHoldingDetail[]];
+  return {
+    fundFamilyKey: fundValue.fundFamilyKey,
+    detailStatus: "available",
+    detailFundCode: fundValue.fundCode,
+    holdings,
+  };
+}
+
+function qdiiPayload() {
+  return {
+    fundCodeAliases: { "000001": "000001" },
+    fundStatuses: { "000001": { status: "available" } },
+    fundHoldings: {
+      "000001": {
+        status: "available",
+        fundCode: "000001",
+        fundName: "QDII 测试基金",
+        report: "2026H1",
+        cutoffDate: "2026-06-30",
+        sourceUrl: "https://example.test/official-report.pdf",
+        sourceTitle: "官方中期报告",
+        equityHoldings: Array.from({ length: 12 }, (_, index) => ({
+          securityId: `EQUITY-${index + 1}`,
+          rank: index + 1,
+          stockCode: `US${index + 1}`,
+          stockName: `完整权益 ${index + 1}`,
+          ratioPercent: 5 - index / 10,
+          holdingType: "权益投资",
+        })),
+        fundInvestments: [
+          {
+            securityId: "REPORT-FUND-001",
+            rank: 1,
+            stockCode: "",
+            stockName: "未披露代码 ETF",
+            ratioPercent: 1.23,
+            holdingType: "ETF",
+          },
+          {
+            securityId: "REPORT-FUND-002",
+            rank: 2,
+            stockCode: "FUND2",
+            stockName: "基金投资 2",
+            ratioPercent: 0.98,
+            holdingType: "基金投资",
+          },
+        ],
+      },
+    },
   };
 }
 
@@ -206,6 +267,7 @@ async function render(
         report="2026Q2"
         cutoffDate="2026-06-30"
         manifestUrl="/data/fund-portfolio-index-2026q2.manifest.json?v=2026q2"
+        fundHoldingsUrl="/data/qdii-fund-holdings-2026h1.json?v=2026q2-qdii-h1"
         useResearch={() => research}
         {...additionalProps}
       />,
@@ -284,6 +346,50 @@ describe("PortfolioWorkbench", () => {
     }));
     expect(container.textContent).toContain("详情暂时不可用");
     expect(container.textContent).not.toContain("该基金暂无持仓记录");
+  });
+
+  it("QDII 详情展示中期报告全部权益，并将基金和 ETF 限定为报告前十", async () => {
+    const qdiiFund: AggregatedFundResult = {
+      ...fund(1),
+      fundName: "海外指数基金",
+      fundDisplayName: "海外指数基金",
+      fundType: "指数型-海外股票",
+      isQdii: true,
+    };
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(qdiiPayload()), { status: 200 }));
+    await render(model({
+      detail: {
+        kind: "available",
+        fund: qdiiFund,
+        record: availableDetailRecord(qdiiFund, 11),
+      },
+    }), { fetchImpl: fetchImpl as typeof fetch });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    const richDetail = container.querySelector(".portfolio-qdii-detail");
+    expect(richDetail?.textContent).toContain("权益投资（完整披露）· 12 条");
+    expect(richDetail?.textContent).toContain("基金 / ETF 投资（报告仅前十）· 2 条");
+    expect(richDetail?.textContent).toContain("完整权益 12");
+    expect(richDetail?.textContent).toContain("未披露代码 ETF（ETF）");
+    expect(richDetail?.textContent).toContain("报告未披露代码");
+    expect(richDetail?.querySelectorAll(".portfolio-detail-holdings li")).toHaveLength(14);
+    expect(fetchImpl).toHaveBeenCalledWith("/data/qdii-fund-holdings-2026h1.json?v=2026q2-qdii-h1");
+  });
+
+  it("非 QDII 详情仍维持最多十条的主索引契约", async () => {
+    const mixedFund = fund(1);
+    const fetchImpl = vi.fn();
+    await render(model({
+      detail: {
+        kind: "available",
+        fund: mixedFund,
+        record: availableDetailRecord(mixedFund, 11),
+      },
+    }), { fetchImpl: fetchImpl as typeof fetch });
+
+    expect(container.querySelector(".portfolio-qdii-detail")).toBeNull();
+    expect(container.querySelectorAll(".portfolio-detail-holdings li")).toHaveLength(10);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("只有完整结果就绪后才渲染预留的右侧摘要入口", async () => {
@@ -526,10 +632,10 @@ describe("PortfolioWorkbench", () => {
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
 
     await act(async () => {
-      root.render(<PortfolioWorkbench stocks={[]} report="2026Q2" cutoffDate="2026-06-30" manifestUrl="/data/fund-portfolio-index-2026q2.manifest.json?v=2026q2" fetchImpl={fetchImpl as typeof fetch} />);
+      root.render(<PortfolioWorkbench stocks={[]} report="2026Q2" cutoffDate="2026-06-30" manifestUrl="/data/fund-portfolio-index-2026q2.manifest.json?v=2026q2" fundHoldingsUrl="/data/qdii-fund-holdings-2026h1.json?v=2026q2-qdii-h1" fetchImpl={fetchImpl as typeof fetch} />);
     });
     await act(async () => {
-      root.render(<PortfolioWorkbench stocks={[{ code: "NVDA", name: "英伟达" }]} report="2026Q2" cutoffDate="2026-06-30" manifestUrl="/data/fund-portfolio-index-2026q2.manifest.json?v=2026q2" fetchImpl={fetchImpl as typeof fetch} />);
+      root.render(<PortfolioWorkbench stocks={[{ code: "NVDA", name: "英伟达" }]} report="2026Q2" cutoffDate="2026-06-30" manifestUrl="/data/fund-portfolio-index-2026q2.manifest.json?v=2026q2" fundHoldingsUrl="/data/qdii-fund-holdings-2026h1.json?v=2026q2-qdii-h1" fetchImpl={fetchImpl as typeof fetch} />);
     });
     await act(async () => { await Promise.resolve(); });
 

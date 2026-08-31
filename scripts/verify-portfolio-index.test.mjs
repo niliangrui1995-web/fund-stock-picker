@@ -94,7 +94,7 @@ function fixtures() {
 
 async function writeRelease(mutator = () => {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "portfolio-release-"));
-  const stockRelativePath = `fund-portfolio-index-2026q2/${RELEASE_ID}/NVDA.json`;
+  const stockRelativePath = `fund-portfolio-index-2026q2/${RELEASE_ID}/stock-4e564441.json`;
   const detailRelativePath = `fund-portfolio-index-2026q2/${RELEASE_ID}/fund-details/${DETAIL_KEY}.json`;
   const { shard, detail } = fixtures();
   const manifest = {
@@ -412,7 +412,7 @@ test("Cloudflare 单 splat 缓存规则覆盖嵌套 release 与 fund-details 路
   assert.ok(headers.includes(`${rule}\n  Cache-Control: public, max-age=604800, stale-while-revalidate=86400`));
   assert.equal((rule.match(/\*/g) ?? []).length, 1, "Cloudflare _headers 规则只能使用一个 splat");
   const matcher = /^\/data\/fund-portfolio-index-[^/]+\/.*$/;
-  assert.equal(matcher.test(`/data/fund-portfolio-index-2026q2/${RELEASE_ID}/NVDA.json`), true);
+  assert.equal(matcher.test(`/data/fund-portfolio-index-2026q2/${RELEASE_ID}/stock-4e564441.json`), true);
   assert.equal(matcher.test(`/data/fund-portfolio-index-2026q2/${RELEASE_ID}/fund-details/${DETAIL_KEY}.json`), true);
   assert.equal(matcher.test("/data/fund-portfolio-index-2026q2.manifest.json"), false);
   assert.match(headers, /\/data\/fund-portfolio-index-\*\.manifest\.json\r?\n  Cache-Control: no-cache/);

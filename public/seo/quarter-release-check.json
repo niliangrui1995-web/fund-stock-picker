@@ -7,8 +7,8 @@
   "dataMeta": {
     "report": "2026Q2",
     "cutoffDate": "2026-06-30",
-    "generatedAt": "2026-08-30T00:55:34",
-    "sourceFile": "holdings_stock_2026q2.csv",
+    "generatedAt": "2026-09-01T01:35:23",
+    "sourceFile": "holdings_stock_2026q2.csv + holdings_qdii_2026h1.csv",
     "purchaseLimitCount": 27395,
     "purchaseLimitFetchedAt": "2026-08-30 00:54:50",
     "purchaseLimitSource": "https://fund.eastmoney.com/Data/Fund_JJJZ_Data.aspx",
@@ -17,12 +17,12 @@
       "08-26",
       "08-27"
     ],
-    "fundInvestmentSourceRows": 6,
-    "indirectExposureRows": 4,
-    "stockCount": 710,
-    "overseasStockCount": 710,
+    "fundInvestmentSourceRows": 789,
+    "indirectExposureRows": 38,
+    "stockCount": 6639,
+    "overseasStockCount": 6639,
     "shippedStockScope": "overseas",
-    "shippedStockCount": 710
+    "shippedStockCount": 6639
   },
   "indirectExposureAudit": {
     "path": "seo/indirect-exposure-audit-2026q2.md",
@@ -40,10 +40,10 @@
   },
   "portfolioRelease": {
     "manifestPath": "data/fund-portfolio-index-2026q2.manifest.json",
-    "releaseId": "2026q2-20260828142757812753-bf32d6944b87",
-    "manifestSha256": "27f357e9bf01801c8494499c7137f28b63334d0fdd1d2f1d2dccb0d9814dd63a",
+    "releaseId": "2026q2-20260901013524158820-a15af10a8e35",
+    "manifestSha256": "1c34768b2e53ed4613fce1a9a9fffee69f979808dd373df2ee46000a97b324e9",
     "report": "2026Q2",
-    "stockShardCount": 710,
+    "stockShardCount": 6639,
     "fundDetailShardCount": 256
   },
   "seo": {
@@ -63,8 +63,8 @@
     "seoUsesConfiguredDataFile": true,
     "hasFundInvestmentSourceRows": true,
     "hasIndirectExposureRows": true,
-    "hasRequiredIndirectExposureMappings": true,
+    "hasRequiredIndirectExposureMappings": false,
     "hasIndirectExposureAuditFile": true,
-    "auditCoversRequiredIndirectMappings": true
+    "auditCoversRequiredIndirectMappings": false
   }
 }

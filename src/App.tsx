@@ -18,6 +18,7 @@ import { fundQuarter } from "./fundQuarter";
 import { installInputModalityTracking } from "./inputModality";
 import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
 import { PortfolioWorkbench } from "./portfolio/PortfolioWorkbench";
+import { stockLogoFiles } from "./generated/stockLogoFiles";
 
 type AccessMode = "offExchange" | "onExchange";
 
@@ -242,29 +243,18 @@ function normalize(input: string) {
   return input.trim().replace(/\s+/g, "").toLowerCase();
 }
 
-// 当前季度数据中这些代码没有同名本地图标文件；直接使用文字占位，避免每个首次渲染都产生 404。
+// 只请求构建时确认存在的本地图标；未收录的证券直接使用文字占位，避免首次渲染产生 404。
 // 个别文件使用供应商后缀命名，保留显式映射以继续显示已有品牌图标。
 const localLogoFileAliases: Record<string, string> = {
   "285a": "285ajp",
   "6981": "mur",
 };
-const missingLocalLogoCodes = new Set([
-  "06809", "02476", "02637", "02285", "02507", "03277", "stx", "00317", "6976", "09973", "00546", "01330",
-  "02525", "03320", "09630", "09637", "2327", "dnli", "oric", "stm", "umc", "eras", "02602", "00165",
-  "00363", "00506", "00668", "00894", "01038", "01405", "01456", "01688", "01836", "02171", "02629", "02768",
-  "02877", "03296", "03661", "07630", "07666", "08046", "09936", "09980", "3110", "5706", "6098", "6857",
-  "8002", "8031", "adi", "alab", "algm", "aphs", "asmlna", "be", "bhe", "bhp", "cyd", "cytk", "eqr",
-  "eurob", "fcx", "form", "hy9hgf", "inga", "invh", "jp3236330001", "krys", "lt", "mchp", "nbis", "nesn",
-  "nok", "nxpi", "otp", "petr4", "rblx", "ryn", "smci", "smsn", "ucg", "vicr", "vn000000vhm0", "wy",
-  "mrna", "exe", "rvmd", "ar", "cag", "cnx", "dino", "dk", "parr", "01448", "orka", "prax", "rytm",
-  "tech", "twst", "vktx", "cah", "dhlgy", "dva", "mc", "rvty", "00023", "00659", "01929", "06808",
-  "09678", "barc", "cof", "de", "ker", "rcl", "rms", "roiv", "spcx", "ual", "wmb",
-]);
 
 function localStockLogoUrl(code: string) {
   const normalizedCode = normalizeStockCode(code).toLowerCase();
+  if (!normalizedCode) return null;
   const filename = localLogoFileAliases[normalizedCode] ?? normalizedCode;
-  return missingLocalLogoCodes.has(normalizedCode) ? null : `/stock-logos/${filename}.png`;
+  return stockLogoFiles.has(filename) ? `/stock-logos/${filename}.png` : null;
 }
 
 export function stockLogoSources(code: string) {
@@ -391,8 +381,9 @@ function StockLogo({
 
   const initials = useMemo(() => {
     const clean = code.replace(/[^0-9A-Za-z]/g, "").replace(/^0+/, "");
-    return clean ? clean.slice(0, 2).toUpperCase() : code.slice(0, 2).toUpperCase();
-  }, [code]);
+    const fallback = name.replace(/\s+/g, "").slice(0, 2);
+    return clean ? clean.slice(0, 2).toUpperCase() : fallback || "?";
+  }, [code, name]);
 
   const gradientClass = useMemo(() => {
     let hash = 0;
@@ -2138,6 +2129,7 @@ export function App() {
               report={data?.meta.report ?? fundQuarter.report}
               cutoffDate={data?.meta.cutoffDate ?? fundQuarter.cutoffDate}
               manifestUrl={fundQuarter.portfolioManifestUrl}
+              fundHoldingsUrl={fundQuarter.qdiiHoldingsUrl}
               temporarySelection={temporarySelection}
               focusResult={resultFocusRequest !== null}
               onResultFocused={() => setResultFocusRequest(null)}
@@ -2181,7 +2173,7 @@ export function App() {
           <span>方法论</span>
           <h2 id="methodology-title">基金持仓穿透口径</h2>
           <p>
-            数据期为 {data?.meta.report ?? fundQuarter.report}，截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。页面按公募基金季度报告披露的前十大股票持仓展示海外标的覆盖和权重；未出现不代表基金未持有该标的。
+            数据期为 {data?.meta.report ?? fundQuarter.report}，截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。普通基金按季度报告前十大股票持仓展示；QDII 另以中期报告完整披露的权益投资更新，基金与 ETF 投资仅展示报告披露的前十项。未出现不代表基金未持有该标的。
           </p>
         </div>
         <div className="methodology-grid">

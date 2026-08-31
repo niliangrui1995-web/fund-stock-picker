@@ -30,6 +30,10 @@ async function sha256Text(text: string): Promise<string> {
   return sha256Bytes(new TextEncoder().encode(text));
 }
 
+function stockFileStem(stockCode: string): string {
+  return `stock-${Array.from(new TextEncoder().encode(stockCode), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
 async function findSamePrefixFamilyKey(familyKey: string): Promise<string> {
   const prefix = (await sha256Text(familyKey)).slice(0, 2);
   for (let index = 0; index < 10_000; index += 1) {
@@ -71,6 +75,7 @@ async function makePackage(input?: {
     fundDisplayName: familyKey,
     fundType: "QDII-普通股票",
     fundVariantCodes: ["000001"],
+    isQdii: true,
     isOnExchangeFund: false,
     view: "offExchange",
     detailShardKey: prefix,
@@ -138,7 +143,7 @@ async function makePackage(input?: {
   const stockPaths = Object.fromEntries(
     Object.keys(shards).map((code) => [
       code,
-      `fund-portfolio-index-2026q2/${releaseId}/${code}.json`,
+      `fund-portfolio-index-2026q2/${releaseId}/${stockFileStem(code)}.json`,
     ]),
   );
   const detailPath = `fund-portfolio-index-2026q2/${releaseId}/fund-details/${prefix}.json`;
@@ -242,7 +247,10 @@ async function mutateStockShard(
 describe("portfolioIndex", () => {
   it("使用季度化 manifest URL，fresh manifest 与验证后分片缓存加载完整选择", async () => {
     expect(fundQuarter.portfolioManifestUrl).toBe(
-      `/data/fund-portfolio-index-${fundQuarter.slug}.manifest.json?v=${fundQuarter.slug}`,
+      `/data/fund-portfolio-index-${fundQuarter.slug}.manifest.json?v=${fundQuarter.assetVersion}`,
+    );
+    expect(fundQuarter.qdiiHoldingsUrl).toBe(
+      `/data/qdii-fund-holdings-${fundQuarter.year}h1.json?v=${fundQuarter.assetVersion}`,
     );
     const fixture = await makePackage();
     const fetchImpl = packageFetch(fixture);
@@ -471,16 +479,16 @@ describe("portfolioIndex", () => {
     expect(fetchImpl.mock.calls.filter(([url]) => url === second.stockUrls["000660"])).toHaveLength(1);
   });
 
-  it("接受 manifest 精确声明的 BP. 股票代码而不套用过严正则", async () => {
+  it("接受 manifest 精确声明的 BA/LN 股票代码并使用安全分片路径", async () => {
     const fixture = await makePackage();
     const oldCode = "000660";
-    const newCode = "BP.";
+    const newCode = "BA/LN";
     const shard = JSON.parse(fixture.stockTexts[oldCode]) as PortfolioShard;
     shard.stock.code = newCode;
     shard.directEdges[0].targetCode = newCode;
     fixture.stockTexts[newCode] = JSON.stringify(shard);
     delete fixture.stockTexts[oldCode];
-    const path = `fund-portfolio-index-2026q2/${fixture.manifest.releaseId}/${newCode}.json`;
+    const path = `fund-portfolio-index-2026q2/${fixture.manifest.releaseId}/${stockFileStem(newCode)}.json`;
     fixture.manifest.shards[newCode] = {
       ...fixture.manifest.shards[oldCode],
       path,

@@ -15,6 +15,8 @@ function buildQuarterConfig(config: RawQuarterConfig) {
 
   const report = `${config.year}Q${config.quarter}`;
   const slug = report.toLowerCase();
+  // 2026Q2 主索引叠加了同一截止日的 QDII 中期报告，必须驱逐季度内已缓存的 JSON。
+  const assetVersion = config.year === 2026 && config.quarter === 2 ? `${slug}-qdii-h1` : slug;
   const dataPath = `data/fund-stock-index-${slug}.json`;
   const dataFileName = `fund-stock-index-${slug}.json`;
   const cutoffDateByQuarter = {
@@ -29,13 +31,15 @@ function buildQuarterConfig(config: RawQuarterConfig) {
     quarter: config.quarter,
     report,
     slug,
+    assetVersion,
     cutoffDate: cutoffDateByQuarter[config.quarter as 1 | 2 | 3 | 4],
     dataPath,
     dataFileName,
-    dataUrl: `/${dataPath}?v=${slug}`,
-    holdingsUrl: `/data/fund-holdings-${slug}.json?v=${slug}`,
-    portfolioManifestUrl: `/data/fund-portfolio-index-${slug}.manifest.json?v=${slug}`,
-    releaseCheckUrl: `seo/quarter-release-check.json?v=${slug}`,
+    dataUrl: `/${dataPath}?v=${assetVersion}`,
+    holdingsUrl: `/data/fund-holdings-${slug}.json?v=${assetVersion}`,
+    qdiiHoldingsUrl: `/data/qdii-fund-holdings-${config.year}h1.json?v=${assetVersion}`,
+    portfolioManifestUrl: `/data/fund-portfolio-index-${slug}.manifest.json?v=${assetVersion}`,
+    releaseCheckUrl: `seo/quarter-release-check.json?v=${assetVersion}`,
   };
 }
 

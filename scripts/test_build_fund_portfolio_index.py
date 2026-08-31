@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,6 +81,36 @@ class PortfolioReleaseTests(unittest.TestCase):
 
     def sync_stock_shard_hash(self, manifest, shards, code="000660"):
         manifest["shards"][code]["sha256"] = sha256_bytes(json_utf8_bytes(shards[code]))
+
+    def test_overseas_slash_code_uses_safe_storage_filename_without_mutating_code(self):
+        manifest, shards = self.build_release(
+            stock_rows={"BA/LN": {"code": "BA/LN", "name": "英国宇航系统"}},
+            direct_funds={"BA/LN": [fund("A", 0.042)]},
+        )
+        self.assertIn("BA/LN", shards)
+        self.assertEqual(shards["BA/LN"]["stock"]["code"], "BA/LN")
+        self.assertEqual(
+            manifest["shards"]["BA/LN"]["path"],
+            f"fund-portfolio-index-2026q2/{manifest['releaseId']}/stock-42412f4c4e.json",
+        )
+        self.assertEqual(validate_portfolio_release(manifest, shards), [])
+
+    def test_korean_six_digit_code_with_english_name_is_overseas(self):
+        self.assertEqual(index_builder.stock_market_bucket("000660", "SK HYNIX INC"), "kr")
+        self.assertTrue(index_builder.is_overseas_stock_code("000660", "SK HYNIX INC"))
+
+    def test_stock_code_aliases_merge_only_explicitly_verified_identifiers(self):
+        aliases = index_builder.configured_stock_code_aliases(
+            {
+                "stockCodeAliases": {
+                    "000660KS": "000660",
+                    "KR7000660001": "000660",
+                }
+            }
+        )
+        self.assertEqual(index_builder.canonical_stock_code("000660KS", aliases), "000660")
+        self.assertEqual(index_builder.canonical_stock_code("KR7000660001", aliases), "000660")
+        self.assertEqual(index_builder.canonical_stock_code("440110KS", aliases), "440110KS")
 
     def test_portfolio_release_dedupes_share_classes_and_keeps_distinct_sources(self):
         manifest, shards = self.build_release(
@@ -541,6 +572,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 mock.patch.object(index_builder, "load_purchase_limit_metadata", return_value={}),
                 mock.patch.object(index_builder, "load_exposure_aliases", return_value={}),
                 mock.patch.object(index_builder, "load_fund_investment_rows", return_value=[]),
+                mock.patch.object(index_builder, "load_qdii_h1_source", return_value=None),
             ):
                 with self.assertRaisesRegex(ValueError, "holding_rows.stock"):
                     index_builder.build_index_with_audit()
@@ -567,6 +599,106 @@ class PortfolioReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "error"):
             index_builder.validate_source_summary(summary, 0)
 
+    def test_qdii_h1_incomplete_summary_is_rejected_even_when_counts_match(self):
+        rows = [
+            {
+                "基金代码": "000001",
+                "报告期": "2026H1",
+                "截止日期": "2026-06-30",
+                "披露范围": "all_disclosed_equity",
+            }
+        ]
+        summary = {
+            "report": "2026H1",
+            "cutoffDate": "2026-06-30",
+            "fundType": "6020-6050",
+            "reportType": "FB020",
+            "isComplete": False,
+            "reportCount": 1,
+            "reportResults": [{"fundCode": "000001", "status": "ok"}],
+            "holdingRows": 1,
+            "scopeCounts": {
+                "all_disclosed_equity": 1,
+                "top10_disclosed_fund_investments": 0,
+            },
+        }
+
+        with self.assertRaisesRegex(ValueError, "不是完整抓取结果"):
+            index_builder.validate_qdii_h1_summary(summary, rows)
+
+    def test_qdii_h1_complete_summary_with_matching_csv_scope_counts_loads(self):
+        rows = [
+            {
+                "基金代码": "000001",
+                "报告期": "2026H1",
+                "截止日期": "2026-06-30",
+                "披露范围": "all_disclosed_equity",
+            },
+            {
+                "基金代码": "000001",
+                "报告期": "2026H1",
+                "截止日期": "2026-06-30",
+                "披露范围": "top10_disclosed_fund_investments",
+            },
+        ]
+        summary = {
+            "report": "2026H1",
+            "cutoffDate": "2026-06-30",
+            "fundType": "6020-6050",
+            "reportType": "FB020",
+            "isComplete": True,
+            "reportCount": 1,
+            "reportResults": [{"fundCode": "000001", "status": "ok"}],
+            "holdingRows": 2,
+            "scopeCounts": {
+                "all_disclosed_equity": 1,
+                "top10_disclosed_fund_investments": 1,
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_csv = temp_path / "holdings_qdii_2026h1.csv"
+            summary_json = temp_path / "qdii_half_year_holdings_summary_2026.json"
+            with source_csv.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            summary_json.write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+
+            with (
+                mock.patch.object(index_builder, "QDII_H1_CSV", source_csv),
+                mock.patch.object(index_builder, "QDII_H1_SUMMARY_JSON", summary_json),
+                mock.patch.object(index_builder, "FUND_LIST_CSV", temp_path / "missing-fund-list.csv"),
+            ):
+                loaded = index_builder.load_qdii_h1_source()
+
+        self.assertIsNotNone(loaded)
+        assert loaded is not None
+        self.assertEqual(loaded["rows"], rows)
+        self.assertEqual(loaded["summary"]["scopeCounts"], summary["scopeCounts"])
+
+    def test_qdii_variants_seed_from_official_report_code_when_fund_list_type_lacks_marker(self):
+        rows = [
+            {"基金代码": "000071", "基金名称": "测试海外 ETF 联接A", "基金类型": "指数型-海外股票", "是否QDII": ""},
+            {"基金代码": "000072", "基金名称": "测试海外 ETF 联接C", "基金类型": "指数型-海外股票", "是否QDII": ""},
+            {"基金代码": "000073", "基金名称": "普通境内基金A", "基金类型": "混合型", "是否QDII": ""},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "fund_list.csv"
+            with source.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            with mock.patch.object(index_builder, "FUND_LIST_CSV", source):
+                variants = index_builder.qdii_fund_variants(["000071"])
+
+        self.assertEqual(
+            [item["基金代码"] for item in variants["测试海外ETF联接"]],
+            ["000071", "000072"],
+        )
+        self.assertNotIn("普通境内基金", variants)
+
     def test_writer_failure_does_not_replace_old_manifest_or_reference_new_release(self):
         manifest, shards = self.build_release(
             stock_rows={
@@ -588,7 +720,7 @@ class PortfolioReleaseTests(unittest.TestCase):
             original_write_bytes = Path.write_bytes
 
             def fail_second_stock(path: Path, content: bytes) -> int:
-                if path.name == "005930.json":
+                if path.name == f"{index_builder.portfolio_stock_file_stem('005930')}.json":
                     raise OSError("injected shard write failure")
                 return original_write_bytes(path, content)
 

@@ -37,6 +37,7 @@ export interface FundFamilyProfile {
   fundDisplayName: string;
   fundType: string;
   fundVariantCodes: string[];
+  isQdii: boolean;
   isOnExchangeFund: boolean;
   view: PortfolioView;
   detailShardKey: string;

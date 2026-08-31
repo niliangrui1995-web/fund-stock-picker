@@ -38,6 +38,9 @@
 /data/fund-holdings-*.json
   Cache-Control: public, max-age=604800, stale-while-revalidate=86400
 
+/data/qdii-fund-holdings-*.json
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
 # manifest 可被季度内更正；releaseId 下分片不可变。单个 splat 贪婪匹配 release/fund-details 嵌套路径。
 /data/fund-portfolio-index-*.manifest.json
   Cache-Control: no-cache

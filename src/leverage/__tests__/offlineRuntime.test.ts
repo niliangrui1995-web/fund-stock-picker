@@ -13,6 +13,8 @@ describe("本机离线运行边界", () => {
 
     expect(sources).toEqual(["/stock-logos/nvda.png"]);
     expect(sources.every((source) => !/^https?:\/\//.test(source))).toBe(true);
+    expect(stockLogoSources("AMDUS")).toEqual([]);
+    expect(stockLogoSources("")).toEqual([]);
   });
 
   it("运行时代码只允许 Turnstile，不保留外部图片或数据域名", async () => {

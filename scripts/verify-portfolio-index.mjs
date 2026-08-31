@@ -26,6 +26,10 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function stockFileStem(stockCode) {
+  return `stock-${Buffer.from(stockCode, "utf8").toString("hex")}`;
+}
+
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -271,7 +275,7 @@ export async function verifyPortfolioRelease({ publicDataDir, report }) {
       if (!isPlainObject(entry) || !HASH_PATTERN.test(entry.sha256 ?? "") || !isNonNegativeInteger(entry.directEdgeCount) || !isNonNegativeInteger(entry.qualifiedIndirectEdgeCount)) {
         return fail(`股票分片 ${stockCode} 的 manifest 条目无效`, checkedShards);
       }
-      const expectedPath = `fund-portfolio-index-${slug}/${manifest.releaseId}/${stockCode}.json`;
+      const expectedPath = `fund-portfolio-index-${slug}/${manifest.releaseId}/${stockFileStem(stockCode)}.json`;
       if (entry.path !== expectedPath) return fail(`股票分片 ${stockCode} 路径不符合 releaseId 契约`, checkedShards);
 
       const { payload: shard } = await readJsonWithHash(dataDir, entry.path, entry.sha256);
