@@ -112,6 +112,120 @@ class PortfolioReleaseTests(unittest.TestCase):
         self.assertEqual(index_builder.canonical_stock_code("KR7000660001", aliases), "000660")
         self.assertEqual(index_builder.canonical_stock_code("440110KS", aliases), "440110KS")
 
+    def test_exact_official_product_name_alias_uses_canonical_source_code(self):
+        alias_config = {
+            "knownProducts": [
+                {
+                    "sourceCode": "7709.HK",
+                    "targetCode": "000660",
+                    "leverageMultiple": 2,
+                    "aliases": [
+                        "CSOP SK Hynix Daily 2x Leveraged Product",
+                        "CSOP SK H ynix Daily 2 x Leveraged Product",
+                    ],
+                }
+            ]
+        }
+        products = index_builder.configured_known_products(alias_config)
+        product_match = index_builder.match_known_product(
+            "",
+            "CSOP SK Hynix Daily 2x Leveraged Product",
+            products,
+        )
+        self.assertIsNotNone(product_match)
+        product, match_reason = product_match
+        self.assertEqual(product["sourceCode"], "7709.HK")
+        self.assertEqual(match_reason, "known product name alias -> 7709.HK")
+        spaced_product_match = index_builder.match_known_product(
+            "",
+            "CSOP SK H ynix Daily 2 x Leveraged Product",
+            products,
+        )
+        self.assertIsNotNone(spaced_product_match)
+        self.assertEqual(spaced_product_match[0]["sourceCode"], "7709.HK")
+        self.assertIsNone(index_builder.match_known_product("", "CSOP SK Hynix", products))
+
+        record = index_builder.make_indirect_exposure_record(
+            {
+                "基金代码": "000001",
+                "基金名称": "全球科技混合(QDII)",
+                "基金类型": "QDII",
+                "截止日期": "2026-06-30",
+                "占净值比例数值": "0.0126",
+                "持仓市值(万元)": "1035.31",
+                "持股数(万股)": "",
+                "证券代码": "",
+                "证券名称": "CSOP SK Hynix Daily 2x Leveraged Product",
+            },
+            "000660",
+            "SK海力士",
+            product,
+            match_reason,
+        )
+        self.assertEqual(record["sourceCode"], "7709.HK")
+        self.assertEqual(record["sourceName"], "CSOP SK Hynix Daily 2x Leveraged Product")
+
+    def test_exact_official_samsung_product_name_alias_uses_canonical_source_code(self):
+        products = index_builder.configured_known_products(
+            {
+                "knownProducts": [
+                    {
+                        "sourceCode": "7747.HK",
+                        "targetCode": "005930",
+                        "leverageMultiple": 2,
+                        "aliases": [
+                            "CSOP Samsung Electronics Daily 2x Leveraged Product",
+                            "CSOP Sams ung Electro nics Daily 2 x Leveraged Product",
+                        ],
+                    }
+                ]
+            }
+        )
+        product_match = index_builder.match_known_product(
+            "",
+            "CSOP Sams ung Electro nics Daily 2 x Leveraged Product",
+            products,
+        )
+        self.assertIsNotNone(product_match)
+        product, match_reason = product_match
+        self.assertEqual(product["sourceCode"], "7747.HK")
+        record = index_builder.make_indirect_exposure_record(
+            {
+                "基金代码": "000001",
+                "基金名称": "全球科技混合(QDII)",
+                "基金类型": "QDII",
+                "截止日期": "2026-06-30",
+                "占净值比例数值": "0.0106",
+                "持仓市值(万元)": "872.89",
+                "持股数(万股)": "",
+                "证券代码": "",
+                "证券名称": "CSOP Sams ung Electro nics Daily 2 x Leveraged Product",
+            },
+            "005930",
+            "三星电子",
+            product,
+            match_reason,
+        )
+        self.assertEqual(record["sourceCode"], "7747.HK")
+
+    def test_short_numeric_stock_code_is_not_used_as_a_product_name_alias(self):
+        stock_rows = {
+            "2": {"code": "2", "name": "ommunications Co., Ltd."},
+            "000660": {"code": "000660", "name": "SK HYNIX INC"},
+        }
+        candidates = index_builder.stock_alias_candidates(stock_rows, {})
+        numeric_candidate = next(item for item in candidates if item["code"] == "2")
+        self.assertNotIn("2", numeric_candidate["aliases"])
+        self.assertIsNone(
+            index_builder.match_indirect_target(
+                "",
+                "Generic Daily 2x Leveraged Product",
+                stock_rows,
+                candidates,
+                {},
+            )
+        )
+
     def test_portfolio_release_dedupes_share_classes_and_keeps_distinct_sources(self):
         manifest, shards = self.build_release(
             direct_funds={"000660": [fund("A", 0.042), fund("C", 0.039)]},

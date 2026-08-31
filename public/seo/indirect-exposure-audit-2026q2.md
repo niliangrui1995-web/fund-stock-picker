@@ -2,7 +2,7 @@
 
 只读维护产物，由 `scripts/build_fund_stock_index.py` 根据定期报告解析结果、`config/stock-exposure-aliases.json` 和最终前端数据生成；不要手工修改它来修页面展示。
 
-- 生成时间：`2026-09-01T01:35:23`
+- 生成时间：`2026-09-01T02:25:15`
 - 前端数据：`public/data/fund-stock-index-2026q2.json`
 - 报告解析 summary：`outputs/fund_report_holdings_summary_2026q2.json`
 - 报告解析 CSV：`outputs/holdings_fund_investment_2026q2.csv`
@@ -18,7 +18,7 @@
 | 已解析 LOF/QDII 定期报告 | 78 |
 | 候选未进入 indirectExposureRows | 76 |
 | 报告 PDF 解析出的杠杆明细 | 789 |
-| 最终 indirectExposureRows | 38 |
+| 最终 indirectExposureRows | 36 |
 | stockAliases 正股数 | 19 |
 | knownProducts 产品数 | 18 |
 | ignoredProducts 暂不映射产品数 | 1 |
@@ -117,13 +117,12 @@
 
 | 产品代码 | 产品名称 | 映射正股 | 杠杆倍数 | 匹配原因 | 最终行数 | 基金代码 |
 | --- | --- | --- | --- | --- | --- | --- |
-| CSOP SK H ynix Daily 2 x Leveraged Product | CSOP SK H ynix Daily 2 x Leveraged Product | 2 / ommunications Co., Ltd. | 2.0 | name matched 2 | 4 | 016664, 016665, 016823, 164212 |
-| CSOP SK Hynix Daily 2x Leveraged Product | CSOP SK Hynix Daily 2x Leveraged Product | 000660 / SK HYNIX INC | 2.0 | name matched SK Hynix | 9 | 002230, 005698, 018229, 018230, 018231, 018232, 019447, 019448, 024239 |
-| CSOP Samsung Electronics Daily 2x Leveraged Product | CSOP Samsung Electronics Daily 2x Leveraged Product | 005930 / 三星电子有限公司 | 2.0 | name matched Samsung Electronics | 5 | 002230, 018229, 018230, 018231, 018232 |
-| DRX DLY 20+ YR TEARS BULL 3X | DRX DLY 20+ YR TEARS BULL 3X | 20 / SENSE TIME GROUP INC. | 3.0 | name matched 20 | 2 | 004998, 004999 |
+| 7709.HK | CSOP SK H ynix Daily 2 x Leveraged Product | 000660 / SK HYNIX INC | 2.0 | known product name alias -> 7709.HK | 4 | 016664, 016665, 016823, 164212 |
+| 7709.HK | CSOP SK Hynix Daily 2x Leveraged Product | 000660 / SK HYNIX INC | 2.0 | known product name alias -> 7709.HK | 9 | 002230, 005698, 018229, 018230, 018231, 018232, 019447, 019448, 024239 |
+| 7747.HK | CSOP Sams ung Electro nics Daily 2 x Leveraged Product | 005930 / 三星电子有限公司 | 2.0 | known product name alias -> 7747.HK | 4 | 016664, 016665, 016823, 164212 |
+| 7747.HK | CSOP Samsung Electronics Daily 2x Leveraged Product | 005930 / 三星电子有限公司 | 2.0 | known product name alias -> 7747.HK | 5 | 002230, 018229, 018230, 018231, 018232 |
 | Defiance Daily Target 2X Long AMAT ETF | Defiance Daily Target 2X Long AMAT ETF | AMAT / 应用材料公司 | 2.0 | name matched AMAT | 1 | 001691 |
 | Defiance Daily Target 2X Long NOK ETF | Defiance Daily Target 2X Long NOK ETF | NOK / 诺基亚 | 2.0 | name matched NOK | 2 | 019265, 019266 |
-| Direxion Daily 20+ Year Treasury Bull 3X ETF | Direxion Daily 20+ Year Treasury Bull 3X ETF | 20 / SENSE TIME GROUP INC. | 3.0 | name matched 20 | 4 | 001061, 001063, 025162, 160216 |
 | Direxion Daily ASML Bull 2X ETF | Direxion Daily ASML Bull 2X ETF | ASML / 阿斯麦控股公司 | 2.0 | name matched ASML | 1 | 001691 |
 | Direxion Daily Intc Bull 2X ETF | Direxion Daily Intc Bull 2X ETF | INTC / 英特尔公司 | 2.0 | name matched INTC | 1 | 001691 |
 | Direxion Daily TSM Bull 2X ETF | Direxion Daily TSM Bull 2X ETF | TSM / 台湾积体电路制造股份有限公司 | 2.0 | name matched TSM | 2 | 019265, 019266 |
@@ -136,30 +135,28 @@
 
 | 正股 | 基金代码 | 基金名称 | 杠杆产品 | 原占净值 | 杠杆倍数 | 估算暴露 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 000660 / SK HYNIX INC | 002230 | 华夏大中华混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 1.26 | 2.0 | 2.52 |
-| 000660 / SK HYNIX INC | 005698 | 华夏全球科技先锋混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
-| 000660 / SK HYNIX INC | 018229 | 易方达全球优质企业混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
-| 000660 / SK HYNIX INC | 018230 | 易方达全球优质企业混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
-| 000660 / SK HYNIX INC | 018231 | 易方达全球优质企业混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
-| 000660 / SK HYNIX INC | 018232 | 易方达全球优质企业混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
-| 000660 / SK HYNIX INC | 019447 | 华夏全球科技先锋混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
-| 000660 / SK HYNIX INC | 019448 | 华夏全球科技先锋混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
-| 000660 / SK HYNIX INC | 024239 | 华夏全球科技先锋混合(QDII) | CSOP SK Hynix Daily 2x Leveraged Product / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
-| 005930 / 三星电子有限公司 | 002230 | 华夏大中华混合(QDII) | CSOP Samsung Electronics Daily 2x Leveraged Product / CSOP Samsung Electronics Daily 2x Leveraged Product | 1.06 | 2.0 | 2.12 |
-| 005930 / 三星电子有限公司 | 018229 | 易方达全球优质企业混合(QDII) | CSOP Samsung Electronics Daily 2x Leveraged Product / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
-| 005930 / 三星电子有限公司 | 018230 | 易方达全球优质企业混合(QDII) | CSOP Samsung Electronics Daily 2x Leveraged Product / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
-| 005930 / 三星电子有限公司 | 018231 | 易方达全球优质企业混合(QDII) | CSOP Samsung Electronics Daily 2x Leveraged Product / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
-| 005930 / 三星电子有限公司 | 018232 | 易方达全球优质企业混合(QDII) | CSOP Samsung Electronics Daily 2x Leveraged Product / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
-| 2 / ommunications Co., Ltd. | 016664 | 天弘全球高端制造混合(QDII) | CSOP SK H ynix Daily 2 x Leveraged Product / CSOP SK H ynix Daily 2 x Leveraged Product | 7.44 | 2.0 | 14.88 |
-| 2 / ommunications Co., Ltd. | 016665 | 天弘全球高端制造混合(QDII) | CSOP SK H ynix Daily 2 x Leveraged Product / CSOP SK H ynix Daily 2 x Leveraged Product | 7.44 | 2.0 | 14.88 |
-| 2 / ommunications Co., Ltd. | 016823 | 天弘全球新能源汽车股票(QDII-LOF) | CSOP SK H ynix Daily 2 x Leveraged Product / CSOP SK H ynix Daily 2 x Leveraged Product | 4.87 | 2.0 | 9.74 |
-| 2 / ommunications Co., Ltd. | 164212 | 天弘全球新能源汽车股票(QDII-LOF) | CSOP SK H ynix Daily 2 x Leveraged Product / CSOP SK H ynix Daily 2 x Leveraged Product | 4.87 | 2.0 | 9.74 |
-| 20 / SENSE TIME GROUP INC. | 004998 | 长信全球债券 | DRX DLY 20+ YR TEARS BULL 3X / DRX DLY 20+ YR TEARS BULL 3X | 2.42 | 3.0 | 7.26 |
-| 20 / SENSE TIME GROUP INC. | 004999 | 长信全球债券 | DRX DLY 20+ YR TEARS BULL 3X / DRX DLY 20+ YR TEARS BULL 3X | 2.42 | 3.0 | 7.26 |
-| 20 / SENSE TIME GROUP INC. | 001061 | 华夏收益债券(QDII) | Direxion Daily 20+ Year Treasury Bull 3X ETF / Direxion Daily 20+ Year Treasury Bull 3X ETF | 1.08 | 3.0 | 3.24 |
-| 20 / SENSE TIME GROUP INC. | 001063 | 华夏收益债券(QDII) | Direxion Daily 20+ Year Treasury Bull 3X ETF / Direxion Daily 20+ Year Treasury Bull 3X ETF | 1.08 | 3.0 | 3.24 |
-| 20 / SENSE TIME GROUP INC. | 025162 | 国泰大宗商品(QDII-LOF) | Direxion Daily 20+ Year Treasury Bull 3X ETF / Direxion Daily 20+ Year Treasury Bull 3X ETF | 3.22 | 3.0 | 9.66 |
-| 20 / SENSE TIME GROUP INC. | 160216 | 国泰大宗商品(QDII-LOF) | Direxion Daily 20+ Year Treasury Bull 3X ETF / Direxion Daily 20+ Year Treasury Bull 3X ETF | 3.22 | 3.0 | 9.66 |
+| 000660 / SK HYNIX INC | 002230 | 华夏大中华混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 1.26 | 2.0 | 2.52 |
+| 000660 / SK HYNIX INC | 005698 | 华夏全球科技先锋混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
+| 000660 / SK HYNIX INC | 016664 | 天弘全球高端制造混合(QDII) | 7709.HK / CSOP SK H ynix Daily 2 x Leveraged Product | 7.44 | 2.0 | 14.88 |
+| 000660 / SK HYNIX INC | 016665 | 天弘全球高端制造混合(QDII) | 7709.HK / CSOP SK H ynix Daily 2 x Leveraged Product | 7.44 | 2.0 | 14.88 |
+| 000660 / SK HYNIX INC | 016823 | 天弘全球新能源汽车股票(QDII-LOF) | 7709.HK / CSOP SK H ynix Daily 2 x Leveraged Product | 4.87 | 2.0 | 9.74 |
+| 000660 / SK HYNIX INC | 018229 | 易方达全球优质企业混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
+| 000660 / SK HYNIX INC | 018230 | 易方达全球优质企业混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
+| 000660 / SK HYNIX INC | 018231 | 易方达全球优质企业混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
+| 000660 / SK HYNIX INC | 018232 | 易方达全球优质企业混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 0.73 | 2.0 | 1.46 |
+| 000660 / SK HYNIX INC | 019447 | 华夏全球科技先锋混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
+| 000660 / SK HYNIX INC | 019448 | 华夏全球科技先锋混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
+| 000660 / SK HYNIX INC | 024239 | 华夏全球科技先锋混合(QDII) | 7709.HK / CSOP SK Hynix Daily 2x Leveraged Product | 1.01 | 2.0 | 2.02 |
+| 000660 / SK HYNIX INC | 164212 | 天弘全球新能源汽车股票(QDII-LOF) | 7709.HK / CSOP SK H ynix Daily 2 x Leveraged Product | 4.87 | 2.0 | 9.74 |
+| 005930 / 三星电子有限公司 | 002230 | 华夏大中华混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 1.06 | 2.0 | 2.12 |
+| 005930 / 三星电子有限公司 | 016664 | 天弘全球高端制造混合(QDII) | 7747.HK / CSOP Sams ung Electro nics Daily 2 x Leveraged Product | 1.5 | 2.0 | 3.0 |
+| 005930 / 三星电子有限公司 | 016665 | 天弘全球高端制造混合(QDII) | 7747.HK / CSOP Sams ung Electro nics Daily 2 x Leveraged Product | 1.5 | 2.0 | 3.0 |
+| 005930 / 三星电子有限公司 | 016823 | 天弘全球新能源汽车股票(QDII-LOF) | 7747.HK / CSOP Sams ung Electro nics Daily 2 x Leveraged Product | 1.9 | 2.0 | 3.8 |
+| 005930 / 三星电子有限公司 | 018229 | 易方达全球优质企业混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
+| 005930 / 三星电子有限公司 | 018230 | 易方达全球优质企业混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
+| 005930 / 三星电子有限公司 | 018231 | 易方达全球优质企业混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
+| 005930 / 三星电子有限公司 | 018232 | 易方达全球优质企业混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
+| 005930 / 三星电子有限公司 | 164212 | 天弘全球新能源汽车股票(QDII-LOF) | 7747.HK / CSOP Sams ung Electro nics Daily 2 x Leveraged Product | 1.9 | 2.0 | 3.8 |
 | ALAB / ASTERA LABS INC | 019265 | 南方港股数字经济混合发起(QDII) | Tradr 2X Long ALAB Daily ETF / Tradr 2X Long ALAB Daily ETF | 2.75 | 2.0 | 5.5 |
 | ALAB / ASTERA LABS INC | 019266 | 南方港股数字经济混合发起(QDII) | Tradr 2X Long ALAB Daily ETF / Tradr 2X Long ALAB Daily ETF | 2.75 | 2.0 | 5.5 |
 | AMAT / 应用材料公司 | 001691 | 南方香港成长灵活配置混合 | Defiance Daily Target 2X Long AMAT ETF / Defiance Daily Target 2X Long AMAT ETF | 0.85 | 2.0 | 1.7 |

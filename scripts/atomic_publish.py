@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 import shutil
+import time
 import uuid
 from pathlib import Path
 from typing import Iterable
+
+
+_REPLACE_RETRY_DELAYS_SECONDS = (0.1, 0.25, 0.5, 1.0, 2.0)
+
+
+def replace_staged_file(staged: Path, target: Path) -> None:
+    """Atomically replace a target, tolerating short-lived Windows file locks."""
+    for attempt, delay in enumerate(_REPLACE_RETRY_DELAYS_SECONDS, start=1):
+        try:
+            staged.replace(target)
+            return
+        except PermissionError:
+            if attempt == len(_REPLACE_RETRY_DELAYS_SECONDS):
+                raise
+            time.sleep(delay)
 
 
 def publish_staged_files(replacements: Iterable[tuple[Path, Path]]) -> None:
@@ -32,7 +48,7 @@ def publish_staged_files(replacements: Iterable[tuple[Path, Path]]) -> None:
 
         try:
             for staged, target in entries:
-                staged.replace(target)
+                replace_staged_file(staged, target)
                 published_targets.append(target)
         except Exception as publish_error:
             rollback_errors: list[str] = []

@@ -6,12 +6,41 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import atomic_publish
 from atomic_publish import publish_staged_files
 import fetch_fund_holdings
 import fetch_fund_report_holdings
 
 
 class AtomicGeneratorTests(unittest.TestCase):
+    def test_group_publish_retries_transient_permission_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staged = root / "staged.txt"
+            target = root / "target.txt"
+            staged.write_bytes(b"new")
+            target.write_bytes(b"old")
+            original_replace = Path.replace
+            attempts = 0
+
+            def transient_lock(path: Path, destination: Path):
+                nonlocal attempts
+                if path == staged:
+                    attempts += 1
+                    if attempts < 3:
+                        raise PermissionError("transient Windows lock")
+                return original_replace(path, destination)
+
+            with (
+                mock.patch.object(Path, "replace", new=transient_lock),
+                mock.patch.object(atomic_publish.time, "sleep") as sleep,
+            ):
+                publish_staged_files([(staged, target)])
+
+            self.assertEqual(attempts, 3)
+            self.assertEqual(target.read_bytes(), b"new")
+            self.assertEqual(sleep.call_count, 2)
+
     def test_group_publish_preserves_backup_when_rollback_itself_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

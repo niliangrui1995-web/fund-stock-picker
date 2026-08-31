@@ -44,9 +44,25 @@
     { "sourceCode": "NVDX", "targetCode": "NVDA", "leverageMultiple": 2 },
     { "sourceCode": "PLTU", "targetCode": "PLTR", "leverageMultiple": 2 },
     { "sourceCode": "TSLL", "targetCode": "TSLA", "leverageMultiple": 2 },
-    { "sourceCode": "7709.HK", "targetCode": "000660", "leverageMultiple": 2 },
+    {
+      "sourceCode": "7709.HK",
+      "targetCode": "000660",
+      "leverageMultiple": 2,
+      "aliases": [
+        "CSOP SK Hynix Daily 2x Leveraged Product",
+        "CSOP SK H ynix Daily 2 x Leveraged Product"
+      ]
+    },
     { "sourceCode": "07709", "targetCode": "000660", "leverageMultiple": 2 },
-    { "sourceCode": "7747.HK", "targetCode": "005930", "leverageMultiple": 2 },
+    {
+      "sourceCode": "7747.HK",
+      "targetCode": "005930",
+      "leverageMultiple": 2,
+      "aliases": [
+        "CSOP Samsung Electronics Daily 2x Leveraged Product",
+        "CSOP Sams ung Electro nics Daily 2 x Leveraged Product"
+      ]
+    },
     { "sourceCode": "07747", "targetCode": "005930", "leverageMultiple": 2 }
   ],
   "ignoredProducts": [

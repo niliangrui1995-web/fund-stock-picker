@@ -364,6 +364,41 @@ def configured_known_products(alias_config: dict[str, Any]) -> dict[str, dict[st
     return products
 
 
+def match_known_product(
+    source_code: str,
+    source_name: str,
+    known_products: dict[str, dict[str, Any]],
+) -> tuple[dict[str, Any], str] | None:
+    """Resolve a configured product from its code, then from an exact official name alias.
+
+    H1 QDII reports sometimes disclose a fund investment's full product name but
+    omit its exchange code.  Only an exact, configured alias may fill that gap;
+    broad name matching remains reserved for non-canonical discovery and must
+    not rewrite the published source code.
+    """
+    normalized_source_code = normalize_alias_text(source_code).replace(" ", "")
+    known_product = known_products.get(normalized_source_code)
+    if known_product is not None:
+        return known_product, f"known product {source_code.strip()}"
+
+    normalized_source_name = normalize_alias_text(source_name)
+    if not normalized_source_name:
+        return None
+    alias_matches: dict[str, dict[str, Any]] = {}
+    for product in known_products.values():
+        canonical_source_code = str(product.get("sourceCode", "")).strip()
+        if not canonical_source_code:
+            continue
+        for alias in product.get("aliases", []):
+            if isinstance(alias, str) and normalize_alias_text(alias) == normalized_source_name:
+                alias_matches[canonical_source_code] = product
+                break
+    if len(alias_matches) != 1:
+        return None
+    canonical_source_code, product = next(iter(alias_matches.items()))
+    return product, f"known product name alias -> {canonical_source_code}"
+
+
 def configured_ignored_products(alias_config: dict[str, Any]) -> list[dict[str, Any]]:
     products: list[dict[str, Any]] = []
     for item in alias_config.get("ignoredProducts", []):
@@ -403,7 +438,12 @@ def stock_alias_candidates(stock_rows: dict[str, dict[str, Any]], alias_config: 
     for code, stock in stock_rows.items():
         if not is_overseas_stock_code(code, stock["name"]):
             continue
-        aliases = {code, stock["name"]}
+        # A one-to-three digit exchange code (for example ``2``) is not a
+        # discriminating name alias.  Keeping it here lets the ``2x`` in an
+        # unrelated leveraged product name create a false indirect exposure.
+        aliases = {stock["name"]}
+        if not re.fullmatch(r"\d{1,3}", code):
+            aliases.add(code)
         for alias in configured_aliases.get(code, []):
             if isinstance(alias, str):
                 aliases.add(alias)
@@ -424,13 +464,18 @@ def match_indirect_target(
     stock_rows: dict[str, dict[str, Any]],
     alias_candidates: list[dict[str, Any]],
     known_products: dict[str, dict[str, Any]],
+    known_product_match: tuple[dict[str, Any], str] | None = None,
 ) -> tuple[str, dict[str, Any] | None, str] | None:
-    normalized_source_code = normalize_alias_text(source_code).replace(" ", "")
-    known_product = known_products.get(normalized_source_code)
-    if known_product is not None:
+    known_product_match = known_product_match or match_known_product(
+        source_code,
+        source_name,
+        known_products,
+    )
+    if known_product_match is not None:
+        known_product, match_reason = known_product_match
         target_code = str(known_product.get("targetCode", "")).strip()
         if target_code in stock_rows and target_code != source_code:
-            return target_code, known_product, f"known product {source_code}"
+            return target_code, known_product, match_reason
 
     if not is_leveraged_long_product(source_code, source_name):
         return None
@@ -460,6 +505,8 @@ def make_indirect_exposure_record(
     match_reason: str,
 ) -> dict[str, Any]:
     fund = make_fund_record(row)
+    source_code = row.get("证券代码", "").strip()
+    canonical_source_code = str(known_product.get("sourceCode", "")).strip() if known_product else ""
     leverage_multiple = parse_leverage_multiple(
         f"{row.get('证券代码', '')} {row.get('证券名称', '')}",
         known_product.get("leverageMultiple") if known_product else None,
@@ -467,7 +514,7 @@ def make_indirect_exposure_record(
     estimated_ratio = fund["ratio"] * leverage_multiple if leverage_multiple else None
     fund.update(
         {
-            "sourceCode": row.get("证券代码", "").strip() or row.get("证券名称", "").strip(),
+            "sourceCode": canonical_source_code or source_code or row.get("证券名称", "").strip(),
             "sourceName": row.get("证券名称", "").strip(),
             "targetCode": target_code,
             "targetName": target_name,
@@ -2369,15 +2416,19 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
         if not source_name:
             continue
         source_code_for_match = source_code or source_name
-        known_product = known_products.get(
-            normalize_alias_text(source_code_for_match).replace(" ", "")
+        known_product_match = match_known_product(
+            source_code_for_match,
+            source_name,
+            known_products,
         )
+        known_product = known_product_match[0] if known_product_match is not None else None
         target_match = match_indirect_target(
             source_code_for_match,
             source_name,
             stock_rows,
             alias_candidates,
             known_products,
+            known_product_match,
         )
         if target_match is None:
             if is_leveraged_long_product(source_code_for_match, source_name, known_product):

@@ -7,7 +7,7 @@
   "dataMeta": {
     "report": "2026Q2",
     "cutoffDate": "2026-06-30",
-    "generatedAt": "2026-09-01T01:35:23",
+    "generatedAt": "2026-09-01T02:25:15",
     "sourceFile": "holdings_stock_2026q2.csv + holdings_qdii_2026h1.csv",
     "purchaseLimitCount": 27395,
     "purchaseLimitFetchedAt": "2026-08-30 00:54:50",
@@ -18,7 +18,7 @@
       "08-27"
     ],
     "fundInvestmentSourceRows": 789,
-    "indirectExposureRows": 38,
+    "indirectExposureRows": 36,
     "stockCount": 6639,
     "overseasStockCount": 6639,
     "shippedStockScope": "overseas",
@@ -40,8 +40,8 @@
   },
   "portfolioRelease": {
     "manifestPath": "data/fund-portfolio-index-2026q2.manifest.json",
-    "releaseId": "2026q2-20260901013524158820-a15af10a8e35",
-    "manifestSha256": "1c34768b2e53ed4613fce1a9a9fffee69f979808dd373df2ee46000a97b324e9",
+    "releaseId": "2026q2-20260901022515672669-8d4df9ef8439",
+    "manifestSha256": "1aa364f3e0eb205b0ca7a8b1274072a349b996806221ca60905e108a37dc77ca",
     "report": "2026Q2",
     "stockShardCount": 6639,
     "fundDetailShardCount": 256
@@ -63,8 +63,8 @@
     "seoUsesConfiguredDataFile": true,
     "hasFundInvestmentSourceRows": true,
     "hasIndirectExposureRows": true,
-    "hasRequiredIndirectExposureMappings": false,
+    "hasRequiredIndirectExposureMappings": true,
     "hasIndirectExposureAuditFile": true,
-    "auditCoversRequiredIndirectMappings": false
+    "auditCoversRequiredIndirectMappings": true
   }
 }
