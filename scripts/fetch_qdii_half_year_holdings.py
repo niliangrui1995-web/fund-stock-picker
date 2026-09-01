@@ -278,6 +278,66 @@ def display_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
+def is_cjk_character(value: str) -> bool:
+    return bool(re.fullmatch(r"[\u4e00-\u9fff]", value))
+
+
+def normalize_pdf_wrapped_name(value: Any) -> str:
+    """Join only a word split that the official PDF layout proves has no space.
+
+    ``Table.extract()`` normalizes a cell's visual lines into whitespace and
+    cannot distinguish a real word boundary from a mid-word wrap. Call this
+    only for a value obtained from ``Page.get_textbox`` after its non-whitespace
+    glyph sequence has been checked against the table cell. A missing glyph
+    space is still insufficient by itself: retain a boundary unless it is an
+    ASCII word continuation (``H`` + ``ynix``, ``2`` + ``x``) or two adjacent
+    CJK characters.
+    """
+    raw_lines = str(value or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    result = ""
+    previous_raw_line = ""
+    for raw_line in raw_lines:
+        line = display_text(raw_line)
+        if not line:
+            continue
+        if not result:
+            result = line
+            previous_raw_line = raw_line
+            continue
+        previous_character = previous_raw_line[-1:]
+        next_character = raw_line[:1]
+        has_real_boundary_space = (
+            not previous_character
+            or not next_character
+            or previous_character.isspace()
+            or next_character.isspace()
+        )
+        join_mid_word = (
+            not has_real_boundary_space
+            and (
+                (
+                    previous_character.isascii()
+                    and previous_character.isalnum()
+                    and next_character.isascii()
+                    and next_character.islower()
+                )
+                or (is_cjk_character(previous_character) and is_cjk_character(next_character))
+            )
+        )
+        result = f"{result}{'' if join_mid_word else ' '}{line}"
+        previous_raw_line = raw_line
+    return display_text(result)
+
+
+def may_have_pdf_wrapped_name(value: Any) -> bool:
+    """Return a cheap, deliberately broad prefilter for layout verification."""
+    text = display_text(value)
+    return bool(
+        re.search(r"[A-Za-z0-9]\s+[a-z]", text)
+        or re.search(r"[\u4e00-\u9fff]\s+[\u4e00-\u9fff]", text)
+    )
+
+
 def parse_number(value: Any) -> float | None:
     raw = compact(value).replace(",", "").replace("，", "")
     if not raw or raw in {"-", "--", "—"}:
@@ -493,6 +553,43 @@ def preferred_row_value(row: list[str | None], primary: int | None, alternate: i
     return alternative if alternative not in {"-", "--"} else ""
 
 
+def row_with_layout_name_cells(
+    page: fitz.Page,
+    table: Any,
+    table_row_index: int,
+    row: list[str | None],
+    name_indices: Iterable[int],
+) -> tuple[list[str | None], set[int]]:
+    """Restore source-layout text only for verified name cells in one table row.
+
+    ``find_tables`` can change line-end spaces during extraction. The page text
+    box preserves them, but may also capture an adjacent visual artifact. Use it
+    only when its compact glyph sequence is exactly the same as the extracted
+    cell; otherwise leave the parser's original cell untouched.
+    """
+    try:
+        cells = table.rows[table_row_index].cells
+    except (AttributeError, IndexError):
+        return list(row), set()
+    updated = list(row)
+    verified_indices: set[int] = set()
+    for index in sorted({int(candidate) for candidate in name_indices}):
+        if index < 0 or index >= len(row) or index >= len(cells):
+            continue
+        cell = cells[index]
+        extracted = row[index]
+        if cell is None or not may_have_pdf_wrapped_name(extracted):
+            continue
+        try:
+            layout_text = page.get_textbox(fitz.Rect(cell))
+        except (RuntimeError, TypeError, ValueError):
+            continue
+        if layout_text and compact(layout_text) == compact(extracted):
+            updated[index] = layout_text
+            verified_indices.add(index)
+    return updated, verified_indices
+
+
 def shift_schema_indices(schema: dict[str, Any], offset: int) -> dict[str, Any] | None:
     """Move table columns when a merged PDF header has an empty leading cell.
 
@@ -521,9 +618,20 @@ def shift_schema_indices(schema: dict[str, Any], offset: int) -> dict[str, Any] 
     return shifted
 
 
-def choose_name_with_index(row: list[str | None], indices: list[int]) -> tuple[str, int | None]:
+def choose_name_with_index(
+    row: list[str | None],
+    indices: list[int],
+    *,
+    layout_name_indices: set[int] | None = None,
+) -> tuple[str, int | None]:
+    layout_name_indices = layout_name_indices or set()
     candidates = [
-        (table_row_value(row, index), index)
+        (
+            normalize_pdf_wrapped_name(row[index])
+            if index in layout_name_indices and index < len(row)
+            else table_row_value(row, index),
+            index,
+        )
         for index in indices
     ]
     candidates = [
@@ -543,8 +651,13 @@ def choose_name_with_index(row: list[str | None], indices: list[int]) -> tuple[s
     )
 
 
-def choose_name(row: list[str | None], indices: list[int]) -> str:
-    return choose_name_with_index(row, indices)[0]
+def choose_name(
+    row: list[str | None],
+    indices: list[int],
+    *,
+    layout_name_indices: set[int] | None = None,
+) -> str:
+    return choose_name_with_index(row, indices, layout_name_indices=layout_name_indices)[0]
 
 
 def normalized_percent(value: Any) -> tuple[str, float] | None:
@@ -598,12 +711,21 @@ def holding_from_table_row(
     page_number: int,
     pdf_sha256: str,
     year: int,
+    layout_name_indices: set[int] | None = None,
 ) -> dict[str, Any] | None:
-    name, selected_name_index = choose_name_with_index(row, schema["nameIndices"])
+    name, selected_name_index = choose_name_with_index(
+        row,
+        schema["nameIndices"],
+        layout_name_indices=layout_name_indices,
+    )
     shifted = shift_schema_indices(schema, -1)
     if not name:
         if shifted is not None:
-            shifted_name, shifted_name_index = choose_name_with_index(row, shifted["nameIndices"])
+            shifted_name, shifted_name_index = choose_name_with_index(
+                row,
+                shifted["nameIndices"],
+                layout_name_indices=layout_name_indices,
+            )
             if shifted_name:
                 name = shifted_name
                 selected_name_index = shifted_name_index
@@ -706,6 +828,7 @@ def merge_rankless_equity_name_fragment(
     row_index: int,
     page_number: int,
     expected_rank: int,
+    layout_name_indices: set[int] | None = None,
 ) -> bool:
     """Append a provable next-page name tail to the immediately preceding row.
 
@@ -748,7 +871,11 @@ def merge_rankless_equity_name_fragment(
         return False
     previous_name = display_text(previous["证券名称"])
     previous_is_chinese = bool(re.search(r"[\u4e00-\u9fff]", previous_name))
-    suffix = table_row_value(row, selected_name_index)
+    suffix = (
+        normalize_pdf_wrapped_name(row[selected_name_index])
+        if layout_name_indices and selected_name_index in layout_name_indices and selected_name_index < len(row)
+        else table_row_value(row, selected_name_index)
+    )
     if not suffix or bool(re.search(r"[\u4e00-\u9fff]", suffix)) != previous_is_chinese:
         return False
     if previous_is_chinese:
@@ -854,10 +981,15 @@ def parse_report_pdf(pdf_path: Path, report: dict[str, Any], year: int) -> list[
                 if current_section not in {"equity", "fund"}:
                     continue
                 extracted = table.extract()
-                rows = [list(row) for row in extracted if any(display_text(cell) for cell in row)]
+                rows = [
+                    (table_row_index, list(row))
+                    for table_row_index, row in enumerate(extracted)
+                    if any(display_text(cell) for cell in row)
+                ]
                 if not rows:
                     continue
-                schema = table_schema(rows, current_section)
+                plain_rows = [row for _, row in rows]
+                schema = table_schema(plain_rows, current_section)
                 data_start = 0
                 if schema is not None:
                     schemas[current_section] = schema
@@ -865,12 +997,23 @@ def parse_report_pdf(pdf_path: Path, report: dict[str, Any], year: int) -> list[
                 else:
                     schema = schemas.get(current_section)
                     if schema is None:
-                        schema = inferred_continuation_schema(len(rows[0]), current_section, rows)
+                        schema = inferred_continuation_schema(len(plain_rows[0]), current_section, plain_rows)
                     else:
-                        schema = continuation_schema(schema, len(rows[0]), current_section, rows)
+                        schema = continuation_schema(schema, len(plain_rows[0]), current_section, plain_rows)
                     if schema is None:
                         continue
-                for row_index, row in enumerate(rows[data_start:], start=data_start):
+                name_indices = set(int(index) for index in schema["nameIndices"])
+                shifted_schema = shift_schema_indices(schema, -1)
+                if shifted_schema is not None:
+                    name_indices.update(int(index) for index in shifted_schema["nameIndices"])
+                for row_index, (table_row_index, row) in enumerate(rows[data_start:], start=data_start):
+                    row, layout_name_indices = row_with_layout_name_cells(
+                        page,
+                        table,
+                        table_row_index,
+                        row,
+                        name_indices,
+                    )
                     record = holding_from_table_row(
                         row,
                         schema,
@@ -880,6 +1023,7 @@ def parse_report_pdf(pdf_path: Path, report: dict[str, Any], year: int) -> list[
                         page_number=page_index + 1,
                         pdf_sha256=pdf_sha256,
                         year=year,
+                        layout_name_indices=layout_name_indices,
                     )
                     if record is None:
                         if current_section == "equity":
@@ -891,6 +1035,7 @@ def parse_report_pdf(pdf_path: Path, report: dict[str, Any], year: int) -> list[
                                 row_index=row_index,
                                 page_number=page_index + 1,
                                 expected_rank=next_rank[current_section] - 1,
+                                layout_name_indices=layout_name_indices,
                             )
                         continue
                     key = holding_record_key(record)

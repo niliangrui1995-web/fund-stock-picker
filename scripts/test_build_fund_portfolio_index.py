@@ -333,7 +333,7 @@ class PortfolioReleaseTests(unittest.TestCase):
         )
         self.assertEqual(round(actual, 2), 13.54)
 
-    def test_q2_indirect_audit_closes_remaining_candidates_with_provenance(self):
+    def test_q2_indirect_audit_preserves_unconfirmed_candidates_with_provenance(self):
         audit = index_builder.INDIRECT_EXPOSURE_AUDIT_MD.read_text(encoding="utf-8")
         unmatched_section = audit.split("## 解析到但未映射的杠杆明细", 1)[1].split(
             "## 候选跳过 / 未进入 indirectExposureRows", 1
@@ -347,8 +347,11 @@ class PortfolioReleaseTests(unittest.TestCase):
         self.assertIn("发行方/指数资料", unmatched_section)
         self.assertIn("ProShares UltraPro QQQ", unmatched_section)
         self.assertNotIn("CSOP SK Hynix Daily 2x Leveraged Product", unmatched_section)
+        self.assertNotIn("CSOP Samsung Electronics Daily 2x Leveraged Product", unmatched_section)
+        self.assertNotIn("CSOP SK H ynix Daily 2 x Leveraged Product", audit)
+        self.assertNotIn("CSOP Sams ung Electro nics Daily 2 x Leveraged Product", audit)
         self.assertNotIn("Direxion Daily Intc Bull 2X ETF", unmatched_section)
-        self.assertNotIn("未匹配到站内正股", unmatched_section)
+        self.assertIn("未匹配到站内正股", unmatched_section)
         self.assertIn("已确认暂不映射", unmatched_section)
         audit_rows = [
             [cell.strip() for cell in line.split("|")]
@@ -359,25 +362,33 @@ class PortfolioReleaseTests(unittest.TestCase):
         for cells in audit_rows:
             product_row_counts[cells[5]] = product_row_counts.get(cells[5], 0) + 1
             self.assertIn("原始半年报 p.", cells[7])
-            self.assertIn("发行方/指数资料", cells[8])
-            self.assertTrue(cells[9].startswith("已确认暂不映射："))
+            if cells[9].startswith("已确认暂不映射："):
+                self.assertIn("发行方/指数资料", cells[8])
+            else:
+                self.assertEqual(cells[8], "—")
+                self.assertEqual(
+                    cells[9],
+                    "未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。",
+                )
         self.assertEqual(
             product_row_counts,
             {
                 "ProShares UltraPro QQQ": 6,
                 "2x Long VIX Futures ETF": 3,
                 "Direxion Daily 20+ Year Treasury Bull 3X ETF": 4,
-                "ProShares Ultra Nasdaq Biotechnol ogy": 2,
                 "DRX DLY 20+ YR TEARS BULL 3X": 2,
-                "Direxion Daily Semiconducto r Bull 3X ETF": 4,
-                "Direxion Daily Semicondu ctor Bull 3X ETF": 4,
                 "DRXN DLY S&P BT BL 3X ETF-UI": 2,
                 "ProShares Ultra Gold": 4,
                 "ProShares Ultra Energy": 4,
+                "ProShares Ultra Nasdaq Biotechnology": 2,
+                "Direxion Daily Semiconductor Bull 3X ETF": 8,
             },
         )
         self.assertEqual(manifest["coverage"]["unmappedCandidateRows"], 35)
-        self.assertEqual(manifest["coverage"]["unmappedByReason"], {"ignored_product": 35})
+        self.assertEqual(
+            manifest["coverage"]["unmappedByReason"],
+            {"ignored_product": 25, "unmapped_target": 10},
+        )
         self.assertEqual(manifest["coverage"]["qualifiedIndirectEdges"], 18)
 
     def test_invalid_indirect_candidates_are_excluded_and_counted(self):

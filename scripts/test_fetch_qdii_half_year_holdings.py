@@ -12,6 +12,7 @@ from fetch_qdii_half_year_holdings import (
     holding_from_table_row,
     inferred_continuation_schema,
     merge_rankless_equity_name_fragment,
+    normalize_pdf_wrapped_name,
     table_schema,
 )
 
@@ -71,6 +72,27 @@ class QdiiHalfYearParserTests(unittest.TestCase):
         self.assertEqual(record["披露范围"], "top10_disclosed_fund_investments")
         self.assertEqual(record["证券代码"], "")
         self.assertEqual(record["证券标识"], "REPORT-FUND-001")
+
+    def test_pdf_layout_name_normalization_only_joins_proven_mid_word_breaks(self) -> None:
+        # ``Page.get_textbox(cell)`` preserves real blank glyphs at line ends.
+        # The first sample has no blank glyph between H/ynix and 2/x; the
+        # second has a real word space before "and", so it must stay separate.
+        self.assertEqual(
+            normalize_pdf_wrapped_name(
+                "CSOP SK H\nynix Daily 2\nx Leveraged\n Product "
+            ),
+            "CSOP SK Hynix Daily 2x Leveraged Product",
+        )
+        self.assertEqual(
+            normalize_pdf_wrapped_name(
+                "Calamos \nConvertible \nand High \nIncome Fund"
+            ),
+            "Calamos Convertible and High Income Fund",
+        )
+        self.assertEqual(
+            normalize_pdf_wrapped_name("Alphabet \nInc "),
+            "Alphabet Inc",
+        )
 
     def test_merged_header_fallback_recovers_one_column_left_fund_row(self) -> None:
         rows = [
@@ -238,6 +260,33 @@ class QdiiHalfYearParserTests(unittest.TestCase):
         )
         self.assertTrue(merged)
         self.assertEqual(prior["证券名称"], "Gartner Inc")
+
+    def test_rankless_fragment_uses_verified_layout_to_join_mid_word_break(self) -> None:
+        schema = inferred_continuation_schema(9, "equity")
+        self.assertIsNotNone(schema)
+        prior = {
+            "持仓类别": "权益投资",
+            "披露范围": "all_disclosed_equity",
+            "证券标识": "OHIUS",
+            "证券名称": "Omega",
+            "序号": 12,
+            "页码": 42,
+            "_selectedNameIndex": 1,
+        }
+        records = [prior]
+        seen = {holding_record_key(prior)}
+        merged = merge_rankless_equity_name_fragment(
+            records,
+            seen,
+            ["", "Healthcar\ne \nInvestors \nInc ", "", "", "交易所", "美国", "", "", ""],
+            schema or {},
+            row_index=0,
+            page_number=43,
+            expected_rank=12,
+            layout_name_indices={1},
+        )
+        self.assertTrue(merged)
+        self.assertEqual(prior["证券名称"], "Omega Healthcare Investors Inc")
 
     def test_rankless_continuation_code_receives_deterministic_rank(self) -> None:
         rows = [

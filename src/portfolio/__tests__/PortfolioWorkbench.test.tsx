@@ -376,6 +376,32 @@ describe("PortfolioWorkbench", () => {
     expect(fetchImpl).toHaveBeenCalledWith("/data/qdii-fund-holdings-2026h1.json?v=2026q2-qdii-h1");
   });
 
+  it("QDII 详情保留已核验的官方产品名称", async () => {
+    const qdiiFund: AggregatedFundResult = {
+      ...fund(1),
+      fundName: "海外指数基金",
+      fundDisplayName: "海外指数基金",
+      fundType: "指数型-海外股票",
+      isQdii: true,
+    };
+    const payload = qdiiPayload();
+    payload.fundHoldings["000001"].fundInvestments[0].stockName =
+      "CSOP SK Hynix Daily 2x Leveraged Product";
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
+    await render(model({
+      detail: {
+        kind: "available",
+        fund: qdiiFund,
+        record: availableDetailRecord(qdiiFund, 11),
+      },
+    }), { fetchImpl: fetchImpl as typeof fetch });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+    const richDetail = container.querySelector(".portfolio-qdii-detail");
+    expect(richDetail?.textContent).toContain("CSOP SK Hynix Daily 2x Leveraged Product（ETF）");
+    expect(richDetail?.textContent).not.toContain("CSOP SK H ynix Daily 2 x Leveraged Product");
+  });
+
   it("非 QDII 详情仍维持最多十条的主索引契约", async () => {
     const mixedFund = fund(1);
     const fetchImpl = vi.fn();

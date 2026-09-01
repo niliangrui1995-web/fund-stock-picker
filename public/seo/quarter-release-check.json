@@ -7,7 +7,7 @@
   "dataMeta": {
     "report": "2026Q2",
     "cutoffDate": "2026-06-30",
-    "generatedAt": "2026-09-01T09:48:48",
+    "generatedAt": "2026-09-01T10:38:17",
     "sourceFile": "holdings_stock_2026q2.csv + holdings_qdii_2026h1.csv",
     "purchaseLimitCount": 27395,
     "purchaseLimitFetchedAt": "2026-08-30 00:54:50",
@@ -40,8 +40,8 @@
   },
   "portfolioRelease": {
     "manifestPath": "data/fund-portfolio-index-2026q2.manifest.json",
-    "releaseId": "2026q2-20260901094848407107-5f612e1d1195",
-    "manifestSha256": "db7088590851ad2025127c1eada8a5b386fed69a35a414311e8fde77b1e5f498",
+    "releaseId": "2026q2-20260901103817876714-468570cfcfb4",
+    "manifestSha256": "016a654a37fe528e4cbf3eec643ed7c62d64131bd7d86ac6510febd3083fa004",
     "report": "2026Q2",
     "stockShardCount": 6639,
     "fundDetailShardCount": 256
