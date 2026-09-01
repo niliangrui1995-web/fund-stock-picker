@@ -407,19 +407,36 @@ def configured_ignored_products(alias_config: dict[str, Any]) -> list[dict[str, 
     return products
 
 
-def ignored_product_reason(row: dict[str, str], ignored_products: list[dict[str, Any]]) -> str:
+def ignored_product_entry(
+    row: dict[str, str],
+    ignored_products: list[dict[str, Any]],
+) -> dict[str, Any] | None:
     source_code = row.get("证券代码", "").strip()
     source_name = row.get("证券名称", "").strip()
     normalized_source_code = normalize_alias_text(source_code).replace(" ", "")
-    text = f"{source_code} {source_name}"
+    normalized_source_name = normalize_alias_text(source_name)
     for item in ignored_products:
         configured_code = normalize_alias_text(str(item.get("sourceCode", ""))).replace(" ", "")
         if configured_code and configured_code == normalized_source_code:
-            return str(item.get("reason", "")).strip()
+            return item
         for alias in item.get("aliases", []):
-            if isinstance(alias, str) and alias_in_text(alias, text):
-                return str(item.get("reason", "")).strip()
+            if isinstance(alias, str) and normalize_alias_text(alias) == normalized_source_name:
+                return item
+    return None
+
+
+def ignored_product_reason(row: dict[str, str], ignored_products: list[dict[str, Any]]) -> str:
+    item = ignored_product_entry(row, ignored_products)
+    if item is not None:
+        return str(item.get("reason", "")).strip()
     return ""
+
+
+def ignored_product_evidence(row: dict[str, str], ignored_products: list[dict[str, Any]]) -> str:
+    item = ignored_product_entry(row, ignored_products)
+    if item is None:
+        return ""
+    return str(item.get("evidence", "")).strip()
 
 
 def unmapped_fund_investment_reason(
@@ -430,6 +447,22 @@ def unmapped_fund_investment_reason(
     if reason:
         return f"已确认暂不映射：{reason}"
     return "未匹配到站内正股；如需要展示，补 `config/stock-exposure-aliases.json`。"
+
+
+def audit_report_source(row: dict[str, str]) -> str:
+    source_url = row.get("来源URL", "").strip()
+    if not source_url:
+        return "—"
+    source_page = row.get("页码", "").strip()
+    label = f"原始半年报 p.{source_page}" if source_page else "原始半年报"
+    return f"[{label}]({source_url})"
+
+
+def audit_product_evidence(row: dict[str, str], ignored_products: list[dict[str, Any]]) -> str:
+    evidence = ignored_product_evidence(row, ignored_products)
+    if not evidence:
+        return "—"
+    return f"[发行方/指数资料]({evidence})"
 
 
 def stock_alias_candidates(stock_rows: dict[str, dict[str, Any]], alias_config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -465,7 +498,15 @@ def match_indirect_target(
     alias_candidates: list[dict[str, Any]],
     known_products: dict[str, dict[str, Any]],
     known_product_match: tuple[dict[str, Any], str] | None = None,
+    *,
+    ignored_products: list[dict[str, Any]] | None = None,
 ) -> tuple[str, dict[str, Any] | None, str] | None:
+    if ignored_products and ignored_product_entry(
+        {"证券代码": source_code, "证券名称": source_name},
+        ignored_products,
+    ) is not None:
+        return None
+
     known_product_match = known_product_match or match_known_product(
         source_code,
         source_name,
@@ -670,7 +711,7 @@ def flatten_indirect_exposure_rows(
 def render_indirect_exposure_audit(
     payload: dict[str, Any],
     fetch_summary: dict[str, Any],
-    fund_investment_rows: list[dict[str, str]],
+    unmapped_indirect_rows: list[dict[str, str]],
     indirect_exposures: dict[str, dict[str, dict[str, Any]]],
     exposure_aliases: dict[str, Any],
 ) -> str:
@@ -688,18 +729,8 @@ def render_indirect_exposure_audit(
         for result in candidate_results
         if mapped_rows_by_fund.get(result.get("fundCode", ""), 0) == 0
     ]
-    final_keys = {
-        (row.get("fundCode", ""), row.get("sourceCode", ""), row.get("sourceName", ""))
-        for row in final_rows
-    }
-    unmapped_fund_investment_rows = [
-        row
-        for row in fund_investment_rows
-        if (row.get("基金代码", ""), row.get("证券代码", ""), row.get("证券名称", ""))
-        not in final_keys
-    ]
     unmapped_reasons_by_fund: dict[str, set[str]] = defaultdict(set)
-    for row in unmapped_fund_investment_rows:
+    for row in unmapped_indirect_rows:
         reason = unmapped_fund_investment_reason(row, ignored_products)
         if reason.startswith("已确认暂不映射"):
             unmapped_reasons_by_fund[row.get("基金代码", "")].add(reason)
@@ -843,7 +874,17 @@ def render_indirect_exposure_audit(
             "## 解析到但未映射的杠杆明细",
             "",
             markdown_table(
-                ["基金代码", "基金名称", "基金类型", "产品代码", "产品名称", "原占净值", "处理结果"],
+                [
+                    "基金代码",
+                    "基金名称",
+                    "基金类型",
+                    "产品代码",
+                    "产品名称",
+                    "原占净值",
+                    "基金半年报原始来源",
+                    "发行方/指数资料",
+                    "处理结果",
+                ],
                 [
                     [
                         row.get("基金代码", ""),
@@ -852,9 +893,11 @@ def render_indirect_exposure_audit(
                         row.get("证券代码", ""),
                         row.get("证券名称", ""),
                         row.get("占净值比例", ""),
+                        audit_report_source(row),
+                        audit_product_evidence(row, ignored_products),
                         unmapped_fund_investment_reason(row, ignored_products),
                     ]
-                    for row in unmapped_fund_investment_rows
+                    for row in unmapped_indirect_rows
                 ],
             ),
             "",
@@ -2326,6 +2369,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     stock_funds: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     indirect_exposures: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     portfolio_indirect_candidates: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    unmapped_indirect_rows: list[dict[str, str]] = []
     portfolio_indirect_coverage: dict[str, Any] = {
         "unmappedCandidateRows": 0,
         "unmappedByReason": {},
@@ -2429,9 +2473,11 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             alias_candidates,
             known_products,
             known_product_match,
+            ignored_products=ignored_products,
         )
         if target_match is None:
             if is_leveraged_long_product(source_code_for_match, source_name, known_product):
+                unmapped_indirect_rows.append(row)
                 portfolio_indirect_coverage["unmappedCandidateRows"] += 1
                 reason = (
                     "ignored_product"
@@ -2666,7 +2712,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     audit_markdown = render_indirect_exposure_audit(
         payload,
         fetch_summary,
-        fund_investment_rows,
+        unmapped_indirect_rows,
         indirect_exposures,
         exposure_aliases,
     )

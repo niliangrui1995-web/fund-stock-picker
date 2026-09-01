@@ -67,6 +67,54 @@
   ],
   "ignoredProducts": [
     {
+      "sourceCode": "TQQQ",
+      "aliases": ["ProShares UltraPro QQQ"],
+      "reason": "ProShares UltraPro QQQ（TQQQ）跟踪 Nasdaq-100 指数的日度 3 倍表现，是多成分股指数产品，不是单一正股；不要映射到 NVDA、MSFT 或 QQQ 等任何个股。",
+      "evidence": "https://www.proshares.com/our-etfs/leveraged-and-inverse/tqqq"
+    },
+    {
+      "sourceCode": "UVIX",
+      "aliases": ["2x Long VIX Futures ETF"],
+      "reason": "Volatility Shares 2x Long VIX Futures ETF（UVIX）跟踪 Long VIX Futures Index（LONGVOL）的日度 2 倍表现，底层为滚动 VIX 期货组合，不对应上市公司正股。",
+      "evidence": "https://www.volatilityshares.com/UVIX"
+    },
+    {
+      "sourceCode": "TMF",
+      "aliases": [
+        "Direxion Daily 20+ Year Treasury Bull 3X ETF",
+        "DRX DLY 20+ YR TEARS BULL 3X"
+      ],
+      "reason": "Direxion Daily 20+ Year Treasury Bull 3X ETF（TMF）跟踪 ICE U.S. Treasury 20+ Year Bond Index 的日度 3 倍表现；报告中的 DRX 缩写/拼写噪声作为该产品精确别名保留。它是国债指数产品，不对应正股。",
+      "evidence": "https://www.direxion.com/product/daily-20-year-treasury-bull-bear-3x-etfs"
+    },
+    {
+      "sourceCode": "BIB",
+      "aliases": ["ProShares Ultra Nasdaq Biotechnol ogy"],
+      "reason": "ProShares Ultra Nasdaq Biotechnology（BIB）跟踪 Nasdaq Biotechnology Index 的日度 2 倍表现，是生物科技指数产品，不应映射到任何单一成分股。",
+      "evidence": "https://www.proshares.com/our-etfs/leveraged-and-inverse/bib"
+    },
+    {
+      "sourceCode": "SOXL",
+      "aliases": [
+        "Direxion Daily Semiconducto r Bull 3X ETF",
+        "Direxion Daily Semicondu ctor Bull 3X ETF"
+      ],
+      "reason": "Direxion Daily Semiconductor Bull 3X ETF（SOXL）跟踪 NYSE Semiconductor Index 的日度 3 倍表现，是半导体行业指数产品，不应映射到 NVDA、TSM、美光等任何单一成分股。",
+      "evidence": "https://www.direxion.com/product/daily-semiconductor-bull-bear-3x-etfs"
+    },
+    {
+      "sourceCode": "LABU",
+      "aliases": ["DRXN DLY S&P BT BL 3X ETF-UI"],
+      "reason": "报告原始缩写与 Direxion Daily S&P Biotech Bull 3X ETF（LABU）逐项对应；LABU 跟踪 S&P Biotechnology Select Industry Index 的日度 3 倍表现，是行业指数产品，不应映射到任何单一生物科技股。",
+      "evidence": "https://www.direxion.com/product/daily-sp-biotech-bull-bear-3x-etfs"
+    },
+    {
+      "sourceCode": "UGL",
+      "aliases": ["ProShares Ultra Gold"],
+      "reason": "ProShares Ultra Gold（UGL）跟踪 Bloomberg Gold Subindex 的日度 2 倍表现，底层为黄金期货/掉期等商品敞口，不是公司正股，也不应映射到金矿股。",
+      "evidence": "https://www.proshares.com/our-etfs/leveraged-and-inverse/ugl"
+    },
+    {
       "sourceCode": "DIG",
       "aliases": ["ProShares Ultra Energy"],
       "reason": "ProShares Ultra Energy (DIG) 是 2x 能源行业指数 ETF，跟踪 S&P Energy Select Sector Index，不是单一正股杠杆产品；不要映射到 XOM/CVX 等站内正股。",
