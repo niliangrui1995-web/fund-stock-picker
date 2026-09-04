@@ -136,6 +136,30 @@ describe("交易集中度前端发布包校验器", () => {
     });
   });
 
+  it("拒绝未覆盖已有 chinext_close 的创业板指输入范围", async () => {
+    const [payloadText, manifestText] = await Promise.all([
+      readFile(payloadPath, "utf8"),
+      readFile(manifestPath, "utf8"),
+    ]);
+    const payload = JSON.parse(payloadText) as { records: Array<Record<string, unknown>> };
+    const manifest = JSON.parse(manifestText) as {
+      comparison_index_input: { data_range: { end: string } };
+    };
+    const outputChinextDates = payload.records
+      .filter((record) => record.chinext_close !== null)
+      .map((record) => record.date);
+    const staleEnd = outputChinextDates[outputChinextDates.length - 2];
+    if (typeof staleEnd !== "string") {
+      throw new Error("测试数据至少需要两条非空 chinext_close 记录。");
+    }
+    manifest.comparison_index_input.data_range.end = staleEnd;
+
+    await expect(validateConcentrationPackage(payloadText, JSON.stringify(manifest))).resolves.toMatchObject({
+      ok: false,
+      reason: "发布清单创业板指输入日期范围未覆盖 chinext_close 输出。",
+    });
+  });
+
   it("兼容 payload 与 manifest 都没有 AI 子序列的旧包", async () => {
     const { payload, manifest } = await readPackage();
     delete payload.ai_chain_series;

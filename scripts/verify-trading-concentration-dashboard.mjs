@@ -7,6 +7,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const defaultDataDirectory = resolve(projectRoot, "public", "data");
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UTC_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|\+00:00)$/;
 
 function assert(condition, message) {
   if (!condition) {
@@ -55,6 +56,11 @@ function isValidDate(value) {
     parsed.getUTCMonth() === month - 1 &&
     parsed.getUTCDate() === day
   );
+}
+
+function isValidUtcTimestamp(value) {
+  if (typeof value !== "string" || !UTC_TIMESTAMP_RE.test(value)) return false;
+  return isValidDate(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
 }
 
 function sha256(text) {
@@ -286,11 +292,26 @@ export async function verifyTradingConcentrationDashboard({ dataDirectory = defa
       manifest.comparison_index_input.value === "收盘价" &&
       manifest.comparison_index_input.price_scale === "close / 100" &&
       manifest.comparison_index_input.source === "通达信本地盘后 .day 日线" &&
+      isNonEmptyString(manifest.comparison_index_input.path) &&
+      Number.isInteger(manifest.comparison_index_input.bytes) &&
+      manifest.comparison_index_input.bytes > 0 &&
+      typeof manifest.comparison_index_input.sha256 === "string" &&
+      SHA256_RE.test(manifest.comparison_index_input.sha256) &&
+      isValidUtcTimestamp(manifest.comparison_index_input.last_write_time_utc) &&
       isObject(manifest.comparison_index_input.data_range) &&
       isValidDate(manifest.comparison_index_input.data_range.start) &&
       isValidDate(manifest.comparison_index_input.data_range.end) &&
       manifest.comparison_index_input.data_range.start <= manifest.comparison_index_input.data_range.end,
     "manifest 创业板指输入说明缺失或无效。",
+  );
+  const outputChinextDates = payload.records
+    .filter((record) => record.chinext_close !== null)
+    .map((record) => record.date);
+  assert(
+    outputChinextDates.length === 0
+      || (manifest.comparison_index_input.data_range.start <= outputChinextDates[0]
+        && manifest.comparison_index_input.data_range.end >= outputChinextDates.at(-1)),
+    "manifest 创业板指输入日期范围未覆盖 chinext_close 输出。",
   );
   const missingComparisonIndexRecords = payload.records.filter((record) => record.chinext_close === null).length;
   assert(

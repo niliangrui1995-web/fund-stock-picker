@@ -12,6 +12,7 @@ import type {
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UTC_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|\+00:00)$/;
 const BEIJING_UNIVERSE_SWITCH_DATE = "2022-08-02";
 
 type JsonObject = Record<string, unknown>;
@@ -71,6 +72,13 @@ function isValidDate(value: unknown): value is string {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
+}
+
+function isValidUtcTimestamp(value: unknown): value is string {
+  return typeof value === "string"
+    && UTC_TIMESTAMP_RE.test(value)
+    && isValidDate(value.slice(0, 10))
+    && Number.isFinite(Date.parse(value));
 }
 
 function isDenominatorSource(value: unknown): value is DenominatorSource {
@@ -350,25 +358,42 @@ function parseManifest(value: unknown, payload: ConcentrationDashboardPayload): 
   ) {
     return "发布清单分母口径不一致。";
   }
+  const comparisonIndexInput = value.comparison_index_input;
   if (
-    !isObject(value.comparison_index_input) ||
-    value.comparison_index_input.code !== "399006" ||
-    value.comparison_index_input.name !== "创业板指" ||
-    value.comparison_index_input.field !== "chinext_close" ||
-    value.comparison_index_input.value !== "收盘价" ||
-    value.comparison_index_input.price_scale !== "close / 100" ||
-    value.comparison_index_input.source !== "通达信本地盘后 .day 日线" ||
-    !isObject(value.comparison_index_input.data_range) ||
-    !isValidDate(value.comparison_index_input.data_range.start) ||
-    !isValidDate(value.comparison_index_input.data_range.end) ||
-    value.comparison_index_input.data_range.start > value.comparison_index_input.data_range.end ||
-    !isNonNegativeInteger(value.comparison_index_input.missing_output_records)
+    !isObject(comparisonIndexInput) ||
+    comparisonIndexInput.code !== "399006" ||
+    comparisonIndexInput.name !== "创业板指" ||
+    comparisonIndexInput.field !== "chinext_close" ||
+    comparisonIndexInput.value !== "收盘价" ||
+    comparisonIndexInput.price_scale !== "close / 100" ||
+    comparisonIndexInput.source !== "通达信本地盘后 .day 日线" ||
+    !isNonEmptyString(comparisonIndexInput.path) ||
+    !isPositiveInteger(comparisonIndexInput.bytes) ||
+    typeof comparisonIndexInput.sha256 !== "string" ||
+    !SHA256_RE.test(comparisonIndexInput.sha256) ||
+    !isValidUtcTimestamp(comparisonIndexInput.last_write_time_utc) ||
+    !isObject(comparisonIndexInput.data_range) ||
+    !isValidDate(comparisonIndexInput.data_range.start) ||
+    !isValidDate(comparisonIndexInput.data_range.end) ||
+    comparisonIndexInput.data_range.start > comparisonIndexInput.data_range.end ||
+    !isNonNegativeInteger(comparisonIndexInput.missing_output_records)
   ) {
     return "发布清单创业板指输入说明无效。";
   }
   const missingComparisonIndexRecords = records.filter((record) => record.chinext_close === null).length;
-  if (value.comparison_index_input.missing_output_records !== missingComparisonIndexRecords) {
+  if (comparisonIndexInput.missing_output_records !== missingComparisonIndexRecords) {
     return "发布清单创业板指缺口统计不一致。";
+  }
+  const outputChinextDates = records
+    .filter((record) => record.chinext_close !== null)
+    .map((record) => record.date);
+  const lastOutputChinextDate = outputChinextDates[outputChinextDates.length - 1];
+  if (
+    outputChinextDates.length > 0
+    && (comparisonIndexInput.data_range.start > outputChinextDates[0]
+      || comparisonIndexInput.data_range.end < lastOutputChinextDate)
+  ) {
+    return "发布清单创业板指输入日期范围未覆盖 chinext_close 输出。";
   }
   if (typeof value.scope_warning !== "string" || !value.scope_warning.trim()) {
     return "发布清单缺少口径提示。";

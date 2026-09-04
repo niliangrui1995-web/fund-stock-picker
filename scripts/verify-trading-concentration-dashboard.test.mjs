@@ -108,6 +108,25 @@ test("Node 校验器兼容没有 AI 子序列的历史包", async () => {
   assert.equal(result.aiChainRecords, 0);
 });
 
+test("Node 校验器拒绝未覆盖已有 chinext_close 的创业板指输入范围", async () => {
+  const { payload, manifest } = await readPublishedPackage();
+  const outputChinextDates = payload.records
+    .filter((record) => record.chinext_close !== null)
+    .map((record) => record.date);
+  const staleEnd = outputChinextDates.at(-2);
+  assert.ok(staleEnd, "测试数据至少需要两条非空 chinext_close 记录。");
+  manifest.comparison_index_input.data_range.end = staleEnd;
+
+  await assert.rejects(
+    withTemporaryPackage(
+      payload,
+      manifest,
+      (dataDirectory) => verifyTradingConcentrationDashboard({ dataDirectory }),
+    ),
+    /创业板指输入日期范围未覆盖 chinext_close 输出/,
+  );
+});
+
 test("Node 校验器接受完整 AI 子序列，并拒绝单边或分母不一致的子序列", async () => {
   const source = await readPublishedPackage();
   const validFixture = buildAiChainPackage(source.payload, source.manifest);
