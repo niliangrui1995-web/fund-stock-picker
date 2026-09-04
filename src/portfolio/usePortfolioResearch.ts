@@ -121,6 +121,20 @@ function stockCodesKey(stockCodes: readonly string[]): string {
   return stockCodes.join("\u0000");
 }
 
+function defaultBasketName(stockCodes: string[], stocks: PortfolioStockOption[], baskets: SavedBasket[]): string {
+  const firstCode = stockCodes[0];
+  const label = stocks.find((stock) => stock.code === firstCode)?.name.trim() || firstCode || "股票";
+  const base = `${label.slice(0, 24)}组合`;
+  const names = new Set(baskets.map((basket) => basket.name));
+  let name = base;
+  let sequence = 2;
+  while (names.has(name)) {
+    const suffix = `（${sequence++}）`;
+    name = `${base.slice(0, 40 - suffix.length)}${suffix}`;
+  }
+  return name;
+}
+
 function restoreActionTrigger(trigger: HTMLElement | null): void {
   if (typeof window === "undefined") return;
   window.requestAnimationFrame(() => {
@@ -422,19 +436,33 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
         setSaveError("每个组合最多选择 10 只股票。");
         return;
       }
-      setDraft((current) => ({ ...current, stockCodes: [...current.stockCodes, code] }));
+      setDraft((current) => {
+        const stockCodes = [...current.stockCodes, code];
+        const needsDefaultName = activeBasketId === null && (!current.name.trim() || (isTemporary && current.name === "临时研究"));
+        return { ...current, stockCodes, name: needsDefaultName ? defaultBasketName(stockCodes, options.stocks, store.baskets) : current.name };
+      });
+      setIsTemporary(false);
       setDirty(true);
       setSaveError(null);
     },
     removeStock: (code) => {
       if (!draft.stockCodes.includes(code)) return;
-      setDraft((current) => ({ ...current, stockCodes: current.stockCodes.filter((item) => item !== code) }));
+      setDraft((current) => {
+        const stockCodes = current.stockCodes.filter((item) => item !== code);
+        const name = isTemporary && current.name === "临时研究"
+          ? defaultBasketName(stockCodes.length ? stockCodes : current.stockCodes, options.stocks, store.baskets)
+          : current.name;
+        return { ...current, stockCodes, name };
+      });
+      setIsTemporary(false);
       setDirty(true);
     },
     saveActive,
     saveAs,
     renameActive: (name) => {
+      if (name === draft.name) return;
       setDraft((current) => ({ ...current, name }));
+      setIsTemporary(false);
       setDirty(true);
     },
     requestSwitch: (basketId, trigger) => withProtection({ kind: "switch", basketId, trigger }),

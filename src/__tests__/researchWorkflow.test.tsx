@@ -109,6 +109,24 @@ describe("研究入口与上下文", () => {
     expect(container.querySelector<HTMLInputElement>('[role="combobox"]')?.value).toBe("");
   });
 
+  it("查询框可直接清空并继续输入，保留已加载的基金研究", async () => {
+    await renderAt("/research?stock=NVDA");
+    const input = await query("AMD");
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="清空搜索"]')!.click());
+    expect(input.value).toBe("");
+    expect(document.activeElement).toBe(input);
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("NVDA");
+    await query("AMD");
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(1);
+  });
+
+  it("查询索引使用身份修订版本，避免旧缓存继续显示重复证券", async () => {
+    await renderAt();
+    const url = new URL(String(fetchMock.mock.calls[0][0]), window.location.origin);
+    expect(url.searchParams.get("identity")).toMatch(/^[a-f0-9]{12}$/);
+  });
+
   it("旧别名深链使用标准证券，工作台位于默认折叠的发现区之前", async () => {
     await renderAt("/research?stock=NVDAUSEquity");
     expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("NVDA");
@@ -116,6 +134,49 @@ describe("研究入口与上下文", () => {
     const discovery = container.querySelector<HTMLDetailsElement>(".research-discovery")!;
     expect(workspace.compareDocumentPosition(discovery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(discovery.open).toBe(false);
+  });
+
+  it.each(["/research?stock=ASML", "/research?q=ASML"])("歧义链接 %s 显示市场候选，不擅自选择其中一个", async (path) => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
+      ...payload,
+      stocks: [stock("ASMLNA", "阿斯麦（荷兰）", 2, ["ASML"]), stock("ASMLUS", "阿斯麦（美国）", 3, ["ASML"])],
+    }) });
+    await renderAt(path);
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(2);
+    expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("等待选择");
+    expect(container.querySelector<HTMLInputElement>('[role="combobox"]')?.value).toBe("ASML");
+  });
+
+  it.each(["Enter", "submit"])("歧义查询 %s 保留市场候选，显式选择后才进入结果", async (action) => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
+      ...payload,
+      stocks: [stock("ASML.NA", "阿斯麦（荷兰）", 2, ["ASML"]), stock("ASMLUS", "阿斯麦（美国）", 3, ["ASML"])],
+    }) });
+    await renderAt();
+    const input = await query("ASML");
+    await act(async () => {
+      if (action === "Enter") input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      else container.querySelector("form.search-box")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("等待选择");
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(2);
+    expect(document.activeElement).toBe(input);
+    await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    const active = container.querySelector('[role="option"][aria-selected="true"] .suggestion-code')!.textContent;
+    await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe(active);
+  });
+
+  it("明确标准代码在相似候选中仍可直接回车查看", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
+      ...payload,
+      stocks: [stock("TSM", "台积电 ADR", 2), stock("2330", "台积电 TSMC", 3, ["TSM"])],
+    }) });
+    await renderAt();
+    const input = await query("TSM");
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(2);
+    await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("TSM");
   });
 
   it("主索引网络失败后可在页面内重新加载", async () => {

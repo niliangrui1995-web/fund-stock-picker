@@ -15,9 +15,11 @@ describe("verified security identities", () => {
   it("keeps share classes, depositary receipts, and unverified listings separate", () => {
     expect(canonicalizeSecurityCode("GOOGUS")).toBe("GOOG");
     expect(canonicalizeSecurityCode("GOOGLUS")).toBe("GOOGL");
-    for (const code of ["2330", "ASMLNA", "TCEHYUV", "KYG875721634", "80700", "FAKEUS"]) {
+    for (const code of ["2330", "TCEHYUV", "KYG875721634", "80700", "FAKEUS"]) {
       expect(canonicalizeSecurityCode(code)).toBe(code);
     }
+    expect(getSecurityIdentity("ASMLNA").marketLabel).toBe("荷兰股");
+    expect(getSecurityIdentity("ASMLUS").market).toBe("us");
   });
 
   it("uses reviewed Korean metadata even when the disclosed name is truncated", () => {
@@ -33,8 +35,22 @@ describe("verified security identities", () => {
   it("labels unresolved disclosure versions without merging them", () => {
     expect(getSecurityIdentity("UNVERIFIEDUS", "报告中的证券")).toMatchObject({ code: "UNVERIFIEDUS", market: "us", identityStatus: "pending", aliases: [] });
     expect(getSecurityIdentity("KYG875721634", "腾讯控股")).toMatchObject({ market: "other", marketLabel: "市场待核对", identityStatus: "pending" });
-    expect(getSecurityIdentity("BAS", "德国巴斯夫")).toMatchObject({ market: "other", identityStatus: "pending" });
-    expect(getSecurityIdentity("SNDK", "闪迪")).toMatchObject({ market: "other", identityStatus: "pending" });
+    expect(getSecurityIdentity("UNREVIEWED", "未核实证券")).toMatchObject({ market: "other", identityStatus: "pending" });
+    expect(getSecurityIdentity("ROP")).toMatchObject({ market: "other", identityStatus: "pending" });
+  });
+
+  it("unifies confirmed code and name versions while retaining each listed market", () => {
+    for (const codes of [["INTC", "INTCUS", "INTCUW", "INTCUSEquity"], ["SNDK", "SNDKUS", "SNDKUW"], ["MRVL", "MRVLUS", "MRVLUW"], ["00981", "981", "981HK", "00981HG", "00981HS"]]) {
+      expect(new Set(codes.map(canonicalizeSecurityCode))).toEqual(new Set([codes[0]]));
+      expect(new Set(codes.map((code) => getSecurityIdentity(code).name)).size).toBe(1);
+    }
+    expect(getSecurityIdentity("2330TT")).toMatchObject({ code: "2330", marketLabel: "台股", exchange: "TWSE" });
+    expect(getSecurityIdentity("TSMUS")).toMatchObject({ code: "TSM", market: "us" });
+    expect(getSecurityIdentity("688981CH")).toMatchObject({ market: "a", marketLabel: "A股" });
+    expect(canonicalizeSecurityCode("688981CH")).not.toBe(canonicalizeSecurityCode("00981HG"));
+    expect(getSecurityIdentity("00981HG")).toMatchObject({ code: "00981", market: "hk" });
+    expect(canonicalizeSecurityCode("BABAUS")).not.toBe(canonicalizeSecurityCode("9988HK"));
+    expect(canonicalizeSecurityCode("GOOGUS")).not.toBe(canonicalizeSecurityCode("GOOGLUS"));
   });
 
   it("shares exact reviewed fund trading exceptions without overriding listed REITs", () => {

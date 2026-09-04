@@ -31,6 +31,8 @@ export interface PortfolioWorkbenchProps {
   onResultFocused?(): void;
   onLeaveGuard?(guard: (action: () => void, trigger: HTMLElement | null) => void): void;
   onResearchContextChange?(context: { stockCodes: string[]; isTemporary: boolean; name: string }): void;
+  onEditorOpenChange?(open: boolean): void;
+  onSearchRequest?(): void;
   useResearch?: (options: UsePortfolioResearchOptions) => PortfolioResearchModel;
 }
 
@@ -46,6 +48,9 @@ type QdiiHolding = {
   securityId: string;
   rank: number;
   stockCode: string;
+  canonicalStockCode?: string;
+  parseStatus?: "pending";
+  parseIssue?: string;
   stockName: string;
   ratioPercent: number;
   holdingType: string;
@@ -90,6 +95,9 @@ function normalizeQdiiHolding(value: unknown): QdiiHolding | null {
     securityId: value.securityId,
     rank: value.rank as number,
     stockCode: typeof value.stockCode === "string" ? value.stockCode : "",
+    ...(typeof value.canonicalStockCode === "string" && value.canonicalStockCode.trim() ? { canonicalStockCode: value.canonicalStockCode } : {}),
+    ...(value.parseStatus === "pending" ? { parseStatus: "pending" } : {}),
+    ...(typeof value.parseIssue === "string" && value.parseIssue.trim() ? { parseIssue: value.parseIssue } : {}),
     stockName: value.stockName,
     ratioPercent: value.ratioPercent,
     holdingType: typeof value.holdingType === "string" ? value.holdingType : "基金投资",
@@ -202,16 +210,26 @@ function useQdiiH1Detail(
 type DetailHolding = Omit<QdiiHolding, "securityId" | "holdingType"> & { securityId?: string; holdingType?: string };
 type DetailSort = "ratio" | "name" | "report";
 
+function pendingHoldingNote(holdings: DetailHolding[]): string {
+  const count = holdings.filter((holding) => holding.parseStatus === "pending").length;
+  return count ? ` · ${count} 条待核对` : "";
+}
+
 function filterHoldings(holdings: DetailHolding[], query: string, selectedCodes: Set<string> | null, sort: DetailSort): DetailHolding[] {
   const needle = normalizeStockSearchTerm(query).replace(/\s+/g, "");
   return holdings.map((holding, originalIndex) => ({ holding, originalIndex })).filter(({ holding }) => {
-    const identity = getSecurityIdentity(holding.stockCode, holding.stockName);
-    const matchesSelection = !selectedCodes || selectedCodes.has(canonicalizeSecurityCode(holding.stockCode));
-    const searchText = [holding.stockCode, holding.stockName, identity.name, ...identity.aliases].join(" ").toLocaleLowerCase().replace(/\s+/g, "");
+    const identity = getSecurityIdentity(holding.canonicalStockCode || holding.stockCode, holding.stockName);
+    const matchesSelection = !selectedCodes || selectedCodes.has(identity.code);
+    const searchText = [holding.stockCode, holding.stockName, identity.code, identity.name, ...identity.aliases].join(" ").toLocaleLowerCase().replace(/\s+/g, "");
     return matchesSelection && (!needle || searchText.includes(needle));
   }).sort((left, right) => {
-    if (sort === "ratio") return right.holding.ratioPercent - left.holding.ratioPercent || left.originalIndex - right.originalIndex;
-    if (sort === "name") return getSecurityIdentity(left.holding.stockCode, left.holding.stockName).name.localeCompare(getSecurityIdentity(right.holding.stockCode, right.holding.stockName).name, "zh-CN") || left.originalIndex - right.originalIndex;
+    if (sort === "ratio") {
+      const leftPending = left.holding.parseStatus === "pending";
+      const rightPending = right.holding.parseStatus === "pending";
+      if (leftPending || rightPending) return Number(leftPending) - Number(rightPending) || left.originalIndex - right.originalIndex;
+      return right.holding.ratioPercent - left.holding.ratioPercent || left.originalIndex - right.originalIndex;
+    }
+    if (sort === "name") return getSecurityIdentity(left.holding.canonicalStockCode || left.holding.stockCode, left.holding.stockName).name.localeCompare(getSecurityIdentity(right.holding.canonicalStockCode || right.holding.stockCode, right.holding.stockName).name, "zh-CN") || left.originalIndex - right.originalIndex;
     return left.originalIndex - right.originalIndex;
   }).map(({ holding }) => holding);
 }
@@ -220,13 +238,13 @@ function HoldingList({ holdings }: { holdings: DetailHolding[] }) {
   return (
     <ol className="portfolio-detail-holdings">
       {holdings.map((holding, index) => {
-        const identity = getSecurityIdentity(holding.stockCode, holding.stockName);
+        const identity = getSecurityIdentity(holding.canonicalStockCode || holding.stockCode, holding.stockName);
         const displayName = identity.identityStatus === "verified" ? identity.name : holding.stockName;
         return <li key={holding.securityId ?? `${holding.rank}-${holding.stockCode}-${index}`}>
           <span className="portfolio-display-rank" aria-label={`展示序号 ${index + 1}`}>{index + 1}</span>
-          <div className="portfolio-holding-name"><strong>{displayName}{holding.holdingType === "ETF" ? "（ETF）" : holding.holdingType === "基金投资" ? "（基金）" : ""}</strong><details><summary>原文 · 序号 {holding.rank}</summary><p>{holding.stockName} · {holding.stockCode || "未披露代码"}</p></details></div>
-          <code>{identity.identityStatus === "verified" ? identity.code : holding.stockCode || "报告未披露代码"}</code>
-          <b>{formatPercent(holding.ratioPercent)}</b>
+          <div className="portfolio-holding-name"><strong>{displayName}{holding.holdingType === "ETF" ? "（ETF）" : holding.holdingType === "基金投资" ? "（基金）" : ""}</strong><details><summary>{holding.parseStatus === "pending" ? "原解析记录" : "原文"} · 序号 {holding.rank}</summary><p>{holding.stockName} · {holding.stockCode || "未披露代码"}</p>{holding.parseStatus === "pending" ? <p>原解析值 {formatPercent(holding.ratioPercent)} · {holding.parseIssue ?? "报告字段解析待核对"}</p> : null}</details></div>
+          <code>{identity.code || "报告未披露代码"}<small className="portfolio-market-label">{identity.marketLabel}</small></code>
+          <b>{holding.parseStatus === "pending" ? "待核对" : formatPercent(holding.ratioPercent)}</b>
         </li>;
       })}
     </ol>
@@ -291,7 +309,7 @@ function DetailDialog({
   const qdiiDetail = useQdiiH1Detail(fund, fundHoldingsUrl, fetchImpl, qdiiRetryToken);
   const selectedCodes = onlySelected ? new Set([
     ...model.draft.stockCodes.map(canonicalizeSecurityCode),
-    ...(fund?.contributions.flatMap((contribution) => contribution.indirectSources.map((source) => canonicalizeSecurityCode(source.sourceCode))) ?? []),
+    ...(fund?.contributions.flatMap((contribution) => contribution.indirectSources.map((source) => getSecurityIdentity(source.sourceCode, source.sourceName).code)) ?? []),
   ]) : null;
   const filteredEquities = qdiiDetail.kind === "available" ? filterHoldings(qdiiDetail.detail.equityHoldings, query, selectedCodes, sort) : [];
   const filteredInvestments = qdiiDetail.kind === "available" ? filterHoldings(qdiiDetail.detail.fundInvestments, query, selectedCodes, sort) : [];
@@ -321,10 +339,10 @@ function DetailDialog({
           <div className="portfolio-qdii-detail">
             <p className="portfolio-detail-scope">{qdiiDetail.detail.report} · {qdiiDetail.detail.cutoffDate} · 期末披露，非实时持仓。</p>
             <h4>权益投资 · 完整披露</h4>
-            <p className="portfolio-detail-match-count" role="status">显示 {filteredEquities.length} / {qdiiDetail.detail.equityHoldings.length} 条</p>
+            <p className="portfolio-detail-match-count" role="status">显示 {filteredEquities.length} / {qdiiDetail.detail.equityHoldings.length} 条{pendingHoldingNote(qdiiDetail.detail.equityHoldings)}</p>
             {filteredEquities.length ? <HoldingList holdings={filteredEquities} /> : qdiiDetail.detail.equityHoldings.length ? <p className="portfolio-detail-not-captured">无匹配权益。<button type="button" onClick={resetFilters}>清除筛选</button></p> : <p className="portfolio-detail-not-captured">未披露权益明细，不代表没有其他资产。</p>}
             <h4>基金 / ETF · 仅前十项</h4>
-            <p className="portfolio-detail-match-count">显示 {filteredInvestments.length} / {qdiiDetail.detail.fundInvestments.length} 条</p>
+            <p className="portfolio-detail-match-count">显示 {filteredInvestments.length} / {qdiiDetail.detail.fundInvestments.length} 条{pendingHoldingNote(qdiiDetail.detail.fundInvestments)}</p>
             {filteredInvestments.length ? <HoldingList holdings={filteredInvestments} /> : qdiiDetail.detail.fundInvestments.length ? <p className="portfolio-detail-not-captured">无匹配基金 / ETF。</p> : <p className="portfolio-detail-not-captured">未披露基金 / ETF 明细。</p>}
             {qdiiDetail.detail.sourceUrl ? <a className="portfolio-detail-source" href={qdiiDetail.detail.sourceUrl} target="_blank" rel="noreferrer" title={qdiiDetail.detail.sourceTitle}>官方报告</a> : null}
           </div>
@@ -333,7 +351,7 @@ function DetailDialog({
         {qdiiDetail.kind === "missing" ? <p className="portfolio-detail-not-captured">未匹配中期明细，不代表没有持仓。</p> : null}
         {qdiiDetail.kind === "error" ? <div className="portfolio-detail-error" role="alert"><p>中期持仓加载失败，请重试。</p><button type="button" onClick={() => setQdiiRetryToken((token) => token + 1)}>重试中期持仓</button><details><summary>错误详情</summary><p>{qdiiDetail.reason}</p></details></div> : null}
         {model.detail.kind === "available" && (!qdiiFund || qdiiDetail.kind === "status" || qdiiDetail.kind === "missing" || qdiiDetail.kind === "error") ? (
-          <div><p className="portfolio-detail-scope">{model.manifest?.report ?? "当前报告期"} · 份额 {model.detail.record.detailFundCode} · 已采集季度股票，最多十条。未出现不代表未持有。</p><p className="portfolio-detail-match-count" role="status">显示 {filteredOrdinary.length} / {Math.min(10, model.detail.record.holdings.length)} 条</p>{filteredOrdinary.length ? <HoldingList holdings={filteredOrdinary} /> : <p className="portfolio-detail-not-captured">无匹配持仓。<button type="button" onClick={resetFilters}>清除筛选</button></p>}</div>
+          <div><p className="portfolio-detail-scope">{model.manifest?.report ?? "当前报告期"} · 份额 {model.detail.record.detailFundCode} · 已采集季度股票，最多十条。未出现不代表未持有。</p><p className="portfolio-detail-match-count" role="status">显示 {filteredOrdinary.length} / {Math.min(10, model.detail.record.holdings.length)} 条{pendingHoldingNote(model.detail.record.holdings.slice(0, 10))}</p>{filteredOrdinary.length ? <HoldingList holdings={filteredOrdinary} /> : <p className="portfolio-detail-not-captured">无匹配持仓。<button type="button" onClick={resetFilters}>清除筛选</button></p>}</div>
         ) : null}
         {model.detail.kind === "notCaptured" && qdiiDetail.kind !== "available" && qdiiDetail.kind !== "loading" ? (
           <p className="portfolio-detail-not-captured">{model.detail.message} 未出现不代表未持有。</p>
@@ -410,29 +428,84 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
     fetchImpl: props.fetchImpl,
   });
   const [pickerQuery, setPickerQuery] = useState("");
-  const [pickerCode, setPickerCode] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerActiveIndex, setPickerActiveIndex] = useState<number | null>(null);
   const [view, setView] = useState<PortfolioView>("offExchange");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [action, setAction] = useState<PortfolioAction | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [requestedResultFocus, setRequestedResultFocus] = useState(false);
+  const [acceptedTemporaryKey, setAcceptedTemporaryKey] = useState<number | string | null>(null);
   const tabRefs = useRef<Record<PortfolioView, HTMLButtonElement | null>>({ offExchange: null, onExchange: null });
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const moreRef = useRef<HTMLDetailsElement>(null);
+  const previousBasketRef = useRef(model.activeBasketId);
+  const newEditorRequestedRef = useRef(false);
+  const savedSelectionRef = useRef<string | null>(null);
+  const previousPendingRef = useRef(model.pendingAction);
+  const acceptedTemporaryRef = useRef<number | string | null>(null);
 
   useEffect(() => setVisibleCount(PAGE_SIZE), [model.results, view]);
 
   useEffect(() => {
-    if (!props.focusResult || model.status !== "ready") return;
+    if ((!props.focusResult && !requestedResultFocus) || model.status !== "ready" || editorOpen) return;
+    const rawCode = props.temporarySelection?.code ?? props.temporaryStockCode;
+    const requestKey = props.temporarySelection?.requestId ?? rawCode;
+    if (props.focusResult && !requestedResultFocus && rawCode) {
+      const code = canonicalizeSecurityCode(rawCode);
+      if (acceptedTemporaryKey !== requestKey || model.draft.stockCodes.length !== 1 || model.draft.stockCodes[0] !== code || model.results?.coverage.selectedStockCodes.join("\u0000") !== code) return;
+    }
     const frame = window.requestAnimationFrame(() => {
-      if (headingRef.current && typeof headingRef.current.scrollIntoView === "function") {
-        headingRef.current.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+      const heading = headingRef.current;
+      if (heading && typeof heading.scrollIntoView === "function") {
+        const bounds = heading.getBoundingClientRect();
+        const safeTop = (document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0) + 12;
+        if (bounds.top < safeTop || bounds.bottom > window.innerHeight) heading.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
       }
-      headingRef.current?.focus({ preventScroll: true });
+      heading?.focus({ preventScroll: true });
+      setRequestedResultFocus(false);
       props.onResultFocused?.();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [props.focusResult, props.onResultFocused, model.status]);
+  }, [props.focusResult, props.onResultFocused, props.temporarySelection, props.temporaryStockCode, model.status, model.draft.stockCodes, model.results, requestedResultFocus, editorOpen, acceptedTemporaryKey]);
+
+  useEffect(() => { props.onEditorOpenChange?.(editorOpen); }, [editorOpen, props.onEditorOpenChange]);
+
+  useEffect(() => {
+    if (previousBasketRef.current !== model.activeBasketId) {
+      previousBasketRef.current = model.activeBasketId;
+      setSavedOpen(false);
+      setEditorOpen(false);
+      if (savedSelectionRef.current === model.activeBasketId) {
+        savedSelectionRef.current = null;
+        setRequestedResultFocus(true);
+      }
+    }
+    if (previousPendingRef.current?.kind === "switch" && model.pendingAction === null) savedSelectionRef.current = null;
+    previousPendingRef.current = model.pendingAction;
+    if (newEditorRequestedRef.current && model.pendingAction === null) {
+      newEditorRequestedRef.current = false;
+      if (model.draft.stockCodes.length === 0) {
+        setEditorOpen(true);
+        window.requestAnimationFrame(() => pickerRef.current?.focus({ preventScroll: true }));
+      }
+    }
+  }, [model.activeBasketId, model.draft.stockCodes, model.pendingAction]);
+
+  useEffect(() => {
+    const rawCode = props.temporarySelection?.code ?? props.temporaryStockCode;
+    const requestKey = props.temporarySelection?.requestId ?? rawCode;
+    if (!rawCode || requestKey === undefined || requestKey === acceptedTemporaryRef.current || model.pendingAction || model.dirty || !model.isTemporary) return;
+    if (model.draft.stockCodes.length !== 1 || model.draft.stockCodes[0] !== canonicalizeSecurityCode(rawCode)) return;
+    acceptedTemporaryRef.current = requestKey;
+    setAcceptedTemporaryKey(requestKey);
+    setEditorOpen(false);
+    setPickerOpen(false);
+    setSavedOpen(false);
+  }, [props.temporarySelection, props.temporaryStockCode, model.draft.stockCodes, model.isTemporary, model.dirty, model.pendingAction]);
 
   useEffect(() => {
     props.onLeaveGuard?.(model.requestLeave);
@@ -443,6 +516,10 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
   }, [model.draft.stockCodes, model.draft.name, model.isTemporary, props.onResearchContextChange]);
 
   const selectedOptions = model.draft.stockCodes.map((code) => props.stocks.find((stock) => stock.code === code) ?? { code, name: code });
+  const hasStocks = selectedOptions.length > 0;
+  const resultName = model.activeBasketId ? model.draft.name : selectedOptions.length === 1
+    ? `${selectedOptions[0].name} · ${selectedOptions[0].code} · ${selectedOptions[0].marketLabel ?? getSecurityIdentity(selectedOptions[0].code, selectedOptions[0].name).marketLabel}`
+    : model.draft.name && model.draft.name !== "临时研究" ? model.draft.name : selectedOptions.map((stock) => stock.name).join(" + ");
   const availableStocks = useMemo(
     () => props.stocks.filter((stock) => !model.draft.stockCodes.includes(stock.code)),
     [model.draft.stockCodes, props.stocks],
@@ -459,18 +536,10 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
       : availableStocks;
     return matches.slice(0, STOCK_SEARCH_RESULT_LIMIT);
   }, [availableStocks, normalizedPickerQuery]);
-  const explicitlySelectedStock = availableStocks.find((stock) => stock.code === pickerCode);
   const exactCodeStock = normalizedPickerQuery
-    ? availableStocks.find((stock) => normalizeStockSearchTerm(stock.code) === normalizedPickerQuery || stock.aliases?.some((alias) => normalizeStockSearchTerm(alias) === normalizedPickerQuery))
+    ? availableStocks.find((stock) => normalizeStockSearchTerm(stock.code) === normalizedPickerQuery)
     : undefined;
-  const exactNameMatches = normalizedPickerQuery
-    ? availableStocks.filter((stock) => normalizeStockSearchTerm(stock.name) === normalizedPickerQuery)
-    : [];
-  const exactDisplayStock = normalizedPickerQuery
-    ? availableStocks.find((stock) => normalizeStockSearchTerm(formatPickerStock(stock)) === normalizedPickerQuery)
-    : undefined;
-  const exactQueryStock = exactCodeStock ?? exactDisplayStock ?? (exactNameMatches.length === 1 ? exactNameMatches[0] : undefined);
-  const pickerStock = explicitlySelectedStock ?? exactQueryStock;
+  const pickerStock = exactCodeStock ?? (pickerMatches.length === 1 ? pickerMatches[0] : undefined);
   const pickerListVisible = pickerOpen && model.draft.stockCodes.length < 10 && pickerMatches.length > 0;
   const pickerNoMatchVisible = pickerOpen && model.draft.stockCodes.length < 10 && normalizedPickerQuery.length > 0 && pickerMatches.length === 0;
   const pickerActiveDescendant = pickerListVisible && pickerActiveIndex !== null && pickerMatches[pickerActiveIndex]
@@ -484,16 +553,31 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
   }, [pickerActiveDescendant]);
 
   const selectPickerStock = (stock: PortfolioStockOption) => {
-    setPickerCode(stock.code);
-    setPickerQuery(formatPickerStock(stock));
+    model.addStock(stock.code);
+    setPickerQuery("");
     setPickerOpen(false);
     setPickerActiveIndex(null);
+    window.requestAnimationFrame(() => {
+      if (pickerRef.current?.disabled) document.getElementById("portfolio-view-results")?.focus({ preventScroll: true });
+      else pickerRef.current?.focus({ preventScroll: true });
+    });
   };
   const resetPicker = () => {
     setPickerQuery("");
-    setPickerCode("");
     setPickerOpen(false);
     setPickerActiveIndex(null);
+  };
+  const openEditor = () => {
+    if (moreRef.current) moreRef.current.open = false;
+    setEditorOpen(true);
+    setSavedOpen(false);
+    window.requestAnimationFrame(() => pickerRef.current?.focus({ preventScroll: true }));
+  };
+  const closeEditor = (focusResults: boolean) => {
+    setEditorOpen(false);
+    resetPicker();
+    if (focusResults && hasStocks) setRequestedResultFocus(true);
+    else window.requestAnimationFrame(() => document.getElementById("portfolio-edit-trigger")?.focus({ preventScroll: true }));
   };
   const onPickerKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
@@ -561,42 +645,45 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
 
   return (
     <section className="portfolio-workbench" aria-label="多股票组合研究工作台">
-      <div className={`portfolio-status${model.saveError ? " has-error" : ""}`} aria-live="polite">
-        <strong className={model.activeBasketId && !model.dirty ? "portfolio-saved" : "portfolio-unsaved"}>{model.activeBasketId && !model.dirty ? "已保存" : "未保存"}</strong>
-        {model.saveError ? <span>{model.saveError}</span> : model.recoveryReason ? <details><summary>恢复说明</summary><p>{model.recoveryReason}</p></details> : null}
-      </div>
-      <header className="portfolio-header">
-        <div>
-          <p className="portfolio-kicker">{model.isTemporary && model.draft.stockCodes.length === 1 ? "单股" : "组合"} · {model.draft.stockCodes.length} / 10 只</p>
-          <h2>{model.draft.name || "未命名组合"}</h2>
-        </div>
+      <div className="portfolio-compact-toolbar">
         <div className="portfolio-actions">
-          <button type="button" className="portfolio-primary" disabled={model.draft.stockCodes.length === 0 || (model.activeBasketId !== null && !model.dirty)} onClick={model.saveActive}>{model.activeBasketId ? "保存更改" : "保存组合"}</button>
-          <button type="button" onClick={(event) => model.create(event.currentTarget)}>新建</button>
-          <button type="button" disabled={model.draft.stockCodes.length === 0} onClick={(event) => setAction({ kind: "saveAs", trigger: event.currentTarget })}>另存为</button>
-          <details className="portfolio-more-actions"><summary>更多</summary><button type="button" className="portfolio-danger" disabled={model.activeBasketId === null} onClick={(event) => setAction({ kind: "delete", trigger: event.currentTarget })}>删除组合</button></details>
+          <button id="portfolio-edit-trigger" type="button" aria-expanded={editorOpen} aria-controls="portfolio-inline-editor" onClick={openEditor}>{hasStocks ? "添加股票" : "组合研究"}</button>
+          {hasStocks ? <button type="button" className="portfolio-save-action" disabled={model.activeBasketId !== null && !model.dirty} onClick={(event) => {
+            if (model.activeBasketId) model.saveActive();
+            else setAction({ kind: "save", trigger: event.currentTarget, initialName: model.draft.name && model.draft.name !== "临时研究" ? model.draft.name : `${selectedOptions.map((stock) => stock.name).join("、").slice(0, 34)}组合` });
+          }}>{model.activeBasketId && !model.dirty ? "已保存" : "保存组合"}</button> : null}
+          <button id="saved-portfolio-trigger" type="button" aria-expanded={savedOpen} aria-controls="portfolio-saved-list" disabled={model.baskets.length === 0} onClick={() => { if (moreRef.current) moreRef.current.open = false; setSavedOpen((open) => !open); }}>我的组合（{model.baskets.length}）</button>
+          {hasStocks ? <details ref={moreRef} className="portfolio-more-actions"><summary>更多</summary><div className="portfolio-more-panel">
+            {model.activeBasketId ? <label>组合名称<input value={model.draft.name} maxLength={40} onChange={(event) => model.renameActive(event.target.value)} placeholder="输入组合名称" /></label> : null}
+            <button type="button" onClick={(event) => setAction({ kind: "saveAs", trigger: event.currentTarget })}>另存为</button>
+            <button type="button" onClick={(event) => { newEditorRequestedRef.current = true; model.create(event.currentTarget); }}>新建组合</button>
+            <button type="button" className="portfolio-danger" disabled={model.activeBasketId === null} onClick={(event) => setAction({ kind: "delete", trigger: event.currentTarget })}>删除组合</button>
+          </div></details> : null}
         </div>
-      </header>
+        {model.dirty ? <span className="portfolio-unsaved" role="status">未保存更改</span> : null}
+      </div>
+      {model.saveError ? <p className="portfolio-status has-error" role="alert">{model.saveError}</p> : model.recoveryReason ? <details className="portfolio-status"><summary>恢复说明</summary><p>{model.recoveryReason}</p></details> : null}
+      {savedOpen ? <section id="portfolio-saved-list" className="portfolio-saved-panel" aria-label="我的组合">
+        <div className="portfolio-saved-heading"><strong>我的组合</strong><button type="button" onClick={() => { setSavedOpen(false); document.getElementById("saved-portfolio-trigger")?.focus({ preventScroll: true }); }}>关闭</button></div>
+        <ul>{model.baskets.map((basket) => <li key={basket.id}><button type="button" aria-pressed={model.activeBasketId === basket.id} onClick={(event) => {
+          if (model.activeBasketId === basket.id) {
+            setSavedOpen(false);
+            window.requestAnimationFrame(() => document.getElementById("saved-portfolio-trigger")?.focus({ preventScroll: true }));
+            return;
+          }
+          savedSelectionRef.current = basket.id;
+          model.requestSwitch(basket.id, event.currentTarget);
+        }}><strong>{basket.name}</strong><span>{basket.stockCodes.length} 只股票{model.activeBasketId === basket.id ? " · 当前" : ""}</span></button></li>)}</ul>
+      </section> : null}
 
-      <div className="portfolio-editor">
-        <label>
-          组合名称
-          <input value={model.draft.name} maxLength={40} onChange={(event) => model.renameActive(event.target.value)} placeholder="输入组合名称" />
-        </label>
-        <label>
-          本机组合
-          <select id="saved-portfolio-select" value={model.activeBasketId ?? ""} onChange={(event) => {
-            if (event.target.value) model.requestSwitch(event.target.value, event.currentTarget);
-          }}>
-            <option value="">未保存草稿</option>
-            {model.baskets.map((basket) => <option key={basket.id} value={basket.id}>{basket.name}</option>)}
-          </select>
-        </label>
+      {editorOpen ? <div id="portfolio-inline-editor" className="portfolio-editor">
+        <div className="portfolio-editor-heading"><strong>组合研究 · {model.draft.stockCodes.length} / 10 只</strong><button type="button" onClick={() => closeEditor(false)}>收起</button></div>
         <div className="portfolio-stock-search-field">
-          <label htmlFor="portfolio-stock-search">加入当前组合</label>
+          <label htmlFor="portfolio-stock-search" className="portfolio-visually-hidden">添加股票</label>
           <div className="portfolio-stock-picker">
             <input
               id="portfolio-stock-search"
+              ref={pickerRef}
               type="search"
               role="combobox"
               aria-label="检索添加股票"
@@ -607,16 +694,14 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
               aria-describedby="portfolio-stock-search-hint"
               value={pickerQuery}
               disabled={model.draft.stockCodes.length >= 10}
-              placeholder="名称或代码"
-              onFocus={() => setPickerOpen(true)}
+              placeholder="搜索股票，选中即加入"
+              onFocus={() => setPickerOpen(normalizedPickerQuery.length > 0)}
               onBlur={() => {
-                setPickerOpen(false);
                 setPickerActiveIndex(null);
               }}
               onChange={(event) => {
                 setPickerQuery(event.target.value);
-                setPickerCode("");
-                setPickerOpen(true);
+                setPickerOpen(event.target.value.trim().length > 0);
                 setPickerActiveIndex(null);
               }}
               onKeyDown={onPickerKeyDown}
@@ -634,7 +719,7 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
                     onClick={() => selectPickerStock(stock)}
                   >
                     <strong>{stock.name} · </strong>
-                    <code>{stock.code}</code>
+                    <span className="portfolio-picker-identity"><code>{stock.code}</code><small className="portfolio-market-label">{stock.marketLabel ?? getSecurityIdentity(stock.code, stock.name).marketLabel}</small></span>
                   </li>
                 ))}
               </ul>
@@ -643,35 +728,26 @@ export function PortfolioWorkbench(props: PortfolioWorkbenchProps) {
               <p className="portfolio-stock-search-empty" role="status">未找到匹配股票</p>
             ) : null}
           </div>
-          <p id="portfolio-stock-search-hint" className="portfolio-visually-hidden">选择后追加到当前组合，保留已选股票。支持代码、名称与已确认别名。</p>
-          <button type="button" className="portfolio-add-stock" disabled={!pickerStock || model.draft.stockCodes.length >= 10} onClick={() => {
-            if (!pickerStock) return;
-            model.addStock(pickerStock.code);
-            resetPicker();
-          }}>加入组合</button>
+          <p id="portfolio-stock-search-hint" className="portfolio-visually-hidden">点击候选，或用方向键选择后按 Enter 加入当前组合。标准代码或唯一匹配可直接回车；保留已选股票。</p>
         </div>
-      </div>
       <div className="portfolio-chips" aria-label="已选股票">
         {selectedOptions.map((stock) => (
-          <span key={stock.code}>{stock.name} · {stock.code}<button type="button" onClick={() => model.removeStock(stock.code)} aria-label={`移除 ${stock.name} ${stock.code}`}>移除</button></span>
+          <span key={stock.code}>{stock.name} · {stock.code} · {stock.marketLabel ?? getSecurityIdentity(stock.code, stock.name).marketLabel}<button type="button" onClick={() => model.removeStock(stock.code)} aria-label={`移除 ${stock.name} ${stock.code}`}>移除</button></span>
         ))}
       </div>
-
       {model.draft.stockCodes.length >= 10 ? <p className="portfolio-limit" role="status">已满 10 只，请先移除一只再添加。</p> : null}
-
-      {model.draft.stockCodes.length === 0 ? <p className="portfolio-empty">添加股票，查看持有它们的基金。</p> : null}
+      <div className="portfolio-editor-footer">
+        <button id="portfolio-view-results" type="button" className="portfolio-primary" disabled={!hasStocks} onClick={() => closeEditor(true)}>查看结果</button>
+        {props.onSearchRequest ? <button type="button" onClick={() => { setEditorOpen(false); resetPicker(); props.onSearchRequest?.(); }}>换一只股票</button> : null}
+      </div>
+      </div> : null}
       {model.status === "loading" ? <p className="portfolio-loading" role="status">校验并加载结果…</p> : null}
       {model.status === "blocked" ? <div className="portfolio-blocked" role="alert"><p>{model.error}</p><button type="button" onClick={model.retry}>重试</button></div> : null}
       {model.status === "ready" && model.results ? (
         <div className={`portfolio-ready-layout${props.afterResultsReady ? " has-aside" : ""}`}>
           <div className="portfolio-result-main">
             <div className="portfolio-results-heading">
-              <div><h3 ref={headingRef} className="portfolio-result-focus" tabIndex={-1}>{selectedOptions.length === 1 ? `${selectedOptions[0].name} · ${selectedOptions[0].code}` : model.draft.name || "当前组合"} 的基金</h3></div>
-              <button type="button" className="portfolio-return-editor" onClick={() => {
-                const input = document.getElementById("portfolio-stock-search");
-                input?.scrollIntoView({ behavior: "auto", block: "center" });
-                input?.focus({ preventScroll: true });
-              }}>编辑组合</button>
+              <div><h3 ref={headingRef} className="portfolio-result-focus" tabIndex={-1}>{resultName}{selectedOptions.length > 1 ? ` · ${selectedOptions.length} 只股票` : ""}</h3></div>
             </div>
             <div className="portfolio-tabs" role="tablist" aria-label="基金结果分类">
             <button ref={(node) => { tabRefs.current.offExchange = node; }} id="portfolio-tab-off-exchange" type="button" role="tab" aria-selected={view === "offExchange"} aria-controls="portfolio-panel-off-exchange" tabIndex={view === "offExchange" ? 0 : -1} onClick={() => setView("offExchange")} onKeyDown={onTabKeyDown}>场外基金（{model.results.offExchange.length}）</button>

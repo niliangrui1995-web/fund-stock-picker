@@ -7,7 +7,7 @@
   "dataMeta": {
     "report": "2026Q2",
     "cutoffDate": "2026-06-30",
-    "generatedAt": "2026-09-05T03:40:27",
+    "generatedAt": "2026-09-05T05:18:34",
     "sourceFile": "holdings_stock_2026q2.csv + holdings_qdii_2026h1.csv",
     "purchaseLimitCount": 27395,
     "purchaseLimitFetchedAt": "2026-08-30 00:54:50",
@@ -19,10 +19,10 @@
     ],
     "fundInvestmentSourceRows": 789,
     "indirectExposureRows": 36,
-    "stockCount": 6597,
-    "overseasStockCount": 6597,
+    "stockCount": 2976,
+    "overseasStockCount": 2976,
     "shippedStockScope": "overseas",
-    "shippedStockCount": 6597
+    "shippedStockCount": 2976
   },
   "indirectExposureAudit": {
     "path": "seo/indirect-exposure-audit-2026q2.md",
@@ -40,10 +40,10 @@
   },
   "portfolioRelease": {
     "manifestPath": "data/fund-portfolio-index-2026q2.manifest.json",
-    "releaseId": "2026q2-20260905034027904683-5efc7336c49a",
-    "manifestSha256": "121d5694810b3ea76dbcb77db5b8a54c4d9d278689a98ad8d205f77aac3fcb14",
+    "releaseId": "2026q2-20260905051834619843-4ee07ac05050",
+    "manifestSha256": "21b3bffad4af39c62a0f5dc5c32c5c53cff68be8abb5cea21599c29a322d2e99",
     "report": "2026Q2",
-    "stockShardCount": 6597,
+    "stockShardCount": 2976,
     "fundDetailShardCount": 256
   },
   "seo": {

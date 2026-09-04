@@ -2,7 +2,7 @@
 
 只读维护产物，由 `scripts/build_fund_stock_index.py` 根据定期报告解析结果、`config/stock-exposure-aliases.json` 和最终前端数据生成；不要手工修改它来修页面展示。
 
-- 生成时间：`2026-09-05T03:40:27`
+- 生成时间：`2026-09-05T05:18:34`
 - 前端数据：`public/data/fund-stock-index-2026q2.json`
 - 报告解析 summary：`outputs/fund_report_holdings_summary_2026q2.json`
 - 报告解析 CSV：`outputs/holdings_fund_investment_2026q2.csv`
@@ -20,7 +20,7 @@
 | 报告 PDF 解析出的杠杆明细 | 789 |
 | 最终 indirectExposureRows | 36 |
 | stockAliases 正股数 | 19 |
-| knownProducts 产品数 | 18 |
+| knownProducts 产品数 | 19 |
 | ignoredProducts 暂不映射产品数 | 8 |
 
 ## 状态计数
@@ -119,14 +119,14 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 7709.HK | CSOP SK Hynix Daily 2x Leveraged Product | 000660 / SK 海力士 | 2.0 | known product name alias -> 7709.HK | 13 | 002230, 005698, 016664, 016665, 016823, 018229, 018230, 018231, 018232, 019447, 019448, 024239, 164212 |
 | 7747.HK | CSOP Samsung Electronics Daily 2x Leveraged Product | 005930 / 三星电子（普通股） | 2.0 | known product name alias -> 7747.HK | 9 | 002230, 016664, 016665, 016823, 018229, 018230, 018231, 018232, 164212 |
+| ASMU | Direxion Daily ASML Bull 2X ETF | ASMLUS / 阿斯麦 ASML（美国登记股） | 2.0 | known product name alias -> ASMU | 1 | 001691 |
 | Defiance Daily Target 2X Long AMAT ETF | Defiance Daily Target 2X Long AMAT ETF | AMAT / 应用材料公司 | 2.0 | name matched AMAT | 1 | 001691 |
 | Defiance Daily Target 2X Long NOK ETF | Defiance Daily Target 2X Long NOK ETF | NOK / 诺基亚 | 2.0 | name matched NOK | 2 | 019265, 019266 |
-| Direxion Daily ASML Bull 2X ETF | Direxion Daily ASML Bull 2X ETF | ASML / 阿斯麦 ASML（美国登记股） | 2.0 | name matched ASML | 1 | 001691 |
 | Direxion Daily Intc Bull 2X ETF | Direxion Daily Intc Bull 2X ETF | INTC / 英特尔公司 | 2.0 | name matched INTC | 1 | 001691 |
 | Direxion Daily TSM Bull 2X ETF | Direxion Daily TSM Bull 2X ETF | TSM / 台积电 TSMC（ADR） | 2.0 | name matched TSM | 2 | 019265, 019266 |
 | GraniteShares 2x Long NVDA Daily ETF | GraniteShares 2x Long NVDA Daily ETF | NVDA / 英伟达 NVIDIA | 2.0 | name matched NVDA | 2 | 000043, 000044 |
 | Graniteshares 2x Long AMD Daily ETF | Graniteshares 2x Long AMD Daily ETF | AMD / 超威半导体 AMD | 2.0 | name matched AMD | 2 | 019265, 019266 |
-| Tradr 2X Long ALAB Daily ETF | Tradr 2X Long ALAB Daily ETF | ALAB / ASTERA LABS INC | 2.0 | name matched ALAB | 2 | 019265, 019266 |
+| Tradr 2X Long ALAB Daily ETF | Tradr 2X Long ALAB Daily ETF | ALAB / Astera Labs 股份有限公司 | 2.0 | name matched ALAB | 2 | 019265, 019266 |
 | Tradr 2X Long LRCX Daily ETF | Tradr 2X Long LRCX Daily ETF | LRCX / 泛林集团 | 2.0 | name matched LRCX | 1 | 001691 |
 
 ## 最终进入 indirectExposureRows
@@ -155,12 +155,12 @@
 | 005930 / 三星电子（普通股） | 018231 | 易方达全球优质企业混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
 | 005930 / 三星电子（普通股） | 018232 | 易方达全球优质企业混合(QDII) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 0.82 | 2.0 | 1.64 |
 | 005930 / 三星电子（普通股） | 164212 | 天弘全球新能源汽车股票(QDII-LOF) | 7747.HK / CSOP Samsung Electronics Daily 2x Leveraged Product | 1.9 | 2.0 | 3.8 |
-| ALAB / ASTERA LABS INC | 019265 | 南方港股数字经济混合发起(QDII) | Tradr 2X Long ALAB Daily ETF / Tradr 2X Long ALAB Daily ETF | 2.75 | 2.0 | 5.5 |
-| ALAB / ASTERA LABS INC | 019266 | 南方港股数字经济混合发起(QDII) | Tradr 2X Long ALAB Daily ETF / Tradr 2X Long ALAB Daily ETF | 2.75 | 2.0 | 5.5 |
+| ALAB / Astera Labs 股份有限公司 | 019265 | 南方港股数字经济混合发起(QDII) | Tradr 2X Long ALAB Daily ETF / Tradr 2X Long ALAB Daily ETF | 2.75 | 2.0 | 5.5 |
+| ALAB / Astera Labs 股份有限公司 | 019266 | 南方港股数字经济混合发起(QDII) | Tradr 2X Long ALAB Daily ETF / Tradr 2X Long ALAB Daily ETF | 2.75 | 2.0 | 5.5 |
 | AMAT / 应用材料公司 | 001691 | 南方香港成长灵活配置混合 | Defiance Daily Target 2X Long AMAT ETF / Defiance Daily Target 2X Long AMAT ETF | 0.85 | 2.0 | 1.7 |
 | AMD / 超威半导体 AMD | 019265 | 南方港股数字经济混合发起(QDII) | Graniteshares 2x Long AMD Daily ETF / Graniteshares 2x Long AMD Daily ETF | 1.67 | 2.0 | 3.34 |
 | AMD / 超威半导体 AMD | 019266 | 南方港股数字经济混合发起(QDII) | Graniteshares 2x Long AMD Daily ETF / Graniteshares 2x Long AMD Daily ETF | 1.67 | 2.0 | 3.34 |
-| ASML / 阿斯麦 ASML（美国登记股） | 001691 | 南方香港成长灵活配置混合 | Direxion Daily ASML Bull 2X ETF / Direxion Daily ASML Bull 2X ETF | 0.29 | 2.0 | 0.58 |
+| ASMLUS / 阿斯麦 ASML（美国登记股） | 001691 | 南方香港成长灵活配置混合 | ASMU / Direxion Daily ASML Bull 2X ETF | 0.29 | 2.0 | 0.58 |
 | INTC / 英特尔公司 | 001691 | 南方香港成长灵活配置混合 | Direxion Daily Intc Bull 2X ETF / Direxion Daily Intc Bull 2X ETF | 1.3 | 2.0 | 2.6 |
 | LRCX / 泛林集团 | 001691 | 南方香港成长灵活配置混合 | Tradr 2X Long LRCX Daily ETF / Tradr 2X Long LRCX Daily ETF | 1.29 | 2.0 | 2.58 |
 | NOK / 诺基亚 | 019265 | 南方港股数字经济混合发起(QDII) | Defiance Daily Target 2X Long NOK ETF / Defiance Daily Target 2X Long NOK ETF | 1.01 | 2.0 | 2.02 |

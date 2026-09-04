@@ -14,7 +14,7 @@
     "AAPL": ["Apple", "苹果"],
     "AMD": ["Advanced Micro Devices", "AMD", "超威半导体"],
     "AMZN": ["Amazon", "亚马逊"],
-    "ASML": ["ASML", "阿斯麦"],
+    "ASMLUS": ["ASML", "阿斯麦"],
     "AVGO": ["Broadcom", "博通"],
     "COHR": ["Coherent"],
     "GOOG": ["Google", "Alphabet", "谷歌"],
@@ -32,7 +32,20 @@
   "knownProducts": [
     { "sourceCode": "AAPU", "targetCode": "AAPL", "leverageMultiple": 2 },
     { "sourceCode": "AMDL", "targetCode": "AMD", "leverageMultiple": 2 },
-    { "sourceCode": "AMZU", "targetCode": "AMZN", "leverageMultiple": 2 },
+    {
+      "sourceCode": "AMZU",
+      "targetCode": "AMZN",
+      "leverageMultiple": 2,
+      "aliases": ["Direxion Daily AMZN Bull 2X ETF"],
+      "evidence": "https://www.direxion.com/product/daily-amzn-bull-and-bear-leveraged-single-stock-etfs"
+    },
+    {
+      "sourceCode": "ASMU",
+      "targetCode": "ASMLUS",
+      "leverageMultiple": 2,
+      "aliases": ["Direxion Daily ASML Bull 2X ETF"],
+      "evidence": "https://www.direxion.com/product/daily-asml-bull-leveraged-single-stock-etf"
+    },
     { "sourceCode": "AVGU", "targetCode": "AVGO", "leverageMultiple": 2 },
     { "sourceCode": "GGLL", "targetCode": "GOOGL", "leverageMultiple": 2 },
     { "sourceCode": "METU", "targetCode": "META", "leverageMultiple": 2 },

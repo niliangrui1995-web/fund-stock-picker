@@ -209,18 +209,41 @@ async function renderDirtyApp(): Promise<HTMLInputElement> {
     await Promise.resolve();
   });
   await act(async () => { await Promise.resolve(); });
-  const picker = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
-  if (picker === null) throw new Error("缺少组合股票检索框");
+  const picker = await openEditorInput();
+  expect(container.querySelector('[aria-label="搜索股票名称或代码"]')?.closest("[hidden]")).not.toBeNull();
   await setSearchInput(picker, "TSM");
   const pickerSuggestion = container.querySelector<HTMLElement>('#portfolio-stock-search-suggestions [role="option"]');
   if (pickerSuggestion === null) throw new Error("缺少组合股票检索建议");
   await act(async () => pickerSuggestion.click());
-  const addButton = Array.from(container.querySelectorAll(".portfolio-stock-search-field button")).find((button) => button.textContent === "加入组合") as HTMLButtonElement | undefined;
-  if (addButton === undefined) throw new Error("缺少添加股票按钮");
-  await act(async () => addButton.click());
+  await clickButton("查看结果");
   const input = container.querySelector<HTMLInputElement>('[aria-label="搜索股票名称或代码"]');
   if (input === null) throw new Error("缺少搜索输入框");
+  expect(input.closest("[hidden]")).toBeNull();
   return input;
+}
+
+function findButton(text: string, scope: ParentNode = container): HTMLButtonElement {
+  const button = Array.from(scope.querySelectorAll<HTMLButtonElement>("button")).find((item) => item.textContent === text);
+  if (!button) throw new Error(`缺少按钮 ${text}`);
+  return button;
+}
+
+async function clickButton(text: string, scope: ParentNode = container): Promise<void> {
+  await act(async () => findButton(text, scope).click());
+}
+
+async function openEditorInput(): Promise<HTMLInputElement> {
+  await act(async () => container.querySelector<HTMLButtonElement>("#portfolio-edit-trigger")!.click());
+  const input = container.querySelector<HTMLInputElement>("#portfolio-stock-search");
+  if (!input) throw new Error("缺少选股输入框");
+  return input;
+}
+
+async function chooseSaved(name: string): Promise<void> {
+  await act(async () => container.querySelector<HTMLButtonElement>("#saved-portfolio-trigger")!.click());
+  const button = Array.from(container.querySelectorAll<HTMLButtonElement>(".portfolio-saved-panel li button")).find((item) => item.querySelector("strong")?.textContent === name);
+  if (!button) throw new Error(`缺少已保存组合 ${name}`);
+  await act(async () => button.click());
 }
 
 async function setSearchInput(input: HTMLInputElement, value: string): Promise<void> {
@@ -297,48 +320,121 @@ afterEach(async () => {
 });
 
 describe("PortfolioWorkbench", () => {
-  it("保存状态在保存、修改和还原后同步，另存为默认产生独立副本", async () => {
+  it("接受新临时查询才收起选股，脏草稿取消切换时保持编辑与选股内容", async () => {
+    const onEditorOpenChange = vi.fn();
+    const renderSelection = async (code: string, requestId: number) => act(async () => {
+      root.render(<PortfolioWorkbench stocks={currentStocks} report="2026Q2" cutoffDate="2026-06-30" temporarySelection={{ code, requestId, trigger: null }} manifestUrl="/portfolio.json" fundHoldingsUrl="/holdings.json" onEditorOpenChange={onEditorOpenChange} />);
+    });
+    await renderSelection("NVDA", 1);
+    await openEditorInput();
+    expect(onEditorOpenChange).toHaveBeenLastCalledWith(true);
+    await renderSelection("TSM", 2);
+    expect(container.querySelector(".portfolio-editor")).toBeNull();
+    expect(onEditorOpenChange).toHaveBeenLastCalledWith(false);
+    const input = await openEditorInput();
+    await setSearchInput(input, "NVDA");
+    await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(container.querySelectorAll(".portfolio-chips > span")).toHaveLength(2);
+    await renderSelection("NVDA", 3);
+    expect(container.querySelector(".portfolio-unsaved-dialog")).not.toBeNull();
+    expect(container.querySelector(".portfolio-editor")).not.toBeNull();
+    await clickButton("取消", container.querySelector(".portfolio-unsaved-dialog")!);
+    expect(container.querySelectorAll(".portfolio-chips > span")).toHaveLength(2);
+    expect(container.querySelector(".portfolio-editor")).not.toBeNull();
+    await renderSelection("NVDA", 4);
+    await clickButton("放弃", container.querySelector(".portfolio-unsaved-dialog")!);
+    expect(container.querySelector(".portfolio-editor")).toBeNull();
+    expect(container.querySelector(".portfolio-result-focus")?.textContent).toContain("NVDA");
+  });
+
+  it("连续查询等待本次股票结果就绪才消费焦点请求", async () => {
+    const onResultFocused = vi.fn();
+    let resolveSecond: ((value: never) => void) | undefined;
+    const renderSelection = async (code: string, requestId: number) => act(async () => {
+      root.render(<PortfolioWorkbench stocks={currentStocks} report="2026Q2" cutoffDate="2026-06-30" temporarySelection={{ code, requestId, trigger: null }} focusResult onResultFocused={onResultFocused} manifestUrl="/portfolio.json" fundHoldingsUrl="/holdings.json" />);
+    });
+    await renderSelection("NVDA", 1);
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(onResultFocused).toHaveBeenCalledTimes(1);
+    vi.mocked(loadPortfolioIndex).mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+    await renderSelection("TSM", 2);
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(onResultFocused).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".portfolio-result-focus")).toBeNull();
+    await act(async () => resolveSecond?.({ manifest: {} } as never));
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(onResultFocused).toHaveBeenCalledTimes(2);
+    expect(document.activeElement).toBe(container.querySelector(".portfolio-result-focus"));
+    expect(document.activeElement?.textContent).toContain("TSM");
+  });
+
+  it("我的组合点当前项返回入口，切换后聚焦结果，取消脏草稿返回原列表项", async () => {
+    window.localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, activeBasketId: "first", baskets: [
+      { id: "first", name: "第一组合", stockCodes: ["NVDA"], createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+      { id: "second", name: "第二组合", stockCodes: ["TSM"], createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+    ] }));
+    await act(async () => root.render(<PortfolioWorkbench stocks={currentStocks} report="2026Q2" cutoffDate="2026-06-30" manifestUrl="/portfolio.json" fundHoldingsUrl="/holdings.json" />));
+    await chooseSaved("第一组合");
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(document.activeElement).toBe(container.querySelector("#saved-portfolio-trigger"));
+    await chooseSaved("第二组合");
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(document.activeElement).toBe(container.querySelector(".portfolio-result-focus"));
+    expect(document.activeElement?.textContent).toContain("第二组合");
+    const more = container.querySelector<HTMLDetailsElement>(".portfolio-more-actions")!;
+    more.open = true;
+    await setSearchInput(more.querySelector("input")!, "修改后的第二组合");
+    await chooseSaved("第一组合");
+    const originalButton = Array.from(container.querySelectorAll(".portfolio-saved-panel li button")).find((button) => button.textContent?.startsWith("第一组合"));
+    await clickButton("取消", container.querySelector(".portfolio-unsaved-dialog")!);
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(document.activeElement).toBe(originalButton);
+    expect(container.querySelector(".portfolio-saved-panel")).not.toBeNull();
+    expect(container.querySelector(".portfolio-result-focus")?.textContent).toContain("修改后的第二组合");
+    window.localStorage.removeItem(PORTFOLIO_STORAGE_KEY);
+  });
+  it("首次保存才要求名称，修改和还原同步保存状态，另存为产生独立副本", async () => {
     window.localStorage.removeItem(PORTFOLIO_STORAGE_KEY);
     await act(async () => {
       root.render(<PortfolioWorkbench stocks={currentStocks} report="2026Q2" cutoffDate="2026-06-30" temporaryStockCode="NVDA" manifestUrl="/portfolio.json" fundHoldingsUrl="/holdings.json" />);
     });
-    const getButton = (text: string) => {
-      const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === text);
-      if (!button) throw new Error(`缺少按钮 ${text}`);
-      return button;
-    };
-    expect(container.querySelector(".portfolio-status")?.textContent).toContain("未保存");
-    await act(async () => getButton("保存组合").click());
-    expect(container.querySelector(".portfolio-status")?.textContent).toContain("已保存");
-    expect(getButton("保存更改").disabled).toBe(true);
-    const name = container.querySelector<HTMLInputElement>('.portfolio-editor input[placeholder="输入组合名称"]');
-    if (!name) throw new Error("缺少组合名称");
+    expect(container.querySelector(".portfolio-editor")).toBeNull();
+    expect(container.querySelector(".portfolio-unsaved")).toBeNull();
+    await clickButton("保存组合");
+    const firstDialog = container.querySelector<HTMLDialogElement>("dialog")!;
+    expect(firstDialog.open).toBe(true);
+    expect(firstDialog.querySelector("input")?.value).toBe("英伟达组合");
+    await setSearchInput(firstDialog.querySelector("input")!, "芯片观察");
+    await clickButton("保存", firstDialog);
+    expect(container.querySelector("dialog")).toBeNull();
+    expect(findButton("已保存").disabled).toBe(true);
+    const more = container.querySelector<HTMLDetailsElement>(".portfolio-more-actions")!;
+    more.open = true;
+    const name = more.querySelector<HTMLInputElement>('input[placeholder="输入组合名称"]')!;
     await setSearchInput(name, "修改后的研究");
-    expect(getButton("保存更改").disabled).toBe(false);
-    expect(container.querySelector(".portfolio-status")?.textContent).toContain("未保存");
-    await setSearchInput(name, "临时研究");
-    expect(getButton("保存更改").disabled).toBe(true);
+    expect(findButton("保存组合").disabled).toBe(false);
+    expect(container.querySelector(".portfolio-unsaved")?.textContent).toContain("未保存更改");
+    await setSearchInput(name, "芯片观察");
+    expect(findButton("已保存").disabled).toBe(true);
     const originalStore = JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!);
-
-    await act(async () => getButton("另存为").click());
-    const dialog = container.querySelector<HTMLDialogElement>("dialog");
-    expect(dialog?.open).toBe(true);
-    expect(dialog?.querySelector("input")?.value).toBe("临时研究（副本）");
-    await act(async () => getButton("保存副本").click());
+    await clickButton("另存为");
+    const dialog = container.querySelector<HTMLDialogElement>("dialog")!;
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector("input")?.value).toBe("芯片观察（副本）");
+    await clickButton("保存副本", dialog);
     expect(container.querySelector("dialog")).toBeNull();
     const copiedStore = JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!);
     expect(copiedStore.baskets).toHaveLength(2);
     expect(copiedStore.baskets[0]).toEqual(originalStore.baskets[0]);
     expect(copiedStore.baskets[1].id).not.toBe(originalStore.baskets[0].id);
-    expect(copiedStore.baskets[1].name).toBe("临时研究（副本）");
+    expect(copiedStore.baskets[1].name).toBe("芯片观察（副本）");
     expect(copiedStore.baskets[1].stockCodes).toEqual(["NVDA"]);
-    expect(getButton("保存更改").disabled).toBe(true);
-    const savedSelector = container.querySelector<HTMLSelectElement>("#saved-portfolio-select")!;
-    await act(async () => { savedSelector.value = originalStore.baskets[0].id; savedSelector.dispatchEvent(new Event("change", { bubbles: true })); });
+    expect(findButton("已保存").disabled).toBe(true);
+    await chooseSaved("芯片观察");
     expect(JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!).activeBasketId).toBe(originalStore.baskets[0].id);
     await setSearchInput(name, "保存后再切换");
-    await act(async () => { savedSelector.value = copiedStore.baskets[1].id; savedSelector.dispatchEvent(new Event("change", { bubbles: true })); });
-    await act(async () => getButton("保存").click());
+    await chooseSaved("芯片观察（副本）");
+    await clickButton("保存", container.querySelector(".portfolio-unsaved-dialog")!);
     const switchedStore = JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!);
     expect(switchedStore.baskets.find((basket: { id: string }) => basket.id === originalStore.baskets[0].id).name).toBe("保存后再切换");
     expect(switchedStore.activeBasketId).toBe(copiedStore.baskets[1].id);
@@ -369,7 +465,7 @@ describe("PortfolioWorkbench", () => {
     });
     const more = container.querySelector<HTMLDetailsElement>(".portfolio-more-actions")!;
     more.open = true;
-    const deleteButton = more.querySelector<HTMLButtonElement>("button")!;
+    const deleteButton = more.querySelector<HTMLButtonElement>(".portfolio-danger")!;
     await act(async () => { deleteButton.focus(); deleteButton.click(); });
     expect(container.querySelector('[role="alertdialog"]')?.textContent).toContain("删除“芯片观察”？");
     expect(JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!).baskets).toHaveLength(1);
@@ -431,11 +527,43 @@ describe("PortfolioWorkbench", () => {
     expect(container.querySelector(".portfolio-detail-body")?.contains(search)).toBe(false);
   });
 
+  it.each([true, false])("持仓按来源标准代码显示筛选，待核对解析不参与比例排序（QDII=%s）", async (isQdii) => {
+    const qdiiFund = { ...fund(1), isQdii };
+    const payload = qdiiPayload();
+    const sourceSpecificHoldings = [
+      { securityId: "adr", rank: 1, stockCode: "2330", stockName: "台湾积体电路制造股份有限公司", canonicalStockCode: "TSM", ratioPercent: 3, holdingType: "权益投资" },
+      { securityId: "local", rank: 2, stockCode: "2330", stockName: "台湾积体电路制造股份有限公司", canonicalStockCode: "2330", ratioPercent: 2, holdingType: "权益投资" },
+      { securityId: "pending", rank: 3, stockCode: "KEYS", stockName: "KEYSIGHT TECHNOLOGIES", ratioPercent: 64, holdingType: "权益投资", parseStatus: "pending" as const, parseIssue: "市值尾数误入占比" },
+    ];
+    payload.fundHoldings["000001"].equityHoldings = sourceSpecificHoldings;
+    payload.fundHoldings["000001"].fundInvestments = [];
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
+    const record: AvailablePortfolioDetailRecord = { ...availableDetailRecord(qdiiFund, 10), holdings: [sourceSpecificHoldings[0], ...sourceSpecificHoldings.slice(1)] };
+    await render(model({ draft: { name: "台积电观察", stockCodes: ["TSM"] }, detail: { kind: "available", fund: qdiiFund, record } }), { fetchImpl: fetchImpl as typeof fetch });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const rows = container.querySelectorAll(".portfolio-detail-holdings li");
+    expect(rows).toHaveLength(3);
+    expect(container.querySelector(".portfolio-detail-match-count")?.textContent).toBe("显示 3 / 3 条 · 1 条待核对");
+    expect(rows[0]?.querySelector("code")?.textContent).toContain("TSM");
+    expect(rows[1]?.querySelector("code")?.textContent).toContain("2330");
+    expect(rows[0]?.querySelector("details")?.textContent).toContain("台湾积体电路制造股份有限公司 · 2330");
+    expect(rows[2]?.querySelector("b")?.textContent).toBe("待核对");
+    expect(rows[2]?.querySelector("summary")?.textContent).toContain("原解析记录");
+    expect(rows[2]?.querySelector("details")?.textContent).toContain("原解析值 64.00% · 市值尾数误入占比");
+    await act(async () => container.querySelector<HTMLInputElement>('.portfolio-detail-filters input[type="checkbox"]')!.click());
+    const filtered = container.querySelectorAll(".portfolio-detail-holdings li");
+    expect(filtered).toHaveLength(1);
+    expect(container.querySelector(".portfolio-detail-match-count")?.textContent).toBe("显示 1 / 3 条 · 1 条待核对");
+    expect(filtered[0]?.querySelector("code")?.textContent).toContain("TSM");
+    expect(filtered[0]?.textContent).toContain("3.00%");
+  });
+
   it("显示临时单股票研究、固定披露和完整排序后的前 50 行", async () => {
     await render(model());
 
-    expect(container.textContent).toContain("单股 · 1 / 10 只");
-    expect(container.textContent).toContain("本机组合");
+    expect(container.querySelector(".portfolio-result-focus")?.textContent).toBe("英伟达 · NVDA · 美股");
+    expect(container.querySelector(".portfolio-editor")).toBeNull();
+    expect(container.querySelector(".portfolio-unsaved")).toBeNull();
     expect(container.querySelector(".portfolio-result-summary")?.textContent).toContain("未披露不代表未持有");
     expect(container.querySelectorAll('[role="tabpanel"]:not([hidden]) .portfolio-fund-row')).toHaveLength(50);
     expect(container.textContent).toContain("更多（1）");
@@ -602,13 +730,14 @@ describe("PortfolioWorkbench", () => {
       retry,
       create: protectedCreate,
     }));
+    await openEditorInput();
     expect(container.textContent).toContain("已满 10 只");
     expect(container.textContent).toContain("TSM 暂时不可用");
     const retryButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "重试");
     if (retryButton === undefined) throw new Error("缺少重试按钮");
     await act(async () => retryButton.click());
     expect(retry).toHaveBeenCalledTimes(1);
-    const createButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "新建");
+    const createButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "新建组合");
     if (createButton === undefined) throw new Error("缺少新建按钮");
     await act(async () => createButton.click());
     expect(protectedCreate).toHaveBeenCalledTimes(1);
@@ -617,7 +746,7 @@ describe("PortfolioWorkbench", () => {
   it("添加股票支持按中文名称检索，并可用键盘选中后添加", async () => {
     const addStock = vi.fn();
     await render(model({ addStock }));
-    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const search = await openEditorInput();
     if (search === null) throw new Error("缺少股票检索输入框");
 
     await setSearchInput(search, "台积");
@@ -632,16 +761,14 @@ describe("PortfolioWorkbench", () => {
     await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
-    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "加入组合");
-    if (addButton === undefined) throw new Error("缺少添加按钮");
-    await act(async () => addButton.click());
-    expect(addStock).toHaveBeenCalledWith("TSM");
+    expect(addStock).toHaveBeenCalledExactlyOnceWith("TSM");
+    expect(search.value).toBe("");
   });
 
   it("添加股票支持按代码检索并点击候选项添加", async () => {
     const addStock = vi.fn();
     await render(model({ addStock }));
-    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const search = await openEditorInput();
     if (search === null) throw new Error("缺少股票检索输入框");
 
     await setSearchInput(search, "TSM");
@@ -649,13 +776,10 @@ describe("PortfolioWorkbench", () => {
     if (option === null) throw new Error("缺少代码检索候选项");
     expect(option.textContent).toContain("台积电 · TSM");
     await act(async () => option.click());
-    await act(async () => search.focus());
-    expect(container.querySelector('[role="listbox"]')?.textContent).toContain("台积电 · TSM");
-    expect(container.textContent).not.toContain("未找到匹配股票");
-    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "加入组合");
-    if (addButton === undefined) throw new Error("缺少添加按钮");
-    await act(async () => addButton.click());
-    expect(addStock).toHaveBeenCalledWith("TSM");
+    await act(async () => { await new Promise((resolve) => window.requestAnimationFrame(resolve)); });
+    expect(document.activeElement).toBe(search);
+    expect(search.value).toBe("");
+    expect(addStock).toHaveBeenCalledExactlyOnceWith("TSM");
   });
 
   it("同名的多个代码必须在选择候选项后才能添加", async () => {
@@ -663,24 +787,48 @@ describe("PortfolioWorkbench", () => {
     await render(model({ addStock }), {
       stocks: [
         { code: "NVDA", name: "英伟达" },
-        { code: "TSM", name: "台积电" },
-        { code: "2330", name: "台积电" },
+        { code: "TSM", name: "台积电", marketLabel: "美股 ADR" },
+        { code: "2330", name: "台积电", marketLabel: "台股" },
       ],
     });
-    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const search = await openEditorInput();
     if (search === null) throw new Error("缺少股票检索输入框");
 
     await setSearchInput(search, "台积电");
     const options = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
     expect(options).toHaveLength(2);
-    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "加入组合");
-    if (addButton === undefined) throw new Error("缺少添加按钮");
-    expect(addButton.disabled).toBe(true);
-
+    expect(options[0]?.querySelector(".portfolio-market-label")?.textContent).toBe("美股 ADR");
+    expect(options[1]?.querySelector(".portfolio-market-label")?.textContent).toBe("台股");
+    await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(addStock).not.toHaveBeenCalled();
     await act(async () => options[1]?.click());
-    expect(addButton.disabled).toBe(false);
-    await act(async () => addButton.click());
     expect(addStock).toHaveBeenCalledWith("2330");
+  });
+
+  it("跨市场别名不能隐式取首项，标准代码和明确候选仍可快速加入", async () => {
+    const addStock = vi.fn();
+    await render(model({ addStock }), {
+      stocks: [
+        { code: "NVDA", name: "英伟达" },
+        { code: "ASMLUS", name: "阿斯麦（美国登记股）", aliases: ["ASML", "阿斯麦美国"], marketLabel: "美股" },
+        { code: "ASML.NA", name: "ASML HOLDING NV", aliases: ["阿斯麦"], marketLabel: "荷兰股" },
+      ],
+    });
+    const search = await openEditorInput();
+    if (search === null) throw new Error("缺少股票检索输入框");
+    await setSearchInput(search, "ASML");
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(2);
+    await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(addStock).not.toHaveBeenCalled();
+    await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(addStock).toHaveBeenNthCalledWith(1, "ASMLUS");
+    await setSearchInput(search, "ASML.NA");
+    await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(addStock).toHaveBeenNthCalledWith(2, "ASML.NA");
+    await setSearchInput(search, "阿斯麦美国");
+    await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
+    expect(addStock).toHaveBeenNthCalledWith(3, "ASMLUS");
   });
 
   it("键盘移动到超出可视高度的候选项时会将其滚动到可视区", async () => {
@@ -694,9 +842,11 @@ describe("PortfolioWorkbench", () => {
           ...Array.from({ length: 13 }, (_, index) => ({ code: `TEST-${index}`, name: `测试股票 ${index}` })),
         ],
       });
-      const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+      const search = await openEditorInput();
       if (search === null) throw new Error("缺少股票检索输入框");
       await act(async () => search.focus());
+      expect(container.querySelectorAll('[role="option"]')).toHaveLength(0);
+      await act(async () => search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
       expect(container.querySelectorAll('[role="option"]')).toHaveLength(12);
 
       await act(async () => {
@@ -715,7 +865,7 @@ describe("PortfolioWorkbench", () => {
 
   it("键盘 Tab 离开组合检索时关闭候选列表且不拦截焦点移动", async () => {
     await render(model());
-    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const search = await openEditorInput();
     if (search === null) throw new Error("缺少股票检索输入框");
 
     await setSearchInput(search, "台积");
@@ -729,7 +879,7 @@ describe("PortfolioWorkbench", () => {
 
   it("中文输入法组合确认时不会拦截 Enter 或提前选中股票", async () => {
     await render(model());
-    const search = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const search = await openEditorInput();
     if (search === null) throw new Error("缺少股票检索输入框");
 
     await setSearchInput(search, "台积");
@@ -748,15 +898,12 @@ describe("PortfolioWorkbench", () => {
     const addStock = vi.fn();
     const removeStock = vi.fn();
     await render(model({ addStock, removeStock }));
-    const picker = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const picker = await openEditorInput();
     if (picker === null) throw new Error("缺少股票检索框");
     await setSearchInput(picker, "TSM");
     const pickerSuggestion = container.querySelector<HTMLElement>('#portfolio-stock-search-suggestions [role="option"]');
     if (pickerSuggestion === null) throw new Error("缺少股票检索建议");
     await act(async () => pickerSuggestion.click());
-    const addButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "加入组合");
-    if (addButton === undefined) throw new Error("缺少添加按钮");
-    await act(async () => addButton.click());
     expect(addStock).toHaveBeenCalledWith("TSM");
     const removeButton = container.querySelector<HTMLButtonElement>('[aria-label="移除 英伟达 NVDA"]');
     if (removeButton === null) throw new Error("缺少移除按钮");
@@ -766,7 +913,7 @@ describe("PortfolioWorkbench", () => {
 
   it("已选股票不会在选择器重复出现，达到十只时给出明确禁用原因", async () => {
     await render(model());
-    const picker = container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]');
+    const picker = await openEditorInput();
     if (picker === null) throw new Error("缺少股票检索框");
     await setSearchInput(picker, "英伟达");
     expect(container.querySelector('#portfolio-stock-search-suggestions')).toBeNull();
@@ -778,7 +925,7 @@ describe("PortfolioWorkbench", () => {
       draft: { name: "满额组合", stockCodes: ["NVDA", "TSM", "A", "B", "C", "D", "E", "F", "G", "H"] },
     }));
     expect(container.querySelector<HTMLInputElement>('[aria-label="检索添加股票"]')?.disabled).toBe(true);
-    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "加入组合")?.disabled).toBe(true);
+    expect(container.querySelector(".portfolio-add-stock")).toBeNull();
     expect(container.textContent).toContain("请先移除一只再添加");
   });
 
@@ -866,6 +1013,8 @@ describe("PortfolioWorkbench", () => {
     });
     expect(document.activeElement).toBe(input);
 
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+    await setSearchInput(input, "");
     await setSearchInput(input, "TSM");
     const suggestion = container.querySelector<HTMLElement>('[role="option"]');
     if (suggestion === null) throw new Error("缺少搜索建议");

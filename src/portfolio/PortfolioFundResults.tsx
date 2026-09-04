@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { getSecurityIdentity } from "../securityIdentity";
 
 import type { AggregatedFundResult } from "./types";
 
@@ -17,7 +18,7 @@ function ExposureBreakdown({ fund, report, cutoffDate }: {
       <ul className="portfolio-contributions" aria-label={`${fund.fundDisplayName} 的股票贡献`}>
         {fund.contributions.map((contribution) => (
           <li key={contribution.targetCode}>
-            <strong>{contribution.targetName} · {contribution.targetCode}</strong>
+            <strong>{contribution.targetName} · {getSecurityIdentity(contribution.targetCode, contribution.targetName).marketLabel} · {contribution.targetCode}</strong>
             <p>直接 {formatPercent(contribution.directRatioPercent)} · 间接估算 {formatPercent(contribution.indirectEstimatedRatioPercent)}</p>
             {contribution.directSources?.map((source, index) => <p key={`${source.targetCode}-${index}`}>原披露：{source.targetName} · {source.targetCode} · {formatPercent(source.ratioPercent)}</p>)}
             {contribution.indirectSources.map((source) => <p key={source.sourceCode} className="portfolio-source-formula">

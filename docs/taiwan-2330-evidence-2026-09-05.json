@@ -1,0 +1,52 @@
+{
+  "checkedAt": "2026-09-05",
+  "source": "https://api.openfigi.com/v3/mapping",
+  "records": [
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "2330",
+        "exchCode": "TT"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BN2JD8",
+            "name": "TAIWAN SEMICONDUCTOR MANUFAC",
+            "ticker": "2330",
+            "exchCode": "TT (Taiwan Stock Exchange)",
+            "compositeFIGI": "BBG000BN2HR7",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S6Q004",
+            "securityType2": "Common Stock",
+            "securityDescription": "2330"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "ID_ISIN",
+        "idValue": "TW0002330008",
+        "exchCode": "TT"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BN2JD8",
+            "name": "TAIWAN SEMICONDUCTOR MANUFAC",
+            "ticker": "2330",
+            "exchCode": "TT (Taiwan Stock Exchange)",
+            "compositeFIGI": "BBG000BN2HR7",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S6Q004",
+            "securityType2": "Common Stock",
+            "securityDescription": "2330"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -68,6 +68,9 @@ export interface QualifiedIndirectEdge {
 export interface PortfolioFundHoldingDetail {
   rank: number;
   stockCode: string;
+  canonicalStockCode?: string;
+  parseStatus?: "pending";
+  parseIssue?: string;
   stockName: string;
   ratio?: number;
   ratioPercent: number;

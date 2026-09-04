@@ -4,28 +4,28 @@
     "label": "AMD / 超威半导体 AMD",
     "track": "核心算力 / 光互连拉货",
     "thesis": "MI450 与 CW 激光器产能争夺是近期战报高频线索，先看哪些 QDII 主动基金已经有持仓暴露。",
-    "evidence": "邮件战报：AMD 抢锁 CW 激光器；海外 AI 暴露表：狭义海外AI / 核心算力-GPU；2026Q2 基金持仓索引：场外 45 只（与单股结果同口径，按基金家族去重）"
+    "evidence": "邮件战报：AMD 抢锁 CW 激光器；海外 AI 暴露表：狭义海外AI / 核心算力-GPU；2026Q2 基金持仓索引：场外 51 只（与单股结果同口径，按基金家族去重）"
   },
   {
     "code": "LITE",
     "label": "LITE / Lumentum",
     "track": "CW 激光器 / InP",
     "thesis": "Lumentum 是光互连上游产能紧张的核心映射，适合直接穿透基金里的光通信器件仓位。",
-    "evidence": "邮件战报：Lumentum/InP 产能售罄与供应瓶颈；海外 AI 暴露表：扩展海外AI / 光通信器件；2026Q2 基金持仓索引：场外 32 只（与单股结果同口径，按基金家族去重）"
+    "evidence": "邮件战报：Lumentum/InP 产能售罄与供应瓶颈；海外 AI 暴露表：扩展海外AI / 光通信器件；2026Q2 基金持仓索引：场外 37 只（与单股结果同口径，按基金家族去重）"
   },
   {
     "code": "COHR",
     "label": "COHR / 相干 Coherent",
     "track": "光模块上游 / 垂直整合",
     "thesis": "Coherent 扩产与 CW 激光器供给紧张持续被战报提及，站内可直接查看重仓基金与申赎状态。",
-    "evidence": "邮件战报：Coherent 德州扩产、NVIDIA/AMD 产能争夺；2026Q2 基金持仓索引：场外 22 只（与单股结果同口径，按基金家族去重）"
+    "evidence": "邮件战报：Coherent 德州扩产、NVIDIA/AMD 产能争夺；2026Q2 基金持仓索引：场外 24 只（与单股结果同口径，按基金家族去重）"
   },
   {
     "code": "GLW",
     "label": "GLW / 康宁 Corning",
     "track": "Glass Bridge / 光连接",
     "thesis": "康宁同时映射 Glass Bridge / GlassWorks AI 技术线和 Amazon、NVIDIA AI 数据中心光连接供货线索；站内已有 QDII 光通信持仓暴露，适合作为 LITE、COHR 旁的光通信上游入口。",
-    "evidence": "战报/公司公告复查：Glass Bridge 发布，Amazon/NVIDIA 光连接长单交叉验证；海外 AI 暴露表：扩展海外AI / 光纤/材料；2026Q2 基金持仓索引：场外 16 只（与单股结果同口径，按基金家族去重）"
+    "evidence": "战报/公司公告复查：Glass Bridge 发布，Amazon/NVIDIA 光连接长单交叉验证；海外 AI 暴露表：扩展海外AI / 光纤/材料；2026Q2 基金持仓索引：场外 20 只（与单股结果同口径，按基金家族去重）"
   },
   {
     "code": "000660",
@@ -47,7 +47,7 @@
     "label": "MU / 美光 Micron",
     "track": "HBM4E / AI 存储",
     "thesis": "美光同时映射 HBM、DRAM 与数据中心 SSD 的 AI 内存/存储缺口，适合作为 HBM4E + 存储短缺主线的美国内存侧入口。",
-    "evidence": "公司公告/IR复查：HBM4/HBM4E 路线推进，DRAM/NAND 供给偏紧；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q2 基金持仓索引：场外 45 只（与单股结果同口径，按基金家族去重）",
+    "evidence": "公司公告/IR复查：HBM4/HBM4E 路线推进，DRAM/NAND 供给偏紧；海外 AI 暴露表：狭义海外AI / AI存储/HBM；2026Q2 基金持仓索引：场外 51 只（与单股结果同口径，按基金家族去重）",
     "homepageQuickEntry": true
   },
   {
@@ -55,7 +55,7 @@
     "label": "SNDK / 闪迪公司/特拉华州",
     "track": "AI 存储 / NAND SSD",
     "thesis": "闪迪不属于 HBM4E，但承接 AI 数据层、企业 SSD 与 NAND 供给偏紧分支；站内已有扩展海外 AI / AI 存储持仓明细，可作为存储侧入口。",
-    "evidence": "公司公告/IR复查：AI 数据层带动企业 SSD/NAND 需求，供需维持偏紧；海外 AI 暴露表：扩展海外AI / AI存储；2026Q2 基金持仓索引：场外 12 只（与单股结果同口径，按基金家族去重）",
+    "evidence": "公司公告/IR复查：AI 数据层带动企业 SSD/NAND 需求，供需维持偏紧；海外 AI 暴露表：扩展海外AI / AI存储；2026Q2 基金持仓索引：场外 43 只（与单股结果同口径，按基金家族去重）",
     "homepageQuickEntry": true
   }
 ]

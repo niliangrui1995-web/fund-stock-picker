@@ -606,6 +606,9 @@ function validateHolding(value: unknown): value is PortfolioFundHoldingDetail {
     return false;
   }
   return (
+    (value.canonicalStockCode === undefined || isNonEmptyString(value.canonicalStockCode)) &&
+    (value.parseStatus === undefined || value.parseStatus === "pending") &&
+    (value.parseIssue === undefined || isNonEmptyString(value.parseIssue)) &&
     (value.ratio === undefined || isNonNegativeFinite(value.ratio)) &&
     (value.marketValueWan === undefined ||
       value.marketValueWan === null ||

@@ -4,30 +4,40 @@
 .portfolio-saved, .portfolio-unsaved { padding: 3px 8px; border-radius: 6px; font-weight: 700; }
 .portfolio-saved { color: #166534; background: #f0fdf4; }
 .portfolio-unsaved { color: #92400e; background: #fffbeb; }
-.portfolio-header, .portfolio-editor, .portfolio-fund-head, .portfolio-dialog-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.portfolio-header h2, .portfolio-fund-head h4, .portfolio-dialog-heading h3 { margin: 0; color: var(--ink-strong, #0f172a); }
-.portfolio-header p, .portfolio-fund-head p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
-.portfolio-kicker { color: #4338ca !important; font-weight: 800; }
+.portfolio-fund-head, .portfolio-dialog-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.portfolio-fund-head h4, .portfolio-dialog-heading h3 { margin: 0; color: var(--ink-strong, #0f172a); }
+.portfolio-fund-head p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
 .portfolio-result-focus:focus-visible { outline: 3px solid #312e81; outline-offset: 4px; border-radius: 4px; }
 .portfolio-actions, .portfolio-dialog-actions, .portfolio-chips, .portfolio-tabs, .portfolio-contributions { display: flex; flex-wrap: wrap; gap: 8px; }
-.portfolio-actions button, .portfolio-add-stock, .portfolio-load-more, .portfolio-return-editor, .portfolio-row-actions button, .portfolio-dialog-actions button, .portfolio-detail-dialog button { min-width: 24px; min-height: 36px; border: 1px solid #c7d2fe; border-radius: 8px; padding: 6px 10px; background: #fff; color: #3730a3; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-.portfolio-actions button.portfolio-primary, .portfolio-add-stock, .portfolio-load-more, .portfolio-dialog-actions button.portfolio-primary { border-color: #4f46e5; background: #4f46e5; color: #fff; }
+.portfolio-actions button, .portfolio-editor button, .portfolio-saved-panel button, .portfolio-load-more, .portfolio-row-actions button, .portfolio-dialog-actions button, .portfolio-detail-dialog button { min-width: 24px; min-height: 36px; border: 1px solid #c7d2fe; border-radius: 8px; padding: 6px 10px; background: #fff; color: #3730a3; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.portfolio-editor button.portfolio-primary, .portfolio-load-more, .portfolio-dialog-actions button.portfolio-primary { border-color: #4f46e5; background: #4f46e5; color: #fff; }
 .portfolio-actions button.portfolio-danger, .portfolio-dialog-actions button.portfolio-danger { border-color: #fda4af; background: #fff1f2; color: #9f1239; }
-.portfolio-actions button:disabled, .portfolio-add-stock:disabled { opacity: .56; cursor: not-allowed; }
-.portfolio-editor { align-items: start; padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.portfolio-actions button:disabled, .portfolio-editor button:disabled { opacity: .56; cursor: not-allowed; }
+.portfolio-editor { display: grid; gap: 12px; min-width: 0; align-items: start; padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
 .portfolio-editor label { display: grid; flex: 1 1 160px; gap: 5px; color: #334155; font-size: 13px; font-weight: 700; }
 .portfolio-editor input, .portfolio-editor select { min-width: 0; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 7px; padding: 5px 8px; background: #fff; color: #0f172a; font: inherit; }
-.portfolio-stock-search-field { display: grid; flex: 1 1 320px; grid-template-areas: "label label" "picker button"; grid-template-columns: minmax(0, 1fr) auto; align-items: start; min-width: 0; gap: 5px 12px; }
-.portfolio-stock-search-field > label { display: block; grid-area: label; flex: none; }
-.portfolio-stock-picker { position: relative; grid-area: picker; min-width: 0; }
-.portfolio-add-stock { grid-area: button; align-self: start; margin: 0; }
-.portfolio-stock-picker input { width: 100%; }
-.portfolio-stock-search-results { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; left: 0; display: grid; gap: 3px; max-height: 248px; margin: 0; padding: 5px; overflow-y: auto; border: 1px solid #a5b4fc; border-radius: 9px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .14); list-style: none; }
+.portfolio-stock-search-field { min-width: 0; }
+.portfolio-stock-picker { position: relative; min-width: 0; }
+.portfolio-stock-picker input { width: 100%; min-height: 44px; }
+.portfolio-compact-toolbar, .portfolio-editor-heading, .portfolio-editor-footer, .portfolio-saved-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.portfolio-compact-toolbar .portfolio-unsaved { font-size: 12px; }
+.portfolio-editor-heading { font-size: 13px; color: #475569; }
+.portfolio-editor-footer { justify-content: flex-start; }
+.portfolio-saved-panel { padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+.portfolio-saved-heading { font-size: 14px; }
+.portfolio-saved-panel ul { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.portfolio-saved-panel li button { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; text-align: left; }
+.portfolio-saved-panel li button[aria-pressed="true"] { border-color: #6366f1; background: #eef2ff; }
+.portfolio-saved-panel li span { color: #64748b; font-weight: 400; }
+.portfolio-stock-search-results { display: grid; gap: 3px; max-height: 248px; margin: 6px 0 0; padding: 5px; overflow-y: auto; border: 1px solid #a5b4fc; border-radius: 9px; background: #fff; list-style: none; }
 .portfolio-stock-search-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 36px; padding: 6px 8px; border-radius: 6px; color: #1e293b; cursor: pointer; }
 .portfolio-stock-search-option:hover, .portfolio-stock-search-option[aria-selected="true"] { background: #e0e7ff; color: #312e81; }
 .portfolio-stock-search-option strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .portfolio-stock-search-option code { color: inherit; font-size: 12px; font-variant-numeric: tabular-nums; }
-.portfolio-stock-search-empty { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; left: 0; margin: 0; padding: 10px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .14); color: #64748b; font-size: 13px; }
+.portfolio-picker-identity { display: inline-flex; align-items: center; gap: 6px; }
+.portfolio-market-label { display: inline-block; margin-left: 4px; color: #475569; font-family: inherit; font-size: 11px; line-height: 1.5; white-space: nowrap; }
+.portfolio-picker-identity .portfolio-market-label { margin-left: 0; }
+.portfolio-stock-search-empty { margin: 6px 0 0; padding: 10px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #64748b; font-size: 13px; }
 .portfolio-chips span { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; max-width: 100%; padding: 3px 7px; border-radius: 7px; background: #eef2ff; color: #312e81; font-size: 12px; overflow-wrap: anywhere; }
 .portfolio-chips button { min-width: 24px; min-height: 24px; border: 0; border-radius: 5px; background: transparent; color: #4338ca; font: inherit; font-size: 12px; font-weight: 800; }
 .portfolio-tabs { border-bottom: 1px solid #cbd5e1; }
@@ -76,7 +86,9 @@
 .portfolio-workbench p { text-wrap: pretty; }
 .portfolio-more-actions { position: relative; }
 .portfolio-more-actions > summary { min-height: 36px; padding: 7px 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer; }
-.portfolio-more-actions > button { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; min-width: 110px; box-shadow: 0 4px 10px rgba(15, 23, 42, .1); }
+.portfolio-more-panel { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; display: grid; gap: 8px; width: 240px; max-width: calc(100vw - 40px); padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; box-shadow: 0 4px 10px rgba(15, 23, 42, .1); }
+.portfolio-more-panel label { display: grid; gap: 6px; color: #475569; font-size: 13px; }
+.portfolio-more-panel input { width: 100%; min-width: 0; min-height: 38px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
 .portfolio-action-dialog { width: min(440px, calc(100% - 32px)); }
 .portfolio-action-dialog::backdrop { background: rgba(15, 23, 42, .44); }
 .portfolio-action-dialog h3 { margin: 0; text-wrap: balance; }
@@ -88,7 +100,6 @@
 .portfolio-results-heading > div { min-width: 0; }
 .portfolio-results-heading h3 { margin: 0; color: #0f172a; font-size: 18px; line-height: 1.5; overflow-wrap: anywhere; }
 .portfolio-results-heading p { margin: 4px 0 0; color: #64748b; font-size: 12px; }
-.portfolio-return-editor { flex-shrink: 0; }
 .portfolio-result-count { margin: 10px 0; font-variant-numeric: tabular-nums; }
 .portfolio-fund-table-scroll { min-width: 0; }
 .portfolio-fund-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 14px; }
@@ -126,12 +137,10 @@
   .portfolio-fund-breakdown > td { display: block; }
 }
 @media (max-width: 720px) {
-  .portfolio-header, .portfolio-editor { align-items: stretch; }
-  .portfolio-stock-search-field { grid-template-areas: "label" "picker" "button"; grid-template-columns: minmax(0, 1fr); gap: 5px; }
-  .portfolio-add-stock { justify-self: stretch; }
-  .portfolio-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .portfolio-actions button { width: 100%; }
-  .portfolio-more-actions > summary { text-align: center; }
+  .portfolio-editor { align-items: stretch; }
+  .portfolio-actions { align-items: center; gap: 4px; }
+  .portfolio-compact-toolbar .portfolio-actions > button { padding-inline: 6px; font-size: 12px; }
+  .portfolio-more-actions > summary { display: flex; align-items: center; justify-content: center; min-width: 44px; padding-inline: 4px; text-align: center; }
   .portfolio-workbench button, .portfolio-workbench input, .portfolio-workbench select, .portfolio-more-actions > summary, .portfolio-stock-search-option, .portfolio-holding-name summary { min-height: 44px; }
   .portfolio-workbench button { min-width: 44px; }
   .portfolio-chips span { font-size: 13px; padding: 2px 7px; }

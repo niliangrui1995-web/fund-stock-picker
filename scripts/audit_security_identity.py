@@ -8,6 +8,8 @@ from pathlib import Path
 
 import requests
 
+from expand_security_identity_registry import write_registry
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs" / "ui-ux-optimization-2026-09-05"
@@ -85,7 +87,25 @@ def write_reviewed_registry(rows: list[dict[str, str]], records: list[dict]) -> 
         "sources": ["https://www.openfigi.com/api/documentation", "https://api.openfigi.com/v3/mapping", "https://investor.nvidia.com/investor-resources/faqs/", "https://www.skhynix.com/ir/UI-FR-IR99/", "https://www.samsung.com/global/ir/stock-information/listing-Info/"],
         "securities": identities,
     }
-    (ROOT / "config/security-identities.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    current_path = ROOT / "config/security-identities.json"
+    if current_path.exists():
+        current = json.loads(current_path.read_text(encoding="utf-8"))
+        reviewed = {item["compositeFIGI"]: item for item in identities}
+        for existing in current["securities"]:
+            if existing["compositeFIGI"] in reviewed:
+                fresh = reviewed[existing["compositeFIGI"]]
+                fresh["code"] = existing["code"]
+                fresh["aliases"] = list(existing["aliases"])
+                fresh["nameAliases"] = list(dict.fromkeys([*fresh["nameAliases"], *existing["nameAliases"]]))
+                fresh["evidence"] = list({entry["alias"]: entry for entry in [*existing["evidence"], *fresh["evidence"]]}.values())
+            else:
+                identities.append(existing)
+        config["version"] = current["version"]
+        config["policy"] = current["policy"]
+        for field in ("contextualAliases", "disclosureAliases", "ambiguousCodes"):
+            if field in current:
+                config[field] = current[field]
+    write_registry(config)
 
 
 def main() -> None:

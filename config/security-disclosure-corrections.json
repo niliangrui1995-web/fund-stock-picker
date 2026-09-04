@@ -1,0 +1,344 @@
+{
+  "excludedRows": [
+    {
+      "rawCode": "US",
+      "rawName": "de Bio Inc",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567256",
+      "rank": 72,
+      "sourcePage": 53,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "US",
+      "rawName": "公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1563107",
+      "rank": 14,
+      "sourcePage": 47,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "HK",
+      "rawName": "牧有机奶业有限公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1561510",
+      "rank": 52,
+      "sourcePage": 49,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "HK",
+      "rawName": "仞科技股份有限公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572993",
+      "rank": 7,
+      "sourcePage": 46,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "HK",
+      "rawName": "团",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573090",
+      "rank": 18,
+      "sourcePage": 43,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "up 房地产公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573109",
+      "rank": 26,
+      "sourcePage": 45,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "HK",
+      "rawName": "瑞生物制药",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567696",
+      "rank": 24,
+      "sourcePage": 48,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "HK",
+      "rawName": "药",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567696",
+      "rank": 33,
+      "sourcePage": 49,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "US",
+      "rawName": "sBio Inc",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1566826",
+      "rank": 112,
+      "sourcePage": 57,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "US",
+      "rawName": "Therapeutics Inc",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1566826",
+      "rank": 167,
+      "sourcePage": 62,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "务服务",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 113,
+      "sourcePage": 50,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UW",
+      "rawName": "e Inc",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 148,
+      "sourcePage": 53,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "疗保健有限公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 195,
+      "sourcePage": 57,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "s Technologies 股份有限公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 220,
+      "sourcePage": 59,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UW",
+      "rawName": "本集团",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 288,
+      "sourcePage": 65,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "电梯公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 324,
+      "sourcePage": 68,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UW",
+      "rawName": "y 股份有限公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 347,
+      "sourcePage": 70,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UW",
+      "rawName": "融",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 371,
+      "sourcePage": 72,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "Corp",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 418,
+      "sourcePage": 76,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "巴塞尔工业公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 441,
+      "sourcePage": 78,
+      "reason": "跨页续行，解析待核对"
+    },
+    {
+      "rawCode": "UN",
+      "rawName": "公司",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 477,
+      "sourcePage": 81,
+      "reason": "跨页续行，解析待核对"
+    }
+  ],
+  "correctedRows": [
+    {
+      "rawCode": "PALI",
+      "rawName": "Palisa",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567256",
+      "rank": 71,
+      "sourcePage": 52,
+      "marketValueWan": 96.639928
+    },
+    {
+      "rawCode": "KEYS",
+      "rawName": "是德科技",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1563107",
+      "rank": 13,
+      "sourcePage": 46,
+      "marketValueWan": 20669.186864
+    },
+    {
+      "rawCode": "1432",
+      "rawName": "中国圣",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1561510",
+      "rank": 51,
+      "sourcePage": 48,
+      "sharesWan": 388.0
+    },
+    {
+      "rawCode": "6082",
+      "rawName": "上海壁",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572993",
+      "rank": 6,
+      "sourcePage": 45,
+      "marketValueWan": 573.013703
+    },
+    {
+      "rawCode": "9868",
+      "rawName": "小鹏集",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573090",
+      "rank": 17,
+      "sourcePage": 42,
+      "marketValueWan": 526.145008
+    },
+    {
+      "rawCode": "EGP",
+      "rawName": "EastGro",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573109",
+      "rank": 25,
+      "sourcePage": 44,
+      "marketValueWan": 332.989955
+    },
+    {
+      "rawCode": "9966",
+      "rawName": "康宁杰",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567696",
+      "rank": 23,
+      "sourcePage": 47,
+      "marketValueWan": 173.245326,
+      "sharesWan": 28.7
+    },
+    {
+      "rawCode": "2552",
+      "rawName": "华领医",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567696",
+      "rank": 32,
+      "sourcePage": 48,
+      "marketValueWan": 57.72557,
+      "sharesWan": 31.35
+    },
+    {
+      "rawCode": "ANAB",
+      "rawName": "Anapty",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1566826",
+      "rank": 111,
+      "sourcePage": 56,
+      "marketValueWan": 212.903626
+    },
+    {
+      "rawCode": "DSGN",
+      "rawName": "Design",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1566826",
+      "rank": 166,
+      "sourcePage": 61,
+      "marketValueWan": 97.962401
+    },
+    {
+      "rawCode": "PNC",
+      "rawName": "PNC 财",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 112,
+      "sourcePage": 49,
+      "marketValueWan": 1160.302322
+    },
+    {
+      "rawCode": "TER",
+      "rawName": "泰瑞达",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 147,
+      "sourcePage": 52,
+      "marketValueWan": 888.765565
+    },
+    {
+      "rawCode": "HCA",
+      "rawName": "HCA 医",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 194,
+      "sourcePage": 56,
+      "marketValueWan": 710.612282
+    },
+    {
+      "rawCode": "LHX",
+      "rawName": "L3Harri",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 219,
+      "sourcePage": 58,
+      "marketValueWan": 635.316597
+    },
+    {
+      "rawCode": "ACGL",
+      "rawName": "阿契资",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 287,
+      "sourcePage": 64,
+      "marketValueWan": 396.309039
+    },
+    {
+      "rawCode": "OTIS",
+      "rawName": "奥的斯",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 323,
+      "sourcePage": 67,
+      "marketValueWan": 322.392317
+    },
+    {
+      "rawCode": "WDAY",
+      "rawName": "Workda",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 346,
+      "sourcePage": 69,
+      "marketValueWan": 292.660423
+    },
+    {
+      "rawCode": "PFG",
+      "rawName": "信安金",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 370,
+      "sourcePage": 71,
+      "marketValueWan": 248.63249
+    },
+    {
+      "rawCode": "MAS",
+      "rawName": "马斯可",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 417,
+      "sourcePage": 75,
+      "marketValueWan": 192.64094
+    },
+    {
+      "rawCode": "LYB",
+      "rawName": "利安德",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 440,
+      "sourcePage": 77,
+      "marketValueWan": 159.538419
+    },
+    {
+      "rawCode": "AES",
+      "rawName": "爱伊斯",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573164",
+      "rank": 476,
+      "sourcePage": 80,
+      "marketValueWan": 122.682984
+    }
+  ]
+}

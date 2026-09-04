@@ -1,4 +1,6 @@
-import registry from "../config/security-identities.json";
+import registry from "../config/security-identities.runtime.json";
+
+export const SECURITY_IDENTITY_REVISION = registry.revision;
 
 export type SecurityMarket = "us" | "hk" | "jp" | "kr" | "a" | "other";
 export type SecurityIdentity = {
@@ -12,7 +14,18 @@ export type SecurityIdentity = {
 };
 
 const identityKey = (value: string) => value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-const identities = new Map(registry.securities.flatMap((item) => item.aliases.map((alias) => [identityKey(alias), item] as const)));
+const contextualAliases = new Map(registry.contextualAliases.map((item) => [JSON.stringify([item.rawCode, item.rawName]), item.code]));
+const identities = new Map<string, (typeof registry.securities)[number]>();
+for (const item of registry.securities) {
+  for (const alias of [item.code, ...item.aliases]) {
+    const key = identityKey(alias);
+    const existing = identities.get(key);
+    if (existing && (existing.code !== item.code || existing.compositeFIGI !== item.compositeFIGI || existing.market !== item.market)) {
+      throw new Error(`证券身份别名冲突：${alias}`);
+    }
+    identities.set(key, item);
+  }
+}
 
 /** Only explicitly verified aliases are merged; unknown disclosure codes stay intact. */
 export function canonicalizeSecurityCode(code: string): string {
@@ -20,7 +33,8 @@ export function canonicalizeSecurityCode(code: string): string {
 }
 
 export function getSecurityIdentity(code: string, name = ""): SecurityIdentity {
-  const item = identities.get(identityKey(code));
+  const target = contextualAliases.get(JSON.stringify([code.trim(), name.trim()])) ?? code;
+  const item = identities.get(identityKey(target));
   if (item) {
     return {
       code: item.code,
@@ -45,6 +59,10 @@ export function getSecurityIdentity(code: string, name = ""): SecurityIdentity {
   } else if (/^\d{5}$/.test(normalized)) {
     market = "hk";
     exchange = "HKEX";
+    identityStatus = "disclosed";
+  } else if (/^\d{6}(?:CH|SH|SZ|SS)(?:EQUITY)?$/.test(normalized)) {
+    market = "a";
+    exchange = "中国内地（披露市场标记）";
     identityStatus = "disclosed";
   } else if (/^\d{6}[.]?(?:KS|KQ|KP)$/.test(normalized) || (/^\d{6}$/.test(normalized) && /SK\s*(?:HYNIX|海力)|三星|SAMSUNG|韩国|KOREA|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华/i.test(name))) {
     market = "kr";

@@ -14,7 +14,7 @@ from typing import Any
 
 from atomic_publish import publish_staged_files
 from quarter_config import load_quarter_config
-from security_identity import security_identity, verified_code_aliases
+from security_identity import AMBIGUOUS_CODES, canonicalize_security_code, disclosure_security_identity, security_identity, verified_code_aliases
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +37,32 @@ FUND_TRADING_OVERRIDES = {
     item["fundFamilyKey"]: item["isOnExchangeFund"]
     for item in json.loads((ROOT / "config/fund-trading-overrides.json").read_text(encoding="utf-8"))["funds"]
 }
+DISCLOSURE_CORRECTIONS_PATH = ROOT / "config/security-disclosure-corrections.json"
+DISCLOSURE_CORRECTIONS = json.loads(DISCLOSURE_CORRECTIONS_PATH.read_text(encoding="utf-8")) if DISCLOSURE_CORRECTIONS_PATH.exists() else {"excludedRows": [], "correctedRows": []}
+
+
+def disclosure_correction_key(row: dict[str, str]) -> tuple[str, str, str, int, int]:
+    return (row.get("证券代码", "").strip(), row.get("证券名称", "").strip(), row.get("来源URL", "").strip(), int(parse_float(row.get("序号"))), int(parse_float(row.get("页码"))))
+
+
+def configured_correction_key(item: dict[str, Any]) -> tuple[str, str, str, int, int]:
+    return (item["rawCode"], item["rawName"], item["sourceUrl"], int(item["rank"]), int(item["sourcePage"]))
+
+
+def disclosure_correction(row: dict[str, str], category: str) -> dict[str, Any] | None:
+    key = disclosure_correction_key(row)
+    return next((item for item in DISCLOSURE_CORRECTIONS.get(category, []) if configured_correction_key(item) == key), None)
+
+
+def corrected_disclosure_row(row: dict[str, str]) -> dict[str, str]:
+    correction = disclosure_correction(row, "correctedRows")
+    if correction is None:
+        return row
+    result = dict(row)
+    for field, column in {"marketValueWan": "持仓市值(万元)", "ratio": "占净值比例数值", "sharesWan": "持股数(万股)"}.items():
+        if field in correction:
+            result[column] = str(correction[field])
+    return result
 LEVERAGED_LONG_MARKERS_RE = re.compile(
     r"(?i)(?:\b\d(?:\.\d+)?\s*X\b|\d(?:\.\d+)?\s*倍|杠杆|LEVERAGED|LEVERAGE|ULTRA)"
 )
@@ -287,6 +313,9 @@ def configured_stock_code_aliases(alias_config: dict[str, Any]) -> dict[str, str
 
 def canonical_stock_code(code: str, aliases: dict[str, str]) -> str:
     raw_code = code.strip()
+    canonical = canonicalize_security_code(raw_code)
+    if canonical != raw_code:
+        return canonical
     return aliases.get(normalize_alias_text(raw_code).replace(" ", ""), raw_code)
 
 
@@ -1025,6 +1054,7 @@ def share_class_penalty(fund: dict[str, Any]) -> int:
 
 
 def make_fund_record(row: dict[str, str]) -> dict[str, Any]:
+    row = corrected_disclosure_row(row)
     ratio = parse_float(row.get("占净值比例数值"))
     market_value = parse_optional_float(row.get("持仓市值(万元)"))
     shares = parse_float(row.get("持股数(万股)"))
@@ -1042,6 +1072,8 @@ def make_fund_record(row: dict[str, str]) -> dict[str, Any]:
 
 
 def make_holding_record(row: dict[str, str]) -> dict[str, Any]:
+    row = corrected_disclosure_row(row)
+    exclusion = disclosure_correction(row, "excludedRows")
     ratio = parse_float(row.get("占净值比例数值"))
     market_value = parse_optional_float(row.get("持仓市值(万元)"))
     shares = parse_float(row.get("持股数(万股)"))
@@ -1049,6 +1081,8 @@ def make_holding_record(row: dict[str, str]) -> dict[str, Any]:
         "rank": int(parse_float(row.get("序号"))),
         "stockCode": row.get("证券代码", "").strip(),
         "stockName": row.get("证券名称", "").strip(),
+        "canonicalStockCode": disclosure_security_identity(row.get("证券代码", ""), row.get("证券名称", ""), row.get("来源URL", ""))["code"],
+        **({"parseStatus": "pending", "parseIssue": exclusion["reason"]} if exclusion else {}),
         "ratio": rounded(ratio, 6),
         "ratioPercent": rounded(ratio * 100, 2),
         "marketValueWan": rounded_optional(market_value, 2),
@@ -1347,6 +1381,41 @@ def better_record(current: dict[str, Any] | None, candidate: dict[str, Any]) -> 
     current_score = (current["ratio"], current["marketValueWan"] or -1)
     candidate_score = (candidate["ratio"], candidate["marketValueWan"] or -1)
     return candidate if candidate_score > current_score else current
+
+
+def combine_verified_disclosure_aliases(
+    rows: list[dict[str, str]], canonical_code: str,
+) -> list[dict[str, Any]]:
+    """Add separate routes of one security within one official fund report.
+
+    A fund can disclose Hong Kong direct and Stock Connect positions separately.
+    Repeated rows of the same disclosed code still use the existing best-record
+    rule; different reports and A/C share classes never enter the same sum.
+    """
+    groups: dict[tuple[str, str, str], dict[str, dict[str, Any]]] = defaultdict(dict)
+    passthrough = []
+    for row in rows:
+        raw_code = row.get("证券代码", "").strip()
+        record = make_fund_record(row)
+        source_url = row.get("来源URL", "").strip()
+        identity = disclosure_security_identity(raw_code, row.get("证券名称", ""), source_url)
+        if (row.get("披露范围") != "all_disclosed_equity" or not source_url
+                or identity["identityStatus"] != "verified" or identity["code"] != canonical_code):
+            passthrough.append(record)
+            continue
+        key = (record["fundCode"], record["cutoffDate"], source_url)
+        groups[key][raw_code] = better_record(groups[key].get(raw_code), record)
+    for records_by_alias in groups.values():
+        records = list(records_by_alias.values())
+        combined = dict(records[0])
+        if len(records) > 1:
+            combined["ratio"] = rounded(sum(record["ratio"] for record in records), 6)
+            combined["ratioPercent"] = rounded(combined["ratio"] * 100, 2)
+            values = [record["marketValueWan"] for record in records]
+            combined["marketValueWan"] = rounded(sum(values), 2) if all(value is not None for value in values) else None
+            combined["sharesWan"] = rounded(sum(record["sharesWan"] for record in records), 2)
+        passthrough.append(combined)
+    return passthrough
 
 
 def ranking_key(fund: dict[str, Any], ranking: str) -> tuple[Any, ...]:
@@ -2386,6 +2455,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     }
     fund_profiles: dict[str, dict[str, Any]] = {}
     fund_holdings: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+    stock_disclosures: dict[str, list[dict[str, str]]] = defaultdict(list)
     q2_source_rows: list[dict[str, str]] = []
     source_rows: list[dict[str, str]] = []
     row_count = 0
@@ -2434,8 +2504,11 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
         qdii_rich = qdii_rich_payload(qdii_h1_source)
 
     for row in source_rows:
-        code = canonical_stock_code(row.get("证券代码", ""), stock_code_aliases)
         name = row.get("证券名称", "").strip()
+        raw_code = row.get("证券代码", "").strip()
+        code = disclosure_security_identity(raw_code, name, row.get("来源URL", ""))["code"]
+        if code == raw_code:
+            code = canonical_stock_code(raw_code, stock_code_aliases)
         if not code or not name:
             continue
 
@@ -2444,23 +2517,28 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             continue
         fund_profiles[fund["fundCode"]] = fund
 
-        stock_rows.setdefault(
-            code,
-            security_identity(code, name),
-        )
-        existing = stock_funds[code].get(fund["fundCode"])
-        stock_funds[code][fund["fundCode"]] = better_record(existing, fund)
-
         holding = make_holding_record(row)
-        holding_key = holding["securityId"]
+        holding_key = f"{holding['securityId']}:{holding['canonicalStockCode']}:{holding['stockName']}"
         holding_existing = fund_holdings[fund["fundCode"]].get(holding_key)
         fund_holdings[fund["fundCode"]][holding_key] = better_holding_record(holding_existing, holding)
         row_count += 1
+        if disclosure_correction(row, "excludedRows") or (raw_code in AMBIGUOUS_CODES and code == raw_code):
+            continue
+        stock_rows.setdefault(code, security_identity(code, name))
+        stock_disclosures[code].append(row)
+
+    for code, disclosures in stock_disclosures.items():
+        for record in combine_verified_disclosure_aliases(disclosures, code):
+            fund = enrich_fund_record(record, purchase_limits)
+            existing = stock_funds[code].get(fund["fundCode"])
+            stock_funds[code][fund["fundCode"]] = better_record(existing, fund)
 
     alias_candidates = stock_alias_candidates(stock_rows, exposure_aliases)
     known_products = configured_known_products(exposure_aliases)
     ignored_products = configured_ignored_products(exposure_aliases)
     for row in [*source_rows, *fund_investment_rows]:
+        if disclosure_correction(row, "excludedRows"):
+            continue
         source_code = row.get("证券代码", "").strip()
         source_name = row.get("证券名称", "").strip()
         if not source_name:

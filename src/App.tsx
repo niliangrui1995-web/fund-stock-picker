@@ -19,7 +19,7 @@ import { installInputModalityTracking } from "./inputModality";
 import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
 import { PortfolioWorkbench } from "./portfolio/PortfolioWorkbench";
 import { stockLogoFiles } from "./generated/stockLogoFiles";
-import { canonicalizeSecurityCode, getSecurityIdentity, getSecurityMarket } from "./securityIdentity";
+import { canonicalizeSecurityCode, getSecurityIdentity, getSecurityMarket, SECURITY_IDENTITY_REVISION } from "./securityIdentity";
 
 type AccessMode = "offExchange" | "onExchange";
 
@@ -178,8 +178,9 @@ const numberFormatter = new Intl.NumberFormat("zh-CN");
 const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
-const FUND_STOCK_DATA_URL = fundQuarter.dataUrl;
-const FUND_HOLDINGS_URL = fundQuarter.holdingsUrl;
+const FUND_STOCK_DATA_URL = `${fundQuarter.dataUrl}&identity=${SECURITY_IDENTITY_REVISION}`;
+const FUND_HOLDINGS_URL = `${fundQuarter.holdingsUrl}&identity=${SECURITY_IDENTITY_REVISION}`;
+const QDII_HOLDINGS_URL = `${fundQuarter.qdiiHoldingsUrl}&identity=${SECURITY_IDENTITY_REVISION}`;
 const STOCK_SEARCH_LIST_ID = "stock-search-suggestions";
 let fundHoldingsCache: Promise<Record<string, HoldingRecord[]>> | null = null;
 
@@ -314,7 +315,10 @@ function tradeStatusTone(status?: string) {
 type HoldingRecord = {
   rank?: number;
   stockCode: string;
+  canonicalStockCode?: string;
   stockName: string;
+  parseStatus?: "pending";
+  parseIssue?: string;
   ratioPercent: number;
   marketValueWan?: number | null;
   sharesWan?: number;
@@ -441,20 +445,20 @@ function FundHoldingsHoverCard({
   y: number;
   onClose: () => void;
 }) {
-  const maxRatio = useMemo(() => Math.max(...holdings.map((h) => h.ratioPercent), 1), [holdings]);
+  const maxRatio = useMemo(() => Math.max(...holdings.filter((h) => h.parseStatus !== "pending").map((h) => h.ratioPercent), 1), [holdings]);
   const currentStockCode = useMemo(
     () => (currentSearchStockCode ? normalizeStockCode(currentSearchStockCode) : ""),
     [currentSearchStockCode],
   );
   const currentHolding = useMemo(() => {
     if (!currentStockCode) return null;
-    return holdings.find((h) => normalizeStockCode(h.stockCode) === currentStockCode) ?? null;
+    return holdings.find((h) => h.parseStatus !== "pending" && normalizeStockCode(getSecurityIdentity(h.canonicalStockCode || h.stockCode, h.stockName).code) === currentStockCode) ?? null;
   }, [currentStockCode, holdings]);
   const fundCodes = useMemo(
     () => uniqueFundCodes(fundCode, fundVariantCodes),
     [fundCode, fundVariantCodes],
   );
-  const topHolding = holdings[0] ?? null;
+  const topHolding = holdings.find((holding) => holding.parseStatus !== "pending") ?? null;
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
   const isMobilePanel = viewportWidth <= 720;
@@ -587,7 +591,7 @@ function FundHoldingsHoverCard({
         {currentHolding && (
           <div className="hover-card-target-strip">
             <span>当前查询</span>
-            <strong>{currentHolding.stockName}</strong>
+            <strong>{getSecurityIdentity(currentHolding.canonicalStockCode || currentHolding.stockCode, currentHolding.stockName).name}</strong>
             <b>{valueFormatter.format(currentHolding.ratioPercent)}%</b>
           </div>
         )}
@@ -599,20 +603,21 @@ function FundHoldingsHoverCard({
         <div className="hover-card-holdings-list">
           {holdings && holdings.length > 0 ? (
             holdings.map((h, index) => {
+              const identity = getSecurityIdentity(h.canonicalStockCode || h.stockCode, h.stockName);
               const isCurrentTarget =
-                !!currentStockCode && normalizeStockCode(h.stockCode) === currentStockCode;
-              const widthPercent = Math.min((h.ratioPercent / maxRatio) * 100, 100);
+                !!currentStockCode && normalizeStockCode(identity.code) === currentStockCode;
+              const widthPercent = h.parseStatus === "pending" ? 0 : Math.min((h.ratioPercent / maxRatio) * 100, 100);
               
               return (
                 <div
-                  key={h.stockCode}
+                  key={`${identity.code}-${h.rank ?? index}`}
                   className={`hover-card-holding-row ${isCurrentTarget ? "row-highlight" : ""}`}
                 >
                   <span className="holding-rank">{h.rank || index + 1}</span>
                   <div className="holding-main">
                     <div className="holding-name-line">
-                      <span className="holding-stock-name">{h.stockName}</span>
-                      <span className="holding-stock-code">{h.stockCode}</span>
+                      <span className="holding-stock-name" title={h.parseIssue || `原披露：${h.stockName} · ${h.stockCode}`}>{identity.name}</span>
+                      <span className="holding-stock-code">{identity.marketLabel} · {identity.code}</span>
                       {isCurrentTarget && <span className="target-badge">查询标的</span>}
                     </div>
                     <div className="holding-progress-bar">
@@ -623,7 +628,7 @@ function FundHoldingsHoverCard({
                     </div>
                   </div>
                   <span className="holding-stock-ratio">
-                    {valueFormatter.format(h.ratioPercent)}%
+                    {h.parseStatus === "pending" ? "待核对" : `${valueFormatter.format(h.ratioPercent)}%`}
                   </span>
                 </div>
               );
@@ -1539,6 +1544,7 @@ export function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
   const [researchContext, setResearchContext] = useState<{ stockCodes: string[]; isTemporary: boolean; name: string } | null>(null);
+  const [portfolioEditorOpen, setPortfolioEditorOpen] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
   const [hotspotsExpanded, setHotspotsExpanded] = useState(false);
@@ -1555,6 +1561,7 @@ export function App() {
   });
   const searchPanelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const suppressNextSearchFocusRef = useRef(false);
   const researchLeaveGuardRef = useRef<((action: () => void, trigger: HTMLElement | null) => void) | null>(null);
   const temporarySelectionRequestIdRef = useRef(0);
   const initialQueryHandledRef = useRef(false);
@@ -1582,8 +1589,7 @@ export function App() {
     setLoading(true);
     setError(null);
 
-    // 数据 URL 自带 ?v=<季度> 版本参数，季度切换时 URL 变化自动失效，
-    // 因此走浏览器强缓存（配合 _headers 的 Cache-Control），避免每次访问重新下载 5MB 索引。
+    // 季度与证券身份修订号共同更新缓存版本；普通访问复用索引，失败重试时强制重新加载。
     fetch(FUND_STOCK_DATA_URL, { signal: controller.signal, ...(retryToken > 0 ? { cache: "reload" as const } : {}) })
       .then((response) => {
         if (!response.ok) {
@@ -1659,11 +1665,29 @@ export function App() {
     researchLeaveGuardRef.current = guard;
   }, []);
 
-  function focusPortfolioControl(id: string) {
-    const control = document.getElementById(id);
-    if (!control) return;
-    control.scrollIntoView({ behavior: "auto", block: "center" });
-    control.focus({ preventScroll: true });
+  const returnToSearch = useCallback(() => {
+    setPortfolioEditorOpen(false);
+    setSuggestionsOpen(false);
+    suppressNextSearchFocusRef.current = true;
+    window.requestAnimationFrame(() => {
+      const input = searchInputRef.current;
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.select();
+      const bounds = input.getBoundingClientRect();
+      const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom ?? 0;
+      if (bounds.top < topbarBottom || bounds.bottom > window.innerHeight) {
+        input.scrollIntoView({ behavior: "auto", block: "center" });
+      }
+    });
+  }, []);
+
+  function clearSearch() {
+    setQuery("");
+    setSuggestionsOpen(false);
+    setActiveSuggestionIndex(null);
+    suppressNextSearchFocusRef.current = true;
+    searchInputRef.current?.focus({ preventScroll: true });
   }
 
   const popularSuggestions = useMemo(() => {
@@ -1701,20 +1725,28 @@ export function App() {
       .filter((item): item is { hotspot: AiBattleHotspot; stock: StockRecord } => item !== null);
   }, [data]);
 
-  function chooseStock(stock: PopularStock | StockRecord, trigger: HTMLElement | null = null) {
+  function chooseStock(stock: PopularStock | StockRecord, trigger: HTMLElement | null = null, focusResult = true) {
     setSuggestionsOpen(false);
     setActiveSuggestionIndex(null);
+    suppressNextSearchFocusRef.current = true;
     const commitSelection = () => {
       setHoveredFund(null);
       setSelectedCode(stock.code);
-      setQuery(stock.name);
-      setResultFocusRequest("selection");
+      setQuery(stock.code);
+      setPortfolioEditorOpen(false);
+      setResultFocusRequest(focusResult ? "selection" : null);
       temporarySelectionRequestIdRef.current += 1;
       setTemporarySelection({
         code: stock.code,
         requestId: temporarySelectionRequestIdRef.current,
         trigger,
       });
+      if (!focusResult) {
+        window.requestAnimationFrame(() => {
+          searchInputRef.current?.focus({ preventScroll: true });
+          searchInputRef.current?.select();
+        });
+      }
     };
     const leaveGuard = researchLeaveGuardRef.current;
     if (leaveGuard) leaveGuard(commitSelection, trigger);
@@ -1724,15 +1756,34 @@ export function App() {
   useEffect(() => {
     if (!data || initialQueryHandledRef.current) return;
     initialQueryHandledRef.current = true;
-    if (!getInitialSelectedCode() && getInitialQuery()) {
-      const initialStock = findMatches(data.stocks, getInitialQuery())[0];
-      if (initialStock) chooseStock(initialStock);
+    const initialCode = getInitialSelectedCode();
+    if (initialCode && !data.stocks.some((stock) => stock.code === initialCode)) {
+      setSelectedCode(null);
+      setTemporarySelection(null);
+      setResultFocusRequest(null);
+      setSuggestionsOpen(true);
+      window.requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
+    } else if (!initialCode && getInitialQuery()) {
+      const initialMatches = findMatches(data.stocks, getInitialQuery());
+      if (initialMatches.length === 1) chooseStock(initialMatches[0]);
+      else if (initialMatches.length > 1) {
+        setResultFocusRequest(null);
+        setSuggestionsOpen(true);
+        window.requestAnimationFrame(() => searchInputRef.current?.focus({ preventScroll: true }));
+      }
     }
   }, [data]);
 
-  function selectSearchSuggestion(index: number, trigger: HTMLElement | null = null) {
-    const stock = suggestionItems[index] ?? matches[0];
-    if (stock) chooseStock(stock, trigger);
+  function selectSearchSuggestion(index: number | null, trigger: HTMLElement | null = null, focusResult = false) {
+    const exactCodes = matches.filter((stock) => normalize(stock.code) === normalize(query));
+    const stock = index !== null
+      ? suggestionItems[index]
+      : exactCodes.length === 1 ? exactCodes[0] : matches.length === 1 ? matches[0] : null;
+    if (stock) chooseStock(stock, trigger, focusResult);
+    else if (matches.length > 0) {
+      setSuggestionsOpen(true);
+      searchInputRef.current?.focus({ preventScroll: true });
+    }
   }
 
   function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
@@ -1758,7 +1809,7 @@ export function App() {
 
     if (event.key === "Enter") {
       event.preventDefault();
-      selectSearchSuggestion(activeSuggestionIndex ?? 0, searchInputRef.current ?? event.currentTarget);
+      selectSearchSuggestion(activeSuggestionIndex, searchInputRef.current ?? event.currentTarget, true);
     }
   }
 
@@ -1922,21 +1973,18 @@ export function App() {
       <>
       <section className="research-intro" aria-labelledby="research-title">
         <div>
-          <h2 id="research-title">股票找基金</h2>
+          <h2 id="research-title">{portfolioEditorOpen ? "组合找基金" : "股票找基金"}</h2>
           <p>{data?.meta.report ?? fundQuarter.report} · 持仓截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}</p>
         </div>
         <a href={appPagePath("methodology")} onClick={handleTopNavigation}>数据口径</a>
       </section>
-      <section className="search-zone" aria-label="基金持仓研究">
+      <section className="search-zone research-search-zone" aria-label="基金持仓研究" hidden={portfolioEditorOpen}>
         <div className="command-panel" ref={searchPanelRef}>
-          <div className="panel-status">
-            <span>单股查询</span>
-          </div>
           <form
             className="search-box"
             onSubmit={(event) => {
               event.preventDefault();
-              selectSearchSuggestion(activeSuggestionIndex ?? 0, searchInputRef.current ?? event.currentTarget);
+              selectSearchSuggestion(activeSuggestionIndex, searchInputRef.current ?? event.currentTarget);
             }}
           >
             <Search size={22} />
@@ -1963,6 +2011,10 @@ export function App() {
                 setActiveSuggestionIndex(null);
               }}
               onFocus={() => {
+                if (suppressNextSearchFocusRef.current) {
+                  suppressNextSearchFocusRef.current = false;
+                  return;
+                }
                 if (query.trim() && suggestionItems.length) {
                   setSuggestionsOpen(true);
                   setActiveSuggestionIndex(null);
@@ -1975,8 +2027,10 @@ export function App() {
               onKeyDown={handleSearchKeyDown}
               autoComplete="off"
             />
+            {query && <button type="button" className="research-clear-search" aria-label="清空搜索" onClick={clearSearch}><X size={18} /></button>}
             <button
               type="submit"
+              className="research-search-submit"
               disabled={!matches[0]}
             >
               <Search size={18} />
@@ -2006,21 +2060,15 @@ export function App() {
               ))}
             </ul>
           )}
-          <p id="stock-search-hint" className="research-search-hint">查看单股；多股研究请用“加入组合”。</p>
+          <p id="stock-search-hint" className="visually-hidden">输入名称或代码，用上下键选择，回车查看基金。</p>
           {!isAppLoading && !error && query.trim() && matches.length === 0 && (
             <div className="research-search-empty" role="status">
               <p>未找到“{query}”。试试代码或名称，如 NVDA。</p>
-              <button type="button" onClick={() => { setQuery(""); searchInputRef.current?.focus(); }}>清空搜索</button>
+              <button type="button" onClick={clearSearch}>重新搜索</button>
             </div>
           )}
         </div>
 
-        <div className="research-entry-panel">
-          <span className="panel-status">组合研究</span>
-          <button type="button" className="research-primary-action" disabled={isAppLoading || Boolean(error)} onClick={() => focusPortfolioControl("saved-portfolio-select")}>打开组合</button>
-          <button type="button" className="research-secondary-action" disabled={isAppLoading || Boolean(error)} onClick={() => focusPortfolioControl("portfolio-stock-search")}>加入组合</button>
-          <p>最多 10 只 · 当前浏览器保存</p>
-        </div>
       </section>
 
       {researchContext && researchContext.stockCodes.length > 0 && (
@@ -2044,12 +2092,14 @@ export function App() {
               report={data?.meta.report ?? fundQuarter.report}
               cutoffDate={data?.meta.cutoffDate ?? fundQuarter.cutoffDate}
               manifestUrl={fundQuarter.portfolioManifestUrl}
-              fundHoldingsUrl={fundQuarter.qdiiHoldingsUrl}
+              fundHoldingsUrl={QDII_HOLDINGS_URL}
               temporarySelection={temporarySelection}
               focusResult={resultFocusRequest !== null}
               onResultFocused={() => setResultFocusRequest(null)}
               onLeaveGuard={registerLeaveGuard}
               onResearchContextChange={handleResearchContextChange}
+              onEditorOpenChange={setPortfolioEditorOpen}
+              onSearchRequest={returnToSearch}
               afterResultsReady={
                 <details className="research-market-details">
                   <summary>市场环境 · 两融</summary>

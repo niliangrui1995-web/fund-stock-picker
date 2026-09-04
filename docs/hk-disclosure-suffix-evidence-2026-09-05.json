@@ -1,0 +1,3141 @@
+{
+  "checkedAt": "2026-09-05",
+  "reports": [
+    {
+      "reportId": "1569097",
+      "fundCode": "015884",
+      "reportName": "中欧港股数字经济混合型发起式证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569097",
+      "pdfSha256": "7310c026402185b95d934ba82c200a196bfc317e6cfb5de31446e28ceb9e85ba",
+      "excerpts": [
+        {
+          "code": "02513HG",
+          "name": "北京智谱华章科技股份有限公司",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06869HG",
+          "name": "长飞光纤光缆股份有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01347HG",
+          "name": "华虹宏力半导体有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00148HG",
+          "name": "建滔集团有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09903HG",
+          "name": "上海天数智芯半导体股份有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01888HG",
+          "name": "建滔积层板控股有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00981HG",
+          "name": "中芯国际集成电路制造有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00189HG",
+          "name": "东岳集团有限公司",
+          "page": "41",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03986HG",
+          "name": "兆易创新科技集团股份有限公司",
+          "page": "42",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06166HG",
+          "name": "上海剑桥科技股份有限公司",
+          "page": "42",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00522HG",
+          "name": "ASMPT Limited",
+          "page": "42",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02631HG",
+          "name": "山东天岳先进科技股份有限公司",
+          "page": "42",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03690HG",
+          "name": "美团",
+          "page": "42",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1569084",
+      "fundCode": "021583",
+      "reportName": "中欧中证港股通央企红利指数发起式证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569084",
+      "pdfSha256": "1a010c2b93e5940d35c0a6f166541a6b22dc9d880bc87d531fba11086606e251",
+      "excerpts": [
+        {
+          "code": "03877HS",
+          "name": "中国船舶集团 (香港) 航运租赁有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01088HS",
+          "name": "中国神华能源股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00883HS",
+          "name": "中国海洋石油有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00939HS",
+          "name": "中国建设银行股份有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01883HS",
+          "name": "中信国际电讯集团有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01898HS",
+          "name": "中国中煤能源股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02388HS",
+          "name": "中银香港(控股)有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01398HS",
+          "name": "中国工商银行股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03328HS",
+          "name": "交通银行股份有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01288HS",
+          "name": "中国农业银行股份有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03988HS",
+          "name": "中国银行股份有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00386HS",
+          "name": "中国石油化工股份有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00941HS",
+          "name": "中国移动有限公司",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00038HS",
+          "name": "第一拖拉机股份有限公司",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00257HS",
+          "name": "中国光大环境 (集团) 有限公司",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06818HS",
+          "name": "中国光大银行股份有限公司",
+          "page": "47",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00934HS",
+          "name": "中石化冠德控股有限公司",
+          "page": "47",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00267HS",
+          "name": "中国中信股份有限公司",
+          "page": "47",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01186HS",
+          "name": "中国铁建股份有限公司",
+          "page": "48",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03969HS",
+          "name": "中国铁路通信信号股份有限公司",
+          "page": "49",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01109HS",
+          "name": "华润置地有限公司",
+          "page": "49",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00135HS",
+          "name": "昆仑能源有限公司",
+          "page": "49",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01800HS",
+          "name": "中国交通建设股份有限公司",
+          "page": "50",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02666HS",
+          "name": "通用环球医疗集团有限公司",
+          "page": "51",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00144HS",
+          "name": "招商局港口控股有限公司",
+          "page": "51",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00552HS",
+          "name": "中国通信服务股份有限公司",
+          "page": "52",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03968HS",
+          "name": "招商银行股份有限公司",
+          "page": "52",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00728HS",
+          "name": "中国电信股份有限公司",
+          "page": "52",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00762HS",
+          "name": "中国联合网络通信 (香港) 股份有限公司",
+          "page": "53",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00390HS",
+          "name": "中国中铁股份有限公司",
+          "page": "53",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03311HS",
+          "name": "中国建筑国际集团有限公司",
+          "page": "53",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01199HS",
+          "name": "中远海运港口有限公司",
+          "page": "54",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01658HS",
+          "name": "中国邮政储蓄银行股份有限公司",
+          "page": "54",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01811HS",
+          "name": "中国广核新能源控股有限公司",
+          "page": "55",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01766HS",
+          "name": "中国中车股份有限公司",
+          "page": "55",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02866HS",
+          "name": "中远海运发展股份有限公司",
+          "page": "55",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00788HS",
+          "name": "中国铁塔股份有限公司",
+          "page": "56",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1569429",
+      "fundCode": "023034",
+      "reportName": "中欧恒生科技指数发起式证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569429",
+      "pdfSha256": "62834d9389cd79a4d6d60cb9d23306dd0045d8daaf935fdfc6017495ffb2cdf1",
+      "excerpts": [
+        {
+          "code": "00981HG",
+          "name": "中芯国际集成电路制造有限公司",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00700HG",
+          "name": "腾讯控股有限公司",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03690HG",
+          "name": "美团",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01211HG",
+          "name": "比亚迪股份有限公司",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01810HG",
+          "name": "小米集团",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09988HG",
+          "name": "阿里巴巴集团控股有限公司",
+          "page": "38",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01347HG",
+          "name": "华虹宏力半导体有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00992HG",
+          "name": "联想集团有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01024HG",
+          "name": "快手科技",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09868HG",
+          "name": "小鹏集团",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02015HG",
+          "name": "理想汽车",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00300HG",
+          "name": "美的集团股份有限公司",
+          "page": "39",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09660HG",
+          "name": "地平线",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00020HG",
+          "name": "商汤集团股份有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02382HG",
+          "name": "舜宇光学科技 (集团) 有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09626HG",
+          "name": "哔哩哔哩股份有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06618HG",
+          "name": "京东健康股份有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02513HG",
+          "name": "北京智谱华章科技股份有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09863HG",
+          "name": "浙江零跑科技股份有限公司",
+          "page": "40",
+          "reportedMarket": "港股通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "00241HG",
+          "name": "阿里健康信息技术有限公司 (百慕大)",
+          "page": "41",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00780HG",
+          "name": "同程旅行控股有限公司",
+          "page": "41",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00285HG",
+          "name": "比亚迪电子 (国际) 有限公司",
+          "page": "41",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1569442",
+      "fundCode": "023242",
+      "reportName": "中欧恒生消费指数发起式证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569442",
+      "pdfSha256": "98ff4c2ae8cb5e9e038f3f803699004e8e946371d52bb7230a8a8dd970b21621",
+      "excerpts": [
+        {
+          "code": "00669HS",
+          "name": "创科实业有限公司",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09992HS",
+          "name": "泡泡玛特国际集团有限公司",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09987HS",
+          "name": "百胜中国控股有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02020HS",
+          "name": "安踏体育用品有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09633HS",
+          "name": "农夫山泉股份有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00288HS",
+          "name": "万洲国际有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02319HS",
+          "name": "中国蒙牛乳业有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00300HS",
+          "name": "美的集团股份有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06690HS",
+          "name": "海尔智家股份有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00291HS",
+          "name": "华润啤酒(控股)有限公司",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02331HS",
+          "name": "李宁有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02313HS",
+          "name": "申洲国际集团控股有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00168HS",
+          "name": "青岛啤酒股份有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06181HS",
+          "name": "老铺黄金股份有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01929HS",
+          "name": "周大福珠宝集团有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06862HS",
+          "name": "海底捞国际控股有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03998HS",
+          "name": "波司登国际控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00322HS",
+          "name": "康师傅控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01910HS",
+          "name": "新秀丽集团有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00780HS",
+          "name": "同程旅行控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00151HS",
+          "name": "中国旺旺控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01070HS",
+          "name": "TCL 电子控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01044HS",
+          "name": "恒安国际集团有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02367HS",
+          "name": "巨子生物控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06186HS",
+          "name": "中国飞鹤有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06969HS",
+          "name": "思摩尔国际控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01364HS",
+          "name": "古茗控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01876HS",
+          "name": "百威亚太控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09896HS",
+          "name": "名创优品集团控股有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02097HS",
+          "name": "蜜雪冰城股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00142HS",
+          "name": "第一太平有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00551HS",
+          "name": "裕元工业(集团)有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01318HS",
+          "name": "毛戈平化妆品股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00220HS",
+          "name": "统一企业中国控股有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00590HS",
+          "name": "六福集团(国际)有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01836HS",
+          "name": "九兴控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00546HS",
+          "name": "阜丰集团有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01579HS",
+          "name": "颐海国际控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06979HS",
+          "name": "珍酒李渡集团有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01368HS",
+          "name": "特步国际控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06993HS",
+          "name": "蓝月亮集团控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06110HS",
+          "name": "滔搏国际控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "00325HS",
+          "name": "布鲁可集团有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01999HS",
+          "name": "敏华控股有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09985HS",
+          "name": "卫龙美味全球控股有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01768HS",
+          "name": "湖南鸣鸣很忙商业连锁股份有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02698HS",
+          "name": "乐舒适有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02460HS",
+          "name": "华润饮料(控股)有限公司",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02580HS",
+          "name": "奥克斯电气有限公司",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06808HS",
+          "name": "高鑫零售有限公司",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02555HS",
+          "name": "四川百茶百道实业股份有限公司",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1569637",
+      "fundCode": "026291",
+      "reportName": "中欧港股消费混合型发起式证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569637",
+      "pdfSha256": "ec3589c9417f7dd868edfdd4600c7de4a3966b6a24ff6202ca1bc0953f9e6771",
+      "excerpts": [
+        {
+          "code": "00700HS",
+          "name": "腾讯控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02331HS",
+          "name": "李宁有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02648HS",
+          "name": "安井食品集团股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02423HS",
+          "name": "贝壳控股有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01318HS",
+          "name": "毛戈平化妆品股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01364HS",
+          "name": "古茗控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01768HS",
+          "name": "湖南鸣鸣很忙商业连锁股份有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00921HS",
+          "name": "海信家电集团股份有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09988HS",
+          "name": "阿里巴巴集团控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02319HS",
+          "name": "中国蒙牛乳业有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02628HS",
+          "name": "中国人寿保险股份有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03288HS",
+          "name": "佛山市海天调味食品股份有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06862HS",
+          "name": "海底捞国际控股有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "02698HS",
+          "name": "乐舒适有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06969HS",
+          "name": "思摩尔国际控股有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00300HS",
+          "name": "美的集团股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09626HS",
+          "name": "哔哩哔哩股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01070HS",
+          "name": "TCL 电子控股有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02097HS",
+          "name": "蜜雪冰城股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03690HS",
+          "name": "美团",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09858HS",
+          "name": "中国优然牧业集团有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06690HS",
+          "name": "海尔智家股份有限公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01579HS",
+          "name": "颐海国际控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01209HS",
+          "name": "华润万象生活有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02313HS",
+          "name": "申洲国际集团控股有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02232HS",
+          "name": "晶苑国际集团有限公司",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1569668",
+      "fundCode": "027379",
+      "reportName": "中欧港股医药混合型发起式证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569668",
+      "pdfSha256": "a3ef307f28a97293f0aaa96d4d45cc91cbbdbaab178de5ca23baa6b70eccd62c",
+      "excerpts": [
+        {
+          "code": "02162HS",
+          "name": "康诺亚生物医药科技有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06990HS",
+          "name": "四川科伦博泰生物医药股份有限公司",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02359HS",
+          "name": "无锡药明康德新药开发股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06821HS",
+          "name": "凯莱英医药集团(天津)股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01801HS",
+          "name": "信达生物制药",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03759HS",
+          "name": "康龙化成(北京)新药技术股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01276HG",
+          "name": "江苏恒瑞医药股份有限公司",
+          "page": "41",
+          "reportedMarket": "港股通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09995HS",
+          "name": "荣昌生物制药 (烟台) 股份有限公司",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03692HS",
+          "name": "翰森制药集团有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02315HS",
+          "name": "百奥赛图(北京)医药科技股份有限公司",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1562530",
+      "fundCode": "050015",
+      "reportName": "博时大中华亚太精选股票证券投资基金2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1562530",
+      "pdfSha256": "68868f20e348bdfc1092b578702e3559a60cfd65f64fbae19d558e8fe786ca1e",
+      "excerpts": [
+        {
+          "code": "03750HS",
+          "name": "宁德时代",
+          "page": "42",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01347HS",
+          "name": "华虹宏力",
+          "page": "42",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02338HG",
+          "name": "潍柴动力",
+          "page": "43",
+          "reportedMarket": "港股通",
+          "codeFound": true
+        },
+        {
+          "code": "02577HS",
+          "name": "英诺赛科",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03808HS",
+          "name": "中国重汽",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1562948",
+      "fundCode": "159742",
+      "reportName": "博时恒生科技交易型开放式指数证券投资基金(QDII)2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1562948",
+      "pdfSha256": "5b369ef45a77baac53e07ae018adba7fae67c7e4e7c57431882ee80b260ce099",
+      "excerpts": [
+        {
+          "code": "00981HS",
+          "name": "中芯国际",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00700HS",
+          "name": "腾讯控股",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03690HS",
+          "name": "美团－Ｗ",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01211HS",
+          "name": "比亚迪股份",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01810HS",
+          "name": "小米集团 －Ｗ",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09988HS",
+          "name": "阿里巴巴 －Ｗ",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01347HS",
+          "name": "华虹宏力",
+          "page": "43",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00992HS",
+          "name": "联想集团",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01024HS",
+          "name": "快手－Ｗ",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09868HS",
+          "name": "小鹏集团 －Ｗ",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02015HS",
+          "name": "理想汽车 －Ｗ",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00300HS",
+          "name": "美的集团",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06690HS",
+          "name": "海尔智家",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09660HS",
+          "name": "地平线机器人－Ｗ",
+          "page": "44",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00020HS",
+          "name": "商汤－Ｗ",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02382HS",
+          "name": "舜宇光学科技",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09626HS",
+          "name": "哔哩哔哩 －Ｗ",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02513HS",
+          "name": "智谱",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06618HS",
+          "name": "京东健康",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09863HS",
+          "name": "零跑汽车",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00241HS",
+          "name": "阿里健康",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00780HS",
+          "name": "同程旅行",
+          "page": "45",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00285HS",
+          "name": "比亚迪电子",
+          "page": "46",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1562866",
+      "fundCode": "513060",
+      "reportName": "博时恒生医疗保健交易型开放式指数证券投资基金(QDII)2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1562866",
+      "pdfSha256": "e9a3005d25a7e32d68502d69b518e368be0b7451563d42e45d6bece38fb5268c",
+      "excerpts": [
+        {
+          "code": "01801HS",
+          "name": "信达生物",
+          "page": "48",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06606HS",
+          "name": "诺辉健康",
+          "page": "53",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06160HS",
+          "name": "百济神州",
+          "page": "48",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02269HS",
+          "name": "药明生物",
+          "page": "48",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02359HS",
+          "name": "药明康德",
+          "page": "48",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09926HS",
+          "name": "康方生物",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01093HS",
+          "name": "石药集团",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01177HS",
+          "name": "中国生物制药",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03692HS",
+          "name": "翰森制药",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06618HS",
+          "name": "京东健康",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01530HS",
+          "name": "三生制药",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06990HS",
+          "name": "科伦博泰生物",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02228HS",
+          "name": "晶泰控股",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02268HS",
+          "name": "药明合联",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01099HS",
+          "name": "国药控股",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00241HS",
+          "name": "阿里健康",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01548HS",
+          "name": "金斯瑞生物科技",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09688HS",
+          "name": "再鼎医药",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02162HS",
+          "name": "康诺亚－ Ｂ",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02367HS",
+          "name": "巨子生物",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09969HS",
+          "name": "诺诚健华",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09995HS",
+          "name": "荣昌生物",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00867HS",
+          "name": "康哲药业",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09606HS",
+          "name": "映恩生物 －Ｂ",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01276HS",
+          "name": "恒瑞医药",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02252HS",
+          "name": "微创机器人－Ｂ",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03933HS",
+          "name": "联邦制药",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06855HS",
+          "name": "亚盛医药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00013HS",
+          "name": "和黄医药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02096HS",
+          "name": "先声药业",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01318HS",
+          "name": "毛戈平",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03320HS",
+          "name": "华润医药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01066HS",
+          "name": "威高股份",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00853HS",
+          "name": "微创医疗",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01833HS",
+          "name": "平安好医生",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00512HS",
+          "name": "远大医药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02196HS",
+          "name": "复星医药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02607HS",
+          "name": "上海医药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01952HS",
+          "name": "云顶新耀",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02276HS",
+          "name": "康耐特光学",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01681HS",
+          "name": "康臣药业",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01302HS",
+          "name": "先健科技",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02171HS",
+          "name": "科济药业 －Ｂ",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02186HS",
+          "name": "绿叶制药",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01951HS",
+          "name": "锦欣生殖",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06699HS",
+          "name": "时代天使",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02666HS",
+          "name": "环球医疗",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02157HS",
+          "name": "乐普生物",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02172HS",
+          "name": "微创脑科学",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02273HS",
+          "name": "固生堂",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00570HS",
+          "name": "中国中药",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01513HS",
+          "name": "丽珠医药",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02595HS",
+          "name": "劲方医药 －Ｂ",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00460HS",
+          "name": "四环医药",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03696HS",
+          "name": "英矽智能",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06078HS",
+          "name": "海吉亚医疗",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01789HS",
+          "name": "爱康医疗",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02158HS",
+          "name": "医渡科技",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "09887HS",
+          "name": "维立志博 －Ｂ",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01112HS",
+          "name": "Ｈ＆Ｈ国际控股",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02145HS",
+          "name": "上美股份",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02005HS",
+          "name": "石四药集团",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02877HS",
+          "name": "神威药业",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02637HS",
+          "name": "海西新药",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "03613HS",
+          "name": "同仁堂国药",
+          "page": "51",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02609HS",
+          "name": "佰泽医疗",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02192HS",
+          "name": "医脉通",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02410HS",
+          "name": "同源康医药－Ｂ",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02506HS",
+          "name": "讯飞医疗科技",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02575HS",
+          "name": "轩竹生物 －Ｂ",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02652HS",
+          "name": "长风药业",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02291HS",
+          "name": "心泰医疗",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02587HS",
+          "name": "健康之路",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06681HS",
+          "name": "脑动极光 －Ｂ",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02627HS",
+          "name": "中慧生物 －Ｂ",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02675HS",
+          "name": "精锋医疗 －Ｂ",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "06955HS",
+          "name": "博安生物",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02656HS",
+          "name": "健康１６ ０",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02659HS",
+          "name": "宝济药业 －Ｂ",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02629HS",
+          "name": "MIRXES- B",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02591HS",
+          "name": "银诺医药",
+          "page": "52",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02617HS",
+          "name": "药捷安康 －Ｂ",
+          "page": "53",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02565HS",
+          "name": "派格生物医药－Ｂ",
+          "page": "53",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1571268",
+      "fundCode": "513140",
+      "reportName": "华泰柏瑞中证港股通金融服务交易型开放式指数证券投资基金(QDII)2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1571268",
+      "pdfSha256": "973f249abac28132256de241ba0a2808e6d29ba0d9915046625864dbc7dffcea",
+      "excerpts": [
+        {
+          "code": "00005HS",
+          "name": "汇丰控股",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00939HS",
+          "name": "建设银行",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01299HS",
+          "name": "友邦保险",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01398HS",
+          "name": "工商银行",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00388HS",
+          "name": "香港交易所",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02318HS",
+          "name": "中国平安",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03988HS",
+          "name": "中国银行",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02628HS",
+          "name": "中国人寿",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02388HS",
+          "name": "中银香港",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01288HS",
+          "name": "农业银行",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02328HS",
+          "name": "中国财险",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02601HS",
+          "name": "中国太保",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00998HS",
+          "name": "中信银行",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06030HS",
+          "name": "中信证券",
+          "page": "42",
+          "reportedMarket": "深港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "01336HS",
+          "name": "新华保险",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02611HS",
+          "name": "国泰海通",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03908HS",
+          "name": "中金公司",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01658HS",
+          "name": "邮储银行",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01339HS",
+          "name": "中国人保",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06881HS",
+          "name": "中国银河",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01988HS",
+          "name": "民生银行",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00966HS",
+          "name": "中国太平",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06886HS",
+          "name": "华泰证券",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01776HS",
+          "name": "广发证券",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00290HS",
+          "name": "国富量子",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01359HS",
+          "name": "中国信达",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06060HS",
+          "name": "众安在线",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02799HS",
+          "name": "中信金融资产",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06818HS",
+          "name": "光大银行",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06099HS",
+          "name": "招商证券",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02016HS",
+          "name": "浙商银行",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01788HS",
+          "name": "国泰君安国际",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00165HS",
+          "name": "中国光大控股",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1562890",
+      "fundCode": "513360",
+      "reportName": "博时中证全球中国教育主题交易型开放式指数证券投资基金(QDII)2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1562890",
+      "pdfSha256": "f3977fdd94b17fdc159f66cc14969627fe2cc82feb94f7494211e3187f3f0499",
+      "excerpts": [
+        {
+          "code": "09880HS",
+          "name": "优必选",
+          "page": "47",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00667HS",
+          "name": "中国东方教育",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00777HS",
+          "name": "网龙",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "00839HS",
+          "name": "中教控股",
+          "page": "49",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01773HS",
+          "name": "天立国际控股",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02687HS",
+          "name": "卓越睿新",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "02469HS",
+          "name": "粉笔",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        },
+        {
+          "code": "01969HS",
+          "name": "中国春来",
+          "page": "50",
+          "reportedMarket": "深港通",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1571271",
+      "fundCode": "513530",
+      "reportName": "华泰柏瑞中证港股通高股息投资交易型开放式指数证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1571271",
+      "pdfSha256": "838dfd2f6e9f55e0fae8ad48f2effe443e9271b4a8d9e6245af5e06fb1667fcd",
+      "excerpts": [
+        {
+          "code": "01919HG",
+          "name": "中远海控场",
+          "page": "42",
+          "reportedMarket": "沪港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "03808HG",
+          "name": "中国重汽",
+          "page": "43",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01308HG",
+          "name": "海丰国际",
+          "page": "43",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01088HG",
+          "name": "中国神华",
+          "page": "43",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00005HG",
+          "name": "汇丰控股",
+          "page": "43",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00883HG",
+          "name": "中国海洋石油",
+          "page": "43",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00857HG",
+          "name": "中国石油股份",
+          "page": "43",
+          "reportedMarket": "沪港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "00939HG",
+          "name": "建设银行",
+          "page": "44",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01898HG",
+          "name": "中煤能源",
+          "page": "44",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01988HG",
+          "name": "民生银行",
+          "page": "44",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02388HG",
+          "name": "中银香港",
+          "page": "44",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01398HG",
+          "name": "工商银行",
+          "page": "44",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03360HG",
+          "name": "远东宏信",
+          "page": "44",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00288HG",
+          "name": "万洲国际",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00551HG",
+          "name": "裕元集团",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00316HG",
+          "name": "东方海外国际",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01288HG",
+          "name": "农业银行",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03988HG",
+          "name": "中国银行",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00371HG",
+          "name": "北控水务集团",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00386HG",
+          "name": "中国石油化工股份",
+          "page": "45",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00998HG",
+          "name": "中信银行",
+          "page": "46",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00941HG",
+          "name": "中国移动",
+          "page": "46",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01908HG",
+          "name": "建发国际集团",
+          "page": "46",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00257HG",
+          "name": "光大环境",
+          "page": "46",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06818HG",
+          "name": "中国光大银行",
+          "page": "47",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01800HG",
+          "name": "中国交通建设",
+          "page": "47",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02328HG",
+          "name": "中国财险",
+          "page": "47",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06862HG",
+          "name": "海底捞",
+          "page": "47",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00728HG",
+          "name": "中国电信",
+          "page": "48",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00762HG",
+          "name": "中国联通",
+          "page": "48",
+          "reportedMarket": "沪港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1570926",
+      "fundCode": "520500",
+      "reportName": "华泰柏瑞恒生创新药交易型开放式指数证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1570926",
+      "pdfSha256": "5e805eb31719805b537b2c4dcbed3c73a76845a02c70bd37721b3eb713c6ee0b",
+      "excerpts": [
+        {
+          "code": "01801HS",
+          "name": "信达生物",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06160HS",
+          "name": "百济神州",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06990HS",
+          "name": "科伦博泰生物 -B",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09926HS",
+          "name": "康方生物",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01177HS",
+          "name": "中国生物制药",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09995HS",
+          "name": "荣昌生物-B",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09606HS",
+          "name": "映恩生物-B",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01093HS",
+          "name": "石药集团",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01530HS",
+          "name": "三生制药",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09969HS",
+          "name": "诺诚健华-B",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09688HS",
+          "name": "再鼎医药",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03692HS",
+          "name": "翰森制药",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01952HS",
+          "name": "云顶新耀",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01276HS",
+          "name": "恒瑞医药",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02096HS",
+          "name": "先声药业",
+          "page": "42",
+          "reportedMarket": "深港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "02162HS",
+          "name": "康诺亚 -B",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02157HS",
+          "name": "乐普生物-B",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00013HS",
+          "name": "和黄医药",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00867HS",
+          "name": "康哲药业",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06855HS",
+          "name": "亚盛医药-B",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03933HS",
+          "name": "联邦制药",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02196HS",
+          "name": "复星医药",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02595HS",
+          "name": "劲方医药-B",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00460HS",
+          "name": "四环医药",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03320HS",
+          "name": "华润医药",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00512HS",
+          "name": "远大医药",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02186HS",
+          "name": "绿叶制药",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02171HS",
+          "name": "科济药业-B",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02637HS",
+          "name": "海西新药",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01513HS",
+          "name": "丽珠医药",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09887HS",
+          "name": "维立志博-B",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03696HS",
+          "name": "英矽智能",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06955HS",
+          "name": "博安生物",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02575HS",
+          "name": "轩竹生物-B",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02410HS",
+          "name": "同源康医药-B",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02627HS",
+          "name": "中慧生物-B",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02005HS",
+          "name": "石四药集团",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02659HS",
+          "name": "宝济药业-B",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02617HS",
+          "name": "药捷安康-B",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02629HS",
+          "name": "Mirxes Holding Company Limited",
+          "page": "46",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    },
+    {
+      "reportId": "1570746",
+      "fundCode": "520520",
+      "reportName": "华泰柏瑞恒生消费交易型开放式指数证券投资基金（QDII）2026年中期报告",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1570746",
+      "pdfSha256": "4f3ceed38efdf9fb39065bee1f6f56f381509cb86c25923a07b48dc31c75c2cc",
+      "excerpts": [
+        {
+          "code": "00669HS",
+          "name": "创科实业",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09992HS",
+          "name": "泡泡玛特",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09987HS",
+          "name": "百胜中国-S",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02020HS",
+          "name": "安踏体育",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09633HS",
+          "name": "农夫山泉",
+          "page": "38",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00288HS",
+          "name": "万洲国际场",
+          "page": "38",
+          "reportedMarket": "深港通联合市",
+          "codeFound": true
+        },
+        {
+          "code": "00300HS",
+          "name": "美的集团",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02319HS",
+          "name": "蒙牛乳业",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06690HS",
+          "name": "海尔智家",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00291HS",
+          "name": "华润啤酒",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02331HS",
+          "name": "李宁",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02313HS",
+          "name": "申洲国际",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00168HS",
+          "name": "青岛啤酒股份",
+          "page": "39",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06181HS",
+          "name": "老铺黄金",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01929HS",
+          "name": "周大福",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06862HS",
+          "name": "海底捞",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "03998HS",
+          "name": "波司登",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00322HS",
+          "name": "康师傅控股",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01910HS",
+          "name": "新秀丽",
+          "page": "40",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01070HS",
+          "name": "TCL 电子",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00151HS",
+          "name": "中国旺旺",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02367HS",
+          "name": "巨子生物",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01044HS",
+          "name": "恒安国际",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06186HS",
+          "name": "中国飞鹤",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06969HS",
+          "name": "思摩尔国际",
+          "page": "41",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01364HS",
+          "name": "古茗",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01876HS",
+          "name": "百威亚太",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09896HS",
+          "name": "名创优品",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00142HS",
+          "name": "第一太平",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02097HS",
+          "name": "蜜雪集团",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00551HS",
+          "name": "裕元集团",
+          "page": "42",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00220HS",
+          "name": "统一企业中国",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00590HS",
+          "name": "六福集团",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01836HS",
+          "name": "九兴控股",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00546HS",
+          "name": "阜丰集团",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01579HS",
+          "name": "颐海国际",
+          "page": "43",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06979HS",
+          "name": "珍酒李渡",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01368HS",
+          "name": "特步国际",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06993HS",
+          "name": "蓝月亮集团",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "00325HS",
+          "name": "布鲁可",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06110HS",
+          "name": "滔搏",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01999HS",
+          "name": "敏华控股",
+          "page": "44",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "09985HS",
+          "name": "卫龙美味",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02698HS",
+          "name": "乐舒适",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "01768HS",
+          "name": "鸣鸣很忙",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02460HS",
+          "name": "华润饮料",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02580HS",
+          "name": "奥克斯电气",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "06808HS",
+          "name": "高鑫零售",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        },
+        {
+          "code": "02555HS",
+          "name": "茶百道",
+          "page": "45",
+          "reportedMarket": "深港通联合市场",
+          "codeFound": true
+        }
+      ]
+    }
+  ]
+}

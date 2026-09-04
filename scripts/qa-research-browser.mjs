@@ -243,7 +243,39 @@ async function ready(page, url, code = "NVDA") {
     .getByRole("tablist", { name: "基金结果分类" })
     .waitFor({ state: "visible", timeout: 30000 });
 }
+async function openEditor(page) {
+  if (!(await page.locator(".portfolio-editor").isVisible())) await page.locator("#portfolio-edit-trigger").click();
+  await page.locator(".portfolio-editor").waitFor({ state: "visible" });
+  await page.getByRole("combobox", { name: "搜索股票名称或代码" }).waitFor({ state: "hidden" });
+  ok(!(await page.getByRole("combobox", { name: "搜索股票名称或代码" }).isVisible()), "组合选股时仍显示第二个主搜索框");
+}
+async function closeEditor(page) {
+  if (await page.locator(".portfolio-editor").isVisible()) {
+    await page.getByRole("button", { name: "查看结果", exact: true }).click();
+  }
+  await page.locator(".portfolio-editor").waitFor({ state: "hidden" });
+  await page.getByRole("combobox", { name: "搜索股票名称或代码" }).waitFor({ state: "visible" });
+}
+async function moreActions(page) {
+  const more = page.locator(".portfolio-more-actions");
+  if (!(await more.getAttribute("open"))) {
+    if (!(await more.evaluate((element) => element.open))) await more.locator(":scope > summary").click();
+  }
+}
+async function chooseSaved(page, name) {
+  const panel = page.getByRole("region", { name: "我的组合", exact: true });
+  if (!(await panel.isVisible())) await page.locator("#saved-portfolio-trigger").click();
+  await panel.getByRole("button").filter({ has: page.locator("strong", { hasText: new RegExp(`^${name}$`) }) }).click();
+}
+async function saveInitial(page, name) {
+  await page.getByRole("button", { name: "保存组合", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "保存组合", exact: true });
+  await dialog.getByLabel("组合名称", { exact: true }).fill(name);
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await dialog.waitFor({ state: "hidden" });
+}
 async function add(page, code) {
+  await openEditor(page);
   const picker = page.getByRole("combobox", { name: "检索添加股票" });
   await picker.fill(code);
   const suggestions = page.getByRole("listbox", { name: "匹配股票" });
@@ -257,7 +289,11 @@ async function add(page, code) {
   );
   ok(exactIndex >= 0, `组合股票检索没有唯一的 ${code} 建议`);
   await options.nth(exactIndex).click();
-  await page.locator(".portfolio-stock-search-field").getByRole("button", { name: "加入组合" }).click();
+  assert.equal(await picker.inputValue(), "", "选股后检索未清空");
+  await page.waitForFunction(() => {
+    const input = document.getElementById("portfolio-stock-search");
+    return input?.disabled ? document.activeElement?.id === "portfolio-view-results" : document.activeElement === input;
+  });
   await page
     .getByText("校验并加载结果…")
     .waitFor({ state: "hidden", timeout: 30000 });
@@ -275,61 +311,31 @@ async function overflow(page, label) {
   ok(size[0] <= size[1], `${label}横向溢出 ${size[0]}>${size[1]}`);
   return { documentWidth: size[0], viewportWidth: size[1] };
 }
-async function portfolioEditorLayout(page, label, { wide, stacked }) {
+async function portfolioEditorLayout(page, label) {
   const layout = await page.locator(".portfolio-editor").evaluate((editor) => {
     const rect = (selector) => {
       const element = editor.querySelector(selector);
       if (!element) return null;
-      const { top, bottom } = element.getBoundingClientRect();
-      return { top, bottom };
+      const { top, bottom, left, right, width, height } = element.getBoundingClientRect();
+      return { top, bottom, left, right, width, height };
     };
     return {
-      labels: {
-        name: rect(":scope > label:nth-of-type(1)"),
-        savedBasket: rect(":scope > label:nth-of-type(2)"),
-        stockSearch: rect(".portfolio-stock-search-field > label"),
-      },
-      controls: {
-        name: rect(":scope > label:nth-of-type(1) > input"),
-        savedBasket: rect(":scope > label:nth-of-type(2) > select"),
-        stockSearch: rect(".portfolio-stock-search-field input"),
-        addStock: rect(".portfolio-add-stock"),
-      },
+      editor: { left: editor.getBoundingClientRect().left, right: editor.getBoundingClientRect().right },
+      heading: rect(".portfolio-editor-heading"),
+      stockSearch: rect(".portfolio-stock-search-field input"),
+      chips: rect(".portfolio-chips"),
+      footer: rect(".portfolio-editor-footer"),
+      inputCount: editor.querySelectorAll("input").length,
     };
   });
-  const sameRow = (rowName, entries) => {
-    const [referenceName, reference] = Object.entries(entries)[0];
-    ok(Number.isFinite(reference?.top), `${label} ${rowName} 缺少 ${referenceName} 坐标`);
-    for (const [name, rect] of Object.entries(entries).slice(1)) {
-      ok(Number.isFinite(rect?.top), `${label} ${rowName} 缺少 ${name} 坐标`);
-      ok(
-        Math.abs(rect.top - reference.top) <= 1,
-        `${label} ${rowName} 未对齐：${referenceName}=${reference.top.toFixed(2)}，${name}=${rect.top.toFixed(2)}`,
-      );
-    }
-  };
-  if (wide) {
-    sameRow("标签", layout.labels);
-    sameRow("控件", layout.controls);
-  } else if (stacked) {
-    ok(Number.isFinite(layout.controls.stockSearch?.bottom), `${label} 缺少检索输入框坐标`);
-    ok(Number.isFinite(layout.controls.addStock?.top), `${label} 缺少添加按钮坐标`);
-    const gap = layout.controls.addStock.top - layout.controls.stockSearch.bottom;
-    ok(gap >= 0 && gap <= 16, `${label} 纵向按钮间距异常：${gap.toFixed(2)}px`);
-  } else {
-    sameRow("检索与添加控件", {
-      stockSearch: layout.controls.stockSearch,
-      addStock: layout.controls.addStock,
-    });
+  assert.equal(layout.inputCount, 1, `${label} 出现重复输入框`);
+  ok(layout.stockSearch?.height >= 44, `${label} 搜索输入框不足 44px`);
+  for (const key of ["heading", "stockSearch", "chips", "footer"]) {
+    const box = layout[key];
+    ok(box && box.left >= layout.editor.left && box.right <= layout.editor.right, `${label} ${key} 超出编辑区`);
   }
-  return Object.fromEntries(
-    Object.entries(layout).map(([rowName, entries]) => [
-      rowName,
-      entries && "top" in entries
-        ? Object.fromEntries(Object.entries(entries).map(([name, value]) => [name, Number(value.toFixed(2))]))
-        : Object.fromEntries(Object.entries(entries).map(([name, rect]) => [name, Number(rect.top.toFixed(2))])),
-    ]),
-  );
+  ok(layout.stockSearch.top >= layout.heading.bottom && layout.chips.top >= layout.stockSearch.bottom && layout.footer.top >= layout.chips.bottom, `${label} 控件顺序重叠`);
+  return layout;
 }
 function contrastRatio(foreground, background) {
   const channel = (value) => {
@@ -357,7 +363,7 @@ async function focusEvidence(locator, label, { keyboard = true } = {}) {
     await page.keyboard.press("Tab");
     ok(
       await locator.evaluate((element) => document.activeElement === element),
-      `${label} 无法通过键盘 Tab 回到目标`,
+      `${label} 无法通过键盘 Tab 回到目标：${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 500))}`,
     );
   } else {
     await locator.focus();
@@ -406,8 +412,8 @@ async function focusEvidence(locator, label, { keyboard = true } = {}) {
 }
 async function normalTextEvidence(page) {
   const selectors = [
-    ".portfolio-header h2",
-    ".portfolio-editor label",
+    ".portfolio-result-focus",
+    ".portfolio-editor-heading",
     ".portfolio-disclosure",
     ".portfolio-blocked",
   ];
@@ -482,9 +488,10 @@ async function emptyLazy(browser, url, result) {
     await state.page
       .getByRole("combobox", { name: "搜索股票名称或代码" })
       .waitFor({ state: "visible" });
-    await state.page
-      .getByText("添加股票，查看持有它们的基金。")
-      .waitFor();
+    await state.page.getByRole("button", { name: "组合研究", exact: true }).waitFor();
+    assert.equal(await state.page.locator(".portfolio-editor").count(), 0, "空态默认展开了组合表单");
+    assert.equal(await state.page.getByRole("button", { name: "保存组合", exact: true }).count(), 0, "空态显示无内容可保存的按钮");
+    assert.equal(await state.page.locator(".portfolio-unsaved").count(), 0, "空态误报未保存");
     network(state, "空研究", [
       /fund-portfolio-index-.*manifest/i,
       /fund-portfolio-index-.*\.json/i,
@@ -507,8 +514,8 @@ async function readySummaryTabs(browser, url, result) {
       undefined,
       { timeout: 10000 },
     );
-    await page.getByRole("heading", { name: "临时研究" }).waitFor();
-    await page.getByLabel("已选股票").getByRole("button", { name: /^移除 .* NVDA$/ }).waitFor();
+    await page.getByRole("heading", { name: /英伟达.*NVDA.*美股/ }).waitFor();
+    assert.equal(await page.locator(".portfolio-editor").count(), 0, "单股结果默认展开了组合表单");
     const titleFocus = await focusEvidence(page.locator(".portfolio-result-focus"), "结果标题", { keyboard: false });
     const tabs = page.getByRole("tab", { name: /场外基金|场内 ETF/ });
     assert.equal(await tabs.count(), 2, "缺少两个互斥页签。");
@@ -579,11 +586,101 @@ async function readySummaryTabs(browser, url, result) {
     await state.context.close();
   }
 }
+async function continuousSearch(browser, url, result) {
+  result.continuousSearch = {};
+  for (const width of [1440, 390, 320]) {
+    const state = await scenario(browser, url, { width, height: 844 });
+    try {
+      const { page } = state;
+      await page.goto(`${url}/research`, { waitUntil: "domcontentloaded" });
+      const search = page.getByRole("combobox", { name: "搜索股票名称或代码" });
+      await search.fill("NVDA");
+      await page.getByRole("listbox", { name: "搜索建议" }).getByRole("option").first().click();
+      await page.locator(".portfolio-fund-row").first().waitFor();
+      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "搜索股票名称或代码");
+      const pointer = await page.evaluate(() => ({
+        scrollY,
+        visibleSearches: [...document.querySelectorAll('[role="combobox"]')].filter((element) => element.getClientRects().length).length,
+        firstFundTop: document.querySelector(".portfolio-fund-row").getBoundingClientRect().top,
+        inputValue: document.activeElement?.value,
+        selectionStart: document.activeElement?.selectionStart,
+        selectionEnd: document.activeElement?.selectionEnd,
+      }));
+      assert.equal(pointer.visibleSearches, 1, `${width}px 出现多个搜索框`);
+      assert.equal(pointer.scrollY, 0, `${width}px 鼠标查询强制滚走搜索框`);
+      ok(pointer.firstFundTop < 844, `${width}px 第一条基金结果不在首屏`);
+      assert.equal(pointer.selectionStart, 0, `${width}px 查询后输入值没有全选`);
+      assert.equal(pointer.selectionEnd, pointer.inputValue.length, `${width}px 查询后输入值没有全选`);
+      await search.fill("MSFT");
+      await search.press("Enter");
+      await page.waitForFunction(() => document.querySelector(".portfolio-result-focus")?.textContent?.includes("微软") && document.activeElement?.classList.contains("portfolio-result-focus"));
+      await openEditor(page);
+      await page.getByRole("button", { name: "换一只股票", exact: true }).click();
+      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "搜索股票名称或代码");
+      assert.equal(await page.locator(".portfolio-editor").count(), 0, "换股后未收起组合选股");
+      result.continuousSearch[width] = { pointer, keyboardFocus: true, returnToSearch: true, ...(await overflow(page, `${width}px 连续查询`)) };
+    } finally {
+      network(state, `${width}px 连续查询最终`, [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
+      await state.context.close();
+    }
+  }
+}
+async function ambiguousMarkets(browser, url, result) {
+  result.ambiguousMarkets = [];
+  for (const parameter of ["stock", "q"]) {
+    const state = await scenario(browser, url, { width: 390, height: 844 });
+    try {
+      const { page } = state;
+      await page.goto(`${url}/research?${parameter}=ASML`, { waitUntil: "domcontentloaded" });
+      const search = page.getByRole("combobox", { name: "搜索股票名称或代码" });
+      const suggestions = page.getByRole("listbox", { name: "搜索建议" });
+      await suggestions.waitFor({ state: "visible" });
+      const codes = await suggestions.getByRole("option").evaluateAll((items) => items.map((item) => item.querySelector(".suggestion-code")?.textContent?.trim()));
+      assert.deepEqual([...codes].sort(), ["ASML.NA", "ASMLUS"], "ASML 歧义链接没有分开两个上市市场");
+      await search.press("Enter");
+      await suggestions.waitFor({ state: "visible" });
+      assert.equal(await page.locator(".portfolio-result-focus").count(), 0, "ASML Enter 隐式进入了某个市场");
+      await page.getByRole("button", { name: "查看基金", exact: true }).click();
+      await suggestions.waitFor({ state: "visible" });
+      assert.equal(await page.locator(".portfolio-result-focus").count(), 0, "ASML 提交隐式进入了某个市场");
+      await search.press("ArrowDown");
+      await search.press("Enter");
+      await page.waitForFunction((code) => document.querySelector(".portfolio-result-focus")?.textContent?.includes(code), codes[0]);
+      const evidence = { parameter, codes, implicitSelectionBlocked: true, explicitKeyboardSelection: codes[0] };
+      if (parameter === "stock") {
+        await search.fill("NVDA");
+        await search.press("Enter");
+        await page.waitForFunction(() => document.querySelector(".portfolio-result-focus")?.textContent?.includes("NVDA"));
+        await openEditor(page);
+        const picker = page.getByRole("combobox", { name: "检索添加股票" });
+        await picker.fill("ASML");
+        const matches = page.getByRole("listbox", { name: "匹配股票" });
+        await matches.waitFor({ state: "visible" });
+        const pickerCodes = await matches.getByRole("option").evaluateAll((items) => items.map((item) => item.querySelector("code")?.textContent?.trim()));
+        assert.deepEqual([...pickerCodes].sort(), ["ASML.NA", "ASMLUS"], "组合候选没有分开两个上市市场");
+        await picker.press("Enter");
+        assert.equal(await page.getByLabel("已选股票").getByRole("button").count(), 1, "组合别名 Enter 隐式加入了某个市场");
+        await matches.waitFor({ state: "visible" });
+        await picker.press("ArrowDown");
+        await picker.press("Enter");
+        await page.getByLabel("已选股票").getByRole("button", { name: new RegExp(` ${pickerCodes[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }).waitFor();
+        await add(page, pickerCodes[1]);
+        assert.equal(await page.getByLabel("已选股票").getByRole("button").count(), 3, "明确选择不同市场后股票数错误");
+        evidence.picker = { codes: pickerCodes, implicitSelectionBlocked: true, explicitKeyboardAndPointerSelection: true };
+      }
+      result.ambiguousMarkets.push(evidence);
+    } finally {
+      network(state, `${parameter} 跨市场歧义最终`, [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
+      await state.context.close();
+    }
+  }
+}
 async function selectionAndLimit(browser, url, result) {
   const state = await scenario(browser, url, { width: 1440, height: 1024 });
   try {
     const { page } = state;
     await ready(page, url);
+    await openEditor(page);
     const picker = page.getByRole("combobox", { name: "检索添加股票" });
     await picker.click();
     await page.keyboard.press("KeyA");
@@ -597,7 +694,7 @@ async function selectionAndLimit(browser, url, result) {
     const pickerSuggestions = page.getByRole("listbox", { name: "匹配股票" });
     await pickerSuggestions.waitFor({ state: "visible" });
     ok(
-      (await pickerSuggestions.getByRole("option", { name: /台积电.*TSM/ }).count()) === 1,
+      (await pickerSuggestions.getByRole("option").evaluateAll((items) => items.filter((item) => item.querySelector("code")?.textContent?.trim() === "TSM").length)) === 1,
       "旧中文名称没有命中标准台积电 ADR",
     );
     await picker.press("ArrowDown");
@@ -606,10 +703,12 @@ async function selectionAndLimit(browser, url, result) {
       "中文组合检索没有激活建议",
     );
     await picker.press("Enter");
-    assert.match(await picker.inputValue(), /台积电/, "中文组合检索没有以标准名称选中台积电");
+    assert.equal(await picker.inputValue(), "", "中文组合检索加入后未清空输入框");
+    await page.getByLabel("已选股票").getByRole("button", { name: /^移除 .* TSM$/ }).waitFor();
+    await page.waitForFunction(() => document.activeElement?.id === "portfolio-stock-search");
     await picker.fill("2330");
     await pickerSuggestions.locator("#portfolio-stock-search-option-2330").waitFor();
-    assert.equal(await pickerSuggestions.getByRole("option", { name: /TSM/ }).count(), 0, "台股本股代码被误合并到 ADR");
+    assert.equal(await pickerSuggestions.getByRole("option").evaluateAll((items) => items.filter((item) => item.querySelector("code")?.textContent?.trim() === "TSM").length), 0, "台股本股代码被误合并到 ADR");
 
     const onExchangeTab = page.getByRole("tab", { name: "场内 ETF / LOF" });
     await onExchangeTab.click();
@@ -623,6 +722,7 @@ async function selectionAndLimit(browser, url, result) {
     const keyboardFocus = await focusEvidence(onExchangeTab, "键盘场内基金页签");
 
     await picker.fill("");
+    await picker.press("ArrowDown");
     await pickerSuggestions.waitFor({ state: "visible" });
     const values = await pickerSuggestions
       .getByRole("option")
@@ -648,6 +748,7 @@ async function selectionAndLimit(browser, url, result) {
       };
     }, activeOptionId);
     ok(pickerScroll.found && pickerScroll.visible, "活动组合检索候选项未滚动到可视区");
+    await closeEditor(page);
     const search = page.getByRole("combobox", { name: "搜索股票名称或代码" });
     await search.fill("TSM");
     await page
@@ -659,6 +760,10 @@ async function selectionAndLimit(browser, url, result) {
       "键盘搜索没有激活建议",
     );
     await search.press("Enter");
+    const dialog = page.getByRole("dialog", { name: "有未保存更改" });
+    await dialog.getByRole("button", { name: "放弃" }).click();
+    await page.getByRole("heading", { name: /台积电.*TSM/ }).waitFor();
+    await openEditor(page);
     await page.getByLabel("已选股票").getByRole("button", { name: /^移除 .* TSM$/ }).waitFor();
     for (const value of values) await add(page, value);
     assert.equal(
@@ -667,12 +772,12 @@ async function selectionAndLimit(browser, url, result) {
       "10 只后选择器未禁用",
     );
     await page.getByText(/已满 10 只/).waitFor();
+    const beforeCancel = await page.getByLabel("已选股票").innerText();
+    await closeEditor(page);
     await search.fill("TSM");
     await search.press("ArrowDown");
     await search.press("Enter");
-    const dialog = page.getByRole("dialog", { name: "有未保存更改" });
     await dialog.waitFor().catch((error) => { throw new Error(`临时替换保护未出现：${error.message}`); });
-    const beforeCancel = await page.getByLabel("已选股票").innerText();
     await page.keyboard.press("Escape");
     await dialog.waitFor({ state: "hidden" });
     await page.waitForFunction(
@@ -680,6 +785,8 @@ async function selectionAndLimit(browser, url, result) {
         document.activeElement?.getAttribute("aria-label") ===
         "搜索股票名称或代码",
     );
+    assert.equal(await page.getByRole("listbox", { name: "搜索建议" }).count(), 0, "取消切换后自动重开搜索建议");
+    await openEditor(page);
     assert.equal(await page.getByLabel("已选股票").innerText(), beforeCancel, "取消替换改变了工作台股票");
     result.limit = {
       chips: await page
@@ -701,11 +808,9 @@ async function storageGuards(browser, url, result) {
   try {
     const { page } = state;
     await ready(page, url);
-    const name = page.getByLabel("组合名称");
-    await name.fill("QA 组合 A");
-    await page.getByRole("button", { name: "保存组合", exact: true }).click();
-    ok(await page.getByRole("button", { name: "保存更改" }).isDisabled(), "保存后重复保存未禁用");
-    await page.locator(".portfolio-status").getByText("已保存", { exact: true }).waitFor();
+    await saveInitial(page, "QA 组合 A");
+    ok(await page.getByRole("button", { name: "已保存", exact: true }).isDisabled(), "保存后重复保存未禁用");
+    await moreActions(page);
     await page.getByRole("button", { name: "另存为" }).click();
     const copyDialog = page.getByRole("dialog", { name: "另存为" });
     assert.equal(await copyDialog.getByLabel("副本名称").inputValue(), "QA 组合 A（副本）");
@@ -714,11 +819,11 @@ async function storageGuards(browser, url, result) {
     const copies = await page.evaluate(() => JSON.parse(localStorage.getItem("chuhaiqianyan.portfolio-baskets.v1")).baskets);
     assert.equal(copies.length, 2, "另存为没有产生独立副本");
     assert.notEqual(copies[0].id, copies[1].id, "副本沿用原组合 ID");
-    await page.getByLabel("本机组合").selectOption({ label: "QA 组合 A" });
+    await chooseSaved(page, "QA 组合 A");
     await page.goto(`${url}/research`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page
-      .getByRole("heading", { name: "QA 组合 A", exact: true })
+      .getByRole("heading", { name: /^QA 组合 A(?: ·|$)/ })
       .waitFor({ state: "visible", timeout: 30000 });
     await add(page, "TSM");
     const dirty = await page.evaluate(() => {
@@ -746,23 +851,24 @@ async function storageGuards(browser, url, result) {
     });
     ok(!clean, "保存后 beforeunload 仍阻止离开");
     await page
-      .getByRole("heading", { name: "QA 组合 A", exact: true })
+      .getByRole("heading", { name: /^QA 组合 A(?: ·|$)/ })
       .waitFor({ state: "visible", timeout: 30000 });
-    await page.getByRole("button", { name: "新建" }).click();
-    await name.fill("QA 组合 B");
+    await moreActions(page);
+    await page.getByRole("button", { name: "新建组合", exact: true }).click();
     await add(page, "TSM");
-    await page.getByRole("button", { name: "保存组合", exact: true }).click();
-    const saved = page.getByLabel("本机组合");
-    await saved.selectOption({ label: "QA 组合 A" });
+    await saveInitial(page, "QA 组合 B");
+    await chooseSaved(page, "QA 组合 A");
     await add(page, "AAPL");
-    await saved.selectOption({ label: "QA 组合 B" });
+    await chooseSaved(page, "QA 组合 B");
     await dialog.waitFor().catch((error) => { throw new Error(`切换组合保护未出现：${error.message}`); });
     await dialog.getByRole("button", { name: "取消" }).click();
-    await saved.selectOption({ label: "QA 组合 B" });
+    await page.waitForFunction(() => document.activeElement?.querySelector("strong")?.textContent === "QA 组合 B");
+    await chooseSaved(page, "QA 组合 B");
     await dialog.getByRole("button", { name: "放弃" }).click();
-    await page.getByRole("heading", { name: "QA 组合 B", exact: true }).waitFor();
+    await page.getByRole("heading", { name: /^QA 组合 B(?: ·|$)/ }).waitFor();
+    await page.waitForFunction(() => document.activeElement?.classList.contains("portfolio-result-focus"));
     await add(page, "AAPL");
-    await page.locator(".portfolio-more-actions > summary").click();
+    await moreActions(page);
     const deleteButton = page.getByRole("button", { name: "删除组合", exact: true });
     await deleteButton.click();
     const deleteDialog = page.getByRole("alertdialog", { name: "删除“QA 组合 B”？" });
@@ -771,10 +877,10 @@ async function storageGuards(browser, url, result) {
     await page.keyboard.press("Escape");
     await deleteDialog.waitFor({ state: "hidden" });
     await page.waitForFunction(() => document.activeElement?.textContent?.trim() === "删除组合");
-    await page.getByRole("heading", { name: "QA 组合 B", exact: true }).waitFor();
+    await page.getByRole("heading", { name: /^QA 组合 B(?: ·|$)/ }).waitFor();
     await deleteButton.click();
     await deleteDialog.getByRole("button", { name: "确认删除" }).click();
-    await page.getByRole("heading", { name: "QA 组合 A", exact: true }).waitFor();
+    await page.getByRole("heading", { name: /^QA 组合 A(?: ·|$)/ }).waitFor();
     result.storage = { beforeUnload: { dirty, clean }, independentCopy: true, deletionConfirmation: true };
   } finally {
     network(state, "本机保存最终", [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
@@ -989,10 +1095,8 @@ async function viewportMatrix(browser, url, result) {
     try {
       const { page } = state;
       await ready(page, url);
-      const editorLayout = await portfolioEditorLayout(page, `${viewport.width}px 编辑区`, {
-        wide: viewport.width >= 1024,
-        stacked: viewport.width <= 720,
-      });
+      await openEditor(page);
+      const editorLayout = await portfolioEditorLayout(page, `${viewport.width}px 编辑区`);
       const picker = page.getByRole("combobox", { name: "检索添加股票" });
       await picker.click();
       await picker.fill("台湾积体");
@@ -1003,6 +1107,8 @@ async function viewportMatrix(browser, url, result) {
       await picker.press("Escape");
       await add(page, "TSM");
       await page.getByRole("button", { name: /^移除 .* TSM$/ }).click();
+      const editorControls = await auditVisibleControls(page, `${viewport.width}px 编辑状态`);
+      await closeEditor(page);
       await page.getByRole("tab", { name: "场内 ETF / LOF" }).click();
       const detail = page.getByRole("tabpanel").getByRole("button", { name: /查看 .* 基金详情/ }).first();
       await detail.click();
@@ -1016,6 +1122,7 @@ async function viewportMatrix(browser, url, result) {
         ...(await overflow(page, `${viewport.width}px`)),
         pickerOverflow,
         controls,
+        editorControls,
         text,
         editorLayout,
       };
@@ -1057,6 +1164,8 @@ try {
   local = await serve(preview, temp);
   await emptyLazy(browser, local.url, result.scenarios);
   await readySummaryTabs(browser, local.url, result.scenarios);
+  await continuousSearch(browser, local.url, result.scenarios);
+  await ambiguousMarkets(browser, local.url, result.scenarios);
   await selectionAndLimit(browser, local.url, result.scenarios);
   await storageGuards(browser, local.url, result.scenarios);
   await paginationAndEmpty(browser, local.url, result.scenarios);
