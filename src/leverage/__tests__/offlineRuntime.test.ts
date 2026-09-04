@@ -32,4 +32,15 @@ describe("本机离线运行边界", () => {
     expect(headers).toContain("frame-src https://challenges.cloudflare.com");
     expect(headers).not.toMatch(/financialmodelingprep|eodhd/);
   });
+
+  it("应用页面阻止 CDN 自动注入，保持安全策略和同源运行边界", async () => {
+    const headers = await readFile(resolve(projectRoot, "public", "_headers"), "utf8");
+    const blocks = headers.split(/\r?\n\s*\r?\n/);
+    for (const route of ["/", "/index.html", "/research", "/leverage", "/concentration", "/methodology"]) {
+      const block = blocks.find((value) => value.split(/\r?\n/).includes(route));
+      expect(block, route).toContain("Cache-Control: no-cache, no-transform");
+    }
+    expect(headers).toContain("connect-src 'self';");
+    expect(headers).not.toContain("cloudflareinsights.com");
+  });
 });
