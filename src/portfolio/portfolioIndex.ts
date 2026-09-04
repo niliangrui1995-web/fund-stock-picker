@@ -11,6 +11,7 @@ import type {
   PortfolioShardCoverage,
   ReasonCountMap,
 } from "./types";
+import { getVerifiedFundTradingClassification } from "../fundTradingClassification";
 
 const BUILDER_VERSION = "fund-portfolio-index-v1";
 const FUND_FAMILY_RULE_VERSION = "fund-family-key-v1";
@@ -490,7 +491,10 @@ function validateProfile(
     `基金家族 ${familyKey} 份额代码无效。`,
   );
   assertCondition(typeof value.isQdii === "boolean", `基金家族 ${familyKey} QDII 分类无效。`);
+  assertCondition(value.managementStyle === undefined || value.managementStyle === "index" || value.managementStyle === "active", `基金家族 ${familyKey} 管理类型无效。`);
   assertCondition(typeof value.isOnExchangeFund === "boolean", `基金家族 ${familyKey} 场内分类无效。`);
+  const verifiedTradingClassification = getVerifiedFundTradingClassification(familyKey);
+  assertCondition(verifiedTradingClassification === undefined || value.isOnExchangeFund === verifiedTradingClassification, `基金家族 ${familyKey} 场内分类与已核实的交易方式冲突。`);
   assertCondition(value.view === (value.isOnExchangeFund ? "onExchange" : "offExchange"), `基金家族 ${familyKey} 视图分类冲突。`);
   assertCondition(
     typeof value.detailShardKey === "string" &&
@@ -667,6 +671,7 @@ function comparableProfile(profile: FundFamilyProfile): string {
     fundName: profile.fundName,
     fundDisplayName: profile.fundDisplayName,
     fundType: profile.fundType,
+    managementStyle: profile.managementStyle,
     fundVariantCodes: profile.fundVariantCodes,
     isQdii: profile.isQdii,
     isOnExchangeFund: profile.isOnExchangeFund,

@@ -83,7 +83,6 @@ describe("leverage dashboard components", () => {
     expect(markup).toContain("暂无数据");
     expect(markup).toContain('type="date"');
     expect(markup).toContain("自定义");
-    expect(markup).toContain("选择日期后进入自定义区间");
   });
 
   it("将数据来源与使用边界收拢为可展开的客户说明", () => {
@@ -96,7 +95,8 @@ describe("leverage dashboard components", () => {
     expect(markup).toContain("数据说明");
     expect(markup).toContain("融资数据：东方财富；指数数据：通达信。");
     expect(markup).toContain("市值来源：2011–2016 待更新 · 东方财富 Choice（2017 年起）。");
-    expect(markup).toContain("融资余额变化用于观察市场杠杆，不代表涨跌判断。");
+    expect(markup).toContain("融资余额反映市场杠杆，不预示涨跌");
+    expect(markup.split("<details")[0]).toContain("融资余额可能含非 A 股标的，跨来源占比不可直接比较");
     expect(markup).not.toContain("DFCF 厂商口径／未经交易所复核");
     expect(markup).not.toContain("SHA-256");
   });

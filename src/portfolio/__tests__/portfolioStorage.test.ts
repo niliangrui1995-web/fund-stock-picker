@@ -9,6 +9,15 @@ import {
 import { MemoryStorage, savedBasket, validStockCodes } from "./fixtures";
 
 describe("portfolioStorage", () => {
+  it("恢复旧组合时仅合并已核实证券别名，保留未知代码且不重复持仓", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, activeBasketId: "legacy", baskets: [savedBasket({ id: "legacy", stockCodes: ["NVDAUS", "NVDAUW", "NVDA", "UNKNOWNUS"] })] }));
+    const result = readPortfolioStore(storage, new Set(["NVDA", "UNKNOWNUS"]));
+    expect(result.kind).toBe("ready");
+    expect(result.store.baskets[0].stockCodes).toEqual(["NVDA", "UNKNOWNUS"]);
+    expect(result.store.activeBasketId).toBe("legacy");
+    expect(JSON.parse(storage.getItem(PORTFOLIO_STORAGE_KEY)!).baskets[0].stockCodes).toEqual(["NVDAUS", "NVDAUW", "NVDA", "UNKNOWNUS"]);
+  });
   it("空存储返回可用的空草稿存储", () => {
     const result = readPortfolioStore(new MemoryStorage(), validStockCodes);
 

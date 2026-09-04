@@ -37,9 +37,9 @@ function UnavailableSummary() {
   return (
     <section className="leverage-market-summary" aria-label="市场环境" role="status" aria-live="polite">
       <h3>市场环境</h3>
-      <p>市场环境摘要暂不可用</p>
+      <p>摘要暂不可用</p>
       <a className="leverage-market-summary-link" href={appPagePath("leverage")} aria-label="打开完整两融数据看板">
-        查看完整两融看板
+        查看两融
       </a>
     </section>
   );
@@ -92,7 +92,7 @@ export function LeverageMarketSummary({ load = defaultLoad }: LeverageMarketSumm
     return (
       <section className="leverage-market-summary" aria-label="市场环境" role="status" aria-live="polite">
         <h3>市场环境</h3>
-        <p>正在加载市场环境摘要…</p>
+        <p>加载中…</p>
       </section>
     );
   }
@@ -107,24 +107,24 @@ export function LeverageMarketSummary({ load = defaultLoad }: LeverageMarketSumm
       <dl className="leverage-market-summary-list">
         <div>
           <dt>区间</dt>
-          <dd>{comparison.startDate} 至 {comparison.endDate}，共同交易日 {comparison.commonDayCount} 天</dd>
+          <dd>{comparison.startDate} 至 {comparison.endDate} · {comparison.commonDayCount} 个共同交易日</dd>
         </div>
         <div>
-          <dt>融资余额：</dt>
-          <dd>100 → {format(comparison.marginEndNormalized)}（{format(comparison.marginChangePercent)}%）</dd>
+          <dt>融资余额变化</dt>
+          <dd>{format(comparison.marginChangePercent)}%</dd>
         </div>
         <div>
-          <dt>上证指数 000001：</dt>
-          <dd>100 → {format(comparison.indexEndNormalized)}（{format(comparison.indexChangePercent)}%）</dd>
+          <dt>上证指数变化</dt>
+          <dd>{format(comparison.indexChangePercent)}%</dd>
         </div>
         <div>
-          <dt>描述性差值</dt>
-          <dd>融资余额变化减指数变化：{format(comparison.differencePercentagePoints)} 个百分点。</dd>
+          <dt>融资 − 指数</dt>
+          <dd>{format(comparison.differencePercentagePoints)} 个百分点</dd>
         </div>
       </dl>
-      <p>该摘要仅描述市场环境，不证明其造成所选股票或基金结果变化。</p>
+      <p>仅描述市场环境，不说明个股或基金表现的原因。</p>
       <a className="leverage-market-summary-link" href={appPagePath("leverage")} aria-label="打开完整两融数据看板">
-        查看完整两融看板
+        查看两融
       </a>
     </section>
   );

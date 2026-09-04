@@ -88,12 +88,12 @@
 
 .leverage-segmented-control button,
 .leverage-period-toggle-group button {
-  min-height: 34px;
+  min-height: 44px;
   border: 1px solid rgba(71, 85, 105, 0.15);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.86);
   color: #526178;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1;
   transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
@@ -108,13 +108,13 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid rgba(71, 85, 105, 0.15);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.86);
   color: #526178;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -214,13 +214,13 @@
 
 .leverage-date-range input {
   min-width: 0;
-  height: 31px;
+  height: 44px;
   padding: 0 7px;
   border: 1px solid rgba(71, 85, 105, 0.16);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.88);
   color: #405065;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .leverage-date-separator {
@@ -231,7 +231,7 @@
 
 .leverage-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding: 20px 30px;
 }
@@ -259,13 +259,14 @@
   font-size: clamp(17px, 1.6vw, 22px);
   line-height: 1.12;
   letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
 }
 
 .leverage-summary-card small {
   margin-top: 9px;
   color: #708097;
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .leverage-summary-primary {
@@ -287,13 +288,9 @@
   color: #bc4050;
 }
 
-.leverage-summary-status {
-  border-color: rgba(71, 87, 200, 0.17);
-  background: linear-gradient(135deg, #f7f8ff, #ffffff);
-}
-
 .leverage-workspace {
   display: grid;
+  align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(258px, 0.31fr);
   gap: 16px;
   padding: 0 30px 30px;
@@ -357,6 +354,28 @@
   min-height: 430px;
 }
 
+.leverage-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 16px 14px 0;
+  padding: 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  list-style: none;
+}
+
+.leverage-chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leverage-chart-legend li > span {
+  width: 18px;
+  height: 3px;
+}
+
 .leverage-chart-empty {
   position: absolute;
   inset: 4px 6px 26px;
@@ -397,6 +416,8 @@
   min-height: 54px;
   padding: 0 16px;
   color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 800;
   cursor: pointer;
   list-style: none;
 }
@@ -405,32 +426,12 @@
   display: none;
 }
 
-.leverage-disclosure summary span {
-  color: var(--ink-strong);
-  font-size: 14px;
-  font-weight: 800;
+.leverage-disclosure summary::after {
+  content: "+";
 }
 
-.leverage-disclosure summary small {
-  padding: 4px 6px;
-  border-radius: 4px;
-  background: #f0f3f9;
-  color: #64748b;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-}
-
-.leverage-disclosure summary small::after {
-  content: "⌄";
-  display: inline-block;
-  margin-left: 5px;
-  font-size: 12px;
-  line-height: 1;
-  transition: transform 160ms ease;
-}
-
-.leverage-disclosure details[open] summary small::after {
-  transform: rotate(180deg);
+.leverage-disclosure details[open] summary::after {
+  content: "−";
 }
 
 .leverage-disclosure summary:focus-visible {
@@ -449,7 +450,7 @@
 .leverage-disclosure-content p {
   margin: 0 0 9px;
   color: #6a778c;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -459,6 +460,32 @@
 
 .leverage-disclosure-warning {
   color: #a05b2b !important;
+}
+
+.leverage-disclosure-essential {
+  padding: 16px 16px 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.leverage-disclosure-essential strong {
+  color: var(--ink-strong);
+}
+
+.leverage-dashboard :is(button, summary, input):focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.leverage-index-toggle:focus-within {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.leverage-dashboard .leverage-package-date {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .leverage-dashboard-state {
@@ -475,17 +502,6 @@
   color: #be4a59;
 }
 
-.leverage-state-cutoff {
-  display: inline-block;
-  margin-top: 14px;
-  padding: 5px 8px;
-  border-radius: 5px;
-  background: rgba(190, 74, 89, 0.08);
-  color: #a64150;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 @media (max-width: 1120px) {
   .leverage-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -493,10 +509,6 @@
 
   .leverage-control-period {
     grid-column: 1 / -1;
-  }
-
-  .leverage-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .leverage-workspace {
@@ -550,6 +562,7 @@
     display: inline-block;
     margin-top: 8px;
     text-align: left;
+    white-space: normal;
   }
 
   .leverage-chart-wrap {

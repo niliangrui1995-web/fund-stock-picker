@@ -1,6 +1,6 @@
 import type { DerivedSeries } from "./deriveLeverageSeries";
-import { LEVERAGE_INDEX_LABELS, LEVERAGE_METRIC_LABELS } from "./leverageLabels";
-import type { LeverageIndexCode, LeverageMetric } from "./types";
+import { LEVERAGE_INDEX_COLORS, LEVERAGE_INDEX_LABELS, LEVERAGE_METRIC_LABELS } from "./leverageLabels";
+import type { LeverageMetric } from "./types";
 
 type TimeValue = [string, number | null];
 
@@ -8,9 +8,11 @@ export interface LeverageChartOption {
   animation: boolean;
   color: string[];
   grid: { left: number; right: number; top: number; bottom: number; containLabel: boolean };
-  legend: { top: number; data: string[]; textStyle: { color: string } };
+  legend: { show: false; top: number; data: string[]; selectedMode: false; textStyle: { color: string } };
   tooltip: {
     trigger: "axis";
+    confine: true;
+    extraCssText: string;
     axisPointer: { type: "cross"; label: { backgroundColor: string } };
     formatter: (params: unknown) => string;
   };
@@ -27,6 +29,8 @@ export interface LeverageChartOption {
   yAxis: Array<{
     type: "value";
     name: string;
+    nameTextStyle: { align: "left" | "right" };
+    nameGap: number;
     position: "left" | "right";
     splitLine: { lineStyle: { color: string } };
     axisLine: { show: boolean; lineStyle: { color: string } };
@@ -48,7 +52,8 @@ export interface LeverageChartOption {
     showSymbol: false;
     connectNulls: false;
     sampling: "lttb";
-    lineStyle: { width: number; type?: "solid" | "dashed" };
+    lineStyle: { width: number; color: string; type?: "solid" | "dashed" };
+    itemStyle: { color: string };
     emphasis: { focus: "series" };
   }>;
 }
@@ -163,7 +168,8 @@ export function buildLeverageChartOption({
       showSymbol: false,
       connectNulls: false,
       sampling: "lttb",
-      lineStyle: { width: 2.6 },
+      lineStyle: { width: 2.6, color: "#e35d6a" },
+      itemStyle: { color: "#e35d6a" },
       emphasis: { focus: "series" },
     },
   ];
@@ -177,7 +183,8 @@ export function buildLeverageChartOption({
       showSymbol: false,
       connectNulls: false,
       sampling: "lttb",
-      lineStyle: { width: 1.6, type: "solid" },
+      lineStyle: { width: 1.6, type: "solid", color: LEVERAGE_INDEX_COLORS[indexSeries.code] },
+      itemStyle: { color: LEVERAGE_INDEX_COLORS[indexSeries.code] },
       emphasis: { focus: "series" },
     });
   }
@@ -186,6 +193,8 @@ export function buildLeverageChartOption({
     {
       type: "value",
       name: metric === "margin" ? "融资余额（亿元）" : "融资余额占市值（%）",
+      nameTextStyle: { align: "left" },
+      nameGap: 12,
       position: "left",
       splitLine: { lineStyle: { color: "rgba(71, 85, 105, 0.12)" } },
       axisLine: { show: true, lineStyle: { color: "#64748b" } },
@@ -197,6 +206,8 @@ export function buildLeverageChartOption({
     yAxis.push({
       type: "value",
       name: "指数（基准=100）",
+      nameTextStyle: { align: "right" },
+      nameGap: 30,
       position: "right",
       splitLine: { lineStyle: { color: "transparent" } },
       axisLine: { show: true, lineStyle: { color: "#64748b" } },
@@ -209,12 +220,16 @@ export function buildLeverageChartOption({
     color: ["#e35d6a", "#4757c8", "#1c9f8a", "#d98633"],
     grid: { left: 18, right: 18, top: 50, bottom: 44, containLabel: true },
     legend: {
+      show: false,
       top: 4,
+      selectedMode: false,
       data: series.map((item) => item.name),
       textStyle: { color: "#475569" },
     },
     tooltip: {
       trigger: "axis",
+      confine: true,
+      extraCssText: "max-width:calc(100vw - 48px);white-space:normal;overflow-wrap:anywhere;font-size:12px;line-height:1.6;",
       axisPointer: { type: "cross", label: { backgroundColor: "#243047" } },
       formatter: (params) => {
         const date = axisTooltipDate(params);

@@ -185,11 +185,11 @@ describe("独立页面导航", () => {
     expect(container.querySelector('[data-testid="loaded-leverage-dashboard"]')).toBeNull();
     expect(container.querySelector('[data-testid="loaded-concentration-dashboard"]')).toBeNull();
     expect(container.querySelector('[data-testid="loaded-market-summary"]')).toBeNull();
-    expect(navigationLink("研究").getAttribute("href")).toBe("/research");
+    expect(navigationLink("基金穿透").getAttribute("href")).toBe("/research");
     expect(navigationLink("两融").getAttribute("href")).toBe("/leverage");
     expect(navigationLink("交易集中度").getAttribute("href")).toBe("/concentration");
     expect(navigationLink("方法论").getAttribute("href")).toBe("/methodology");
-    expect(navigationLink("研究").getAttribute("aria-current")).toBe("page");
+    expect(navigationLink("基金穿透").getAttribute("aria-current")).toBe("page");
     expect(navigationLink("两融").hasAttribute("aria-current")).toBe(false);
     expect(navigationLink("交易集中度").hasAttribute("aria-current")).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -267,7 +267,7 @@ describe("独立页面导航", () => {
   it("研究页查询参数变更为默认研究 URL 时也会先交给组合离开保护", async () => {
     await renderAt("/research?stock=NVDA");
 
-    const researchLink = navigationLink("研究");
+    const researchLink = navigationLink("基金穿透");
     await act(async () => {
       researchLink.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });

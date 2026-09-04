@@ -175,9 +175,6 @@ export function LeverageControls({
             />
           </label>
         </div>
-        <p className="leverage-control-hint">
-          选择日期后进入自定义区间
-        </p>
       </div>
     </section>
   );

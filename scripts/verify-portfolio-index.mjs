@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const FUND_TRADING_OVERRIDES = new Map(JSON.parse(await readFile(path.join(ROOT, "config/fund-trading-overrides.json"), "utf8")).funds.map((fund) => [fund.fundFamilyKey, fund.isOnExchangeFund]));
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 const DETAIL_RULE = "sha256(fundFamilyKey UTF-8) 的前 2 位十六进制字符";
 const EPSILON = 0.005000001;
@@ -184,6 +185,8 @@ function validProfile(profile, fundFamilyKey, detailShardKeys) {
   }
   if (new Set(profile.fundVariantCodes).size !== profile.fundVariantCodes.length) return "基金 profile.fundVariantCodes 重复";
   if (typeof profile.isOnExchangeFund !== "boolean") return "基金 profile.isOnExchangeFund 必须为布尔值";
+  const verifiedTradingClassification = FUND_TRADING_OVERRIDES.get(fundFamilyKey);
+  if (verifiedTradingClassification !== undefined && profile.isOnExchangeFund !== verifiedTradingClassification) return "基金 profile 与已核实的交易方式冲突";
   const expectedView = profile.isOnExchangeFund ? "onExchange" : "offExchange";
   if (profile.view !== expectedView) return "基金 profile.view 与场内分类不一致";
   if (!/^[a-f0-9]{2}$/.test(profile.detailShardKey) || !detailShardKeys.has(profile.detailShardKey)) {

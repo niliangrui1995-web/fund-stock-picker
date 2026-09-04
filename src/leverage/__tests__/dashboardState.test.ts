@@ -7,8 +7,8 @@ describe("dashboard state view", () => {
     expect(
       getDashboardStateView({ kind: "blocked", reason: "发布包 SHA-256 校验失败。" }),
     ).toEqual({
-      heading: "数据暂不可用",
-      detail: "请稍后刷新再试。",
+      heading: "数据包未通过校验",
+      detail: "发布包 SHA-256 校验失败。",
       blocking: true,
       cutoffDate: "暂无",
     });

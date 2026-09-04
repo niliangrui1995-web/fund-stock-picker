@@ -71,19 +71,21 @@ function LoadingState({ detail }: { detail: string }) {
   return (
     <section className="concentration-dashboard concentration-dashboard-state" aria-live="polite">
       <span className="concentration-eyebrow">交易集中度</span>
-      <h2>正在读取日度数据</h2>
+      <h2>正在加载数据</h2>
       <p>{detail}</p>
     </section>
   );
 }
 
-function ErrorState({ failure }: { failure: DashboardFailure }) {
+function ErrorState({ failure, onRetry }: { failure: DashboardFailure; onRetry: () => void }) {
+  const reasonIsChinese = /[\u3400-\u9fff]/.test(failure.reason);
   return (
     <section className="concentration-dashboard concentration-dashboard-state is-blocked" aria-live="polite">
       <span className="concentration-eyebrow">交易集中度</span>
       <h2>{failure.kind === "validation" ? "数据包未通过校验" : "数据读取失败"}</h2>
-      <p>{failure.reason}</p>
-      {failure.kind === "validation" && <small>页面不会使用未经校验的集中度数据。</small>}
+      <p>{reasonIsChinese ? failure.reason : "请检查网络后重试。"}</p>
+      {!reasonIsChinese && <details><summary>错误详情</summary><p>{failure.reason}</p></details>}
+      <button type="button" className="dashboard-retry-button" onClick={onRetry}>重新加载</button>
     </section>
   );
 }
@@ -93,20 +95,24 @@ function Disclosure({ payload, manifest }: { payload: ConcentrationDashboardPayl
   const aiChainManifest = manifest.ai_chain_series;
   return (
     <aside className="concentration-disclosure" aria-label="数据说明">
-      <details open>
-        <summary>
-          <span>数据说明</span>
-          <small>口径与边界</small>
-        </summary>
+      <div className="concentration-disclosure-essential">
+        {aiChainSeries && (
+          <p className="concentration-disclosure-warning">AI 曲线按当前成分回溯，存在前视偏差。</p>
+        )}
+        <p className="concentration-disclosure-warning">2022-08-02 起分子含北交所，分母仍为通达信全 A 等权成交额；样本范围可能不同，跨阶段慎比。</p>
+      </div>
+      <details>
+        <summary>数据说明</summary>
         <div className="concentration-disclosure-content">
+          <p>数据包更新日：{payload.generated_at_beijing.slice(0, 10)}；已通过校验。</p>
           <p>来源：{payload.provenance.source}。</p>
           <p>计算：{payload.provenance.definition}</p>
           <p>样本：{payload.provenance.active_stock_rule}</p>
-          <p>分母：全期间使用 `sh880008.day.amount`（通达信全A等权 AMOUNT 字段）。</p>
+          <p>分母：全期间使用通达信全A等权成交额（sh880008.day 的 AMOUNT 字段）。</p>
           <p>北交所：自 2022-08-02 起纳入分子候选池。</p>
           <p>
             叠加：{manifest.comparison_index_input.name}（{manifest.comparison_index_input.code}）取
-            `sz399006.day` 收盘价；图中按所选观察区间首个有效日 = 100 归一化，以右轴呈现，不参与 C5 分子或分母计算。
+            sz399006.day 收盘价；图中按所选观察区间首个有效日 = 100 归一化，以右轴呈现，不参与 C5 分子或分母计算。
           </p>
           {aiChainSeries && aiChainManifest && aiChainSeries.records.length > 0 && (
             <>
@@ -116,19 +122,16 @@ function Disclosure({ payload, manifest }: { payload: ConcentrationDashboardPayl
                 {aiChainSeries.active_stock_rule}
               </p>
               <p>
-                AI 产业链分母：{aiChainManifest.formula}。该曲线独立于 C5，不改变 C5 的前 5% 分子或历史 CSV。
-              </p>
-              <p className="concentration-disclosure-warning">
-                成分按当前工作簿快照回溯，不代表历史逐日成分，存在成分前视风险。
+                AI 产业链分母：{aiChainManifest.formula}。AI 曲线独立于 C5，当前成分快照不代表历史逐日成分。
               </p>
             </>
           )}
           <p>数据范围：{manifest.data_range.start} 至 {manifest.data_range.end}。</p>
+          <p>{manifest.scope_warning}</p>
+          <p>仅供趋势研究，不构成投资建议。</p>
           {manifest.omitted_dates.length > 0 && (
             <p>未输出 {manifest.omitted_dates.length} 个分母无效或样本为空的交易日；不插值。</p>
           )}
-          <p className="concentration-disclosure-warning">{manifest.scope_warning}</p>
-          <p className="concentration-disclosure-warning">仅供趋势研究，不构成投资建议。</p>
         </div>
       </details>
     </aside>
@@ -142,9 +145,11 @@ export function TradingConcentrationDashboard() {
     manifest: ConcentrationManifest;
   } | null>(null);
   const [failure, setFailure] = useState<DashboardFailure | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    setFailure(null);
     void loadConcentrationPackage({
       fetchImpl: (url, options) => fetch(url, options),
       validate: validateConcentrationPackage,
@@ -172,7 +177,7 @@ export function TradingConcentrationDashboard() {
         });
       });
     return () => controller.abort();
-  }, []);
+  }, [loadAttempt]);
 
   const visibleRecords = useMemo(
     () => recordsForPeriod(loaded?.payload.records ?? [], period),
@@ -187,10 +192,10 @@ export function TradingConcentrationDashboard() {
   const latestAiChainRecord = visibleAiChainSeries?.records[visibleAiChainSeries.records.length - 1] ?? null;
 
   if (failure !== null) {
-    return <ErrorState failure={failure} />;
+    return <ErrorState failure={failure} onRetry={() => setLoadAttempt((attempt) => attempt + 1)} />;
   }
   if (loaded === null || latest === null) {
-    return <LoadingState detail="正在校验同源静态数据包和日度口径。" />;
+    return <LoadingState detail="正在校验数据…" />;
   }
 
   const change = previous === null ? null : latest.c5_pct - previous.c5_pct;
@@ -202,25 +207,16 @@ export function TradingConcentrationDashboard() {
     <section className="concentration-dashboard" aria-labelledby="concentration-dashboard-title">
       <header className="concentration-dashboard-header">
         <div>
-          <span className="concentration-eyebrow">交易集中度</span>
-          <h2 id="concentration-dashboard-title">
-            {visibleAiChainSeries ? "交易集中度与 AI 产业链成交额占比" : "前 5% 个股成交额占比"}
-          </h2>
-          <p>
-            观察成交额是否向少数交易活跃 A 股集中；C5 越高，说明当日成交更集中。
-            {visibleAiChainSeries
-              ? " AI 产业链工作簿快照成分的成交额占比以独立曲线叠加，不是 C5。"
-              : " 同步叠加创业板指观察市场风格。"}
-          </p>
+          <h2 id="concentration-dashboard-title">交易集中度</h2>
+          <p>C5：成交额前 5% 的活跃 A 股占全 A 等权成交额的比例。</p>
         </div>
         <div className="concentration-header-status">
-          <span>{loaded.payload.provenance.metric_name}</span>
-          <strong>数据截至 {latest.date}</strong>
+          <strong>最新交易日 {loaded.manifest.data_range.end}</strong>
         </div>
       </header>
 
       <div className="concentration-controls" aria-label="时间区间">
-        <span>观察区间</span>
+        <span>区间</span>
         <div className="concentration-period-toggle" role="group" aria-label="选择时间区间">
           {PERIODS.map((item) => (
             <button
@@ -238,18 +234,18 @@ export function TradingConcentrationDashboard() {
 
       <div className={`concentration-summary-grid${visibleAiChainSeries ? " has-ai-chain-series" : ""}`}>
         <article className="concentration-summary-card concentration-summary-primary">
-          <span>最新 C5</span>
+          <span>区间末日 C5</span>
           <strong>{latest.c5_pct.toFixed(2)}%</strong>
-          <small>{latest.date}，前 5% 个股成交额占全A等权 AMOUNT</small>
+          <small>统计日：{latest.date}</small>
         </article>
         {visibleAiChainSeries && (
           <article className="concentration-summary-card concentration-summary-ai">
-            <span>最新 AI产业链成交额占比</span>
+            <span>AI 产业链成交占比</span>
             <strong>{latestAiChainPercentage === null ? "暂无" : `${latestAiChainPercentage.toFixed(2)}%`}</strong>
             <small>
               {latestAiChainRecord === null
-                ? "所选区间暂无 AI 产业链日度记录"
-                : `${latestAiChainRecord.date}，${latestAiChainRecord.ai_chain_active_stock_count.toLocaleString("zh-CN")} 只活跃成分；成交额 ${latestAiChainAmount === null ? "暂无" : formatYi(latestAiChainAmount)}`}
+                ? "区间暂无数据"
+                : `${latestAiChainRecord.date} · ${latestAiChainRecord.ai_chain_active_stock_count.toLocaleString("zh-CN")} 只 · ${latestAiChainAmount === null ? "暂无" : formatYi(latestAiChainAmount)}`}
             </small>
           </article>
         )}
@@ -258,15 +254,14 @@ export function TradingConcentrationDashboard() {
           <strong className={change !== null && change > 0 ? "is-up" : change !== null && change < 0 ? "is-down" : ""}>
             {change === null ? "—" : signedPercent(change)}
           </strong>
-          <small>正值表示成交进一步向头部交易股集中</small>
         </article>
         <article className="concentration-summary-card">
           <span>成交活跃 A 股</span>
           <strong>{latest.active_stock_count.toLocaleString("zh-CN")} 只</strong>
-          <small>{universeLabel}范围，前 {latest.top5_stock_count.toLocaleString("zh-CN")} 只纳入分子</small>
+          <small>{universeLabel} · 前 {latest.top5_stock_count.toLocaleString("zh-CN")} 只计入 C5</small>
         </article>
         <article className="concentration-summary-card concentration-summary-volume">
-          <span>全A等权 AMOUNT</span>
+          <span>全 A 等权成交额</span>
           <strong>{formatYi(latest.market_amount_yi)}</strong>
           <small>前 5% 合计 {formatYi(latest.top5_amount_yi)}</small>
         </article>
@@ -280,7 +275,6 @@ export function TradingConcentrationDashboard() {
           <div className="concentration-chart-panel-head">
             <div>
               <span>{visibleRecords[0]?.date} 至 {latest.date}</span>
-              <strong>{visibleAiChainSeries ? "成交额集中度 C5、AI产业链成交额占比与创业板指" : "成交额集中度 C5 与创业板指"}</strong>
             </div>
             <em>创业板指右轴，首个有效日 = 100</em>
           </div>

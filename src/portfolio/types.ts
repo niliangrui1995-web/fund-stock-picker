@@ -36,6 +36,7 @@ export interface FundFamilyProfile {
   fundName: string;
   fundDisplayName: string;
   fundType: string;
+  managementStyle?: "index" | "active";
   fundVariantCodes: string[];
   isQdii: boolean;
   isOnExchangeFund: boolean;
@@ -192,6 +193,7 @@ export interface PortfolioContribution {
   directRatioPercent: number;
   indirectEstimatedRatioPercent: number;
   indirectSources: QualifiedIndirectEdge[];
+  directSources?: DirectEdge[];
 }
 
 export interface AggregatedFundResult extends FundFamilyProfile {

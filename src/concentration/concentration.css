@@ -67,7 +67,7 @@
   color: #425167;
   font-size: 12px;
   letter-spacing: 0;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .concentration-controls {
@@ -95,13 +95,13 @@
 }
 
 .concentration-period-toggle button {
-  min-height: 33px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid rgba(71, 85, 105, 0.15);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.86);
   color: #526178;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1;
   transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
@@ -154,13 +154,14 @@
   font-size: clamp(17px, 1.6vw, 22px);
   line-height: 1.12;
   letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
 }
 
 .concentration-summary-card small {
   margin-top: 9px;
   color: #708097;
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .concentration-summary-primary {
@@ -203,6 +204,7 @@
 
 .concentration-workspace {
   display: grid;
+  align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(258px, 0.31fr);
   gap: 16px;
   padding: 0 30px 30px;
@@ -291,12 +293,6 @@
   display: none;
 }
 
-.concentration-disclosure summary small {
-  color: #8a6b5e;
-  font-size: 10px;
-  font-weight: 700;
-}
-
 .concentration-disclosure-content {
   display: grid;
   gap: 10px;
@@ -307,7 +303,7 @@
 .concentration-disclosure-content p {
   margin: 0;
   color: #58687d;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -316,6 +312,72 @@
   border-radius: 7px;
   background: #fff8f3;
   color: #9a5235;
+}
+
+.concentration-disclosure-essential {
+  padding: 16px 17px 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.concentration-disclosure-essential strong {
+  color: var(--ink-strong);
+}
+
+.concentration-disclosure-essential .concentration-disclosure-warning {
+  padding: 9px 10px;
+  border-radius: 7px;
+  background: #fff8f3;
+  color: #9a5235;
+}
+
+.concentration-disclosure summary::after {
+  content: "+";
+}
+
+.concentration-disclosure details[open] summary::after {
+  content: "−";
+}
+
+.concentration-series-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: 0;
+  margin: 12px;
+  padding: 0;
+  border: 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.concentration-series-controls legend {
+  margin-bottom: 4px;
+}
+
+.concentration-series-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.concentration-series-controls input {
+  width: 16px;
+  height: 16px;
+  accent-color: #b94e2c;
+}
+
+.concentration-series-controls label > span {
+  width: 18px;
+  height: 3px;
+}
+
+.concentration-dashboard :is(button, summary, input):focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
 }
 
 .concentration-dashboard-state {
@@ -341,7 +403,8 @@
 }
 
 @media (max-width: 1040px) {
-  .concentration-summary-grid {
+  .concentration-summary-grid,
+  .concentration-summary-grid.has-ai-chain-series {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -387,7 +450,8 @@
     padding-left: 18px;
   }
 
-  .concentration-summary-grid {
+  .concentration-summary-grid,
+  .concentration-summary-grid.has-ai-chain-series {
     grid-template-columns: 1fr;
   }
 

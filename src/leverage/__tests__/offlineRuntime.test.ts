@@ -13,7 +13,7 @@ describe("本机离线运行边界", () => {
 
     expect(sources).toEqual(["/stock-logos/nvda.png"]);
     expect(sources.every((source) => !/^https?:\/\//.test(source))).toBe(true);
-    expect(stockLogoSources("AMDUS")).toEqual([]);
+    expect(stockLogoSources("AMDUS")).toEqual(["/stock-logos/amd.png"]);
     expect(stockLogoSources("")).toEqual([]);
   });
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { canonicalizeSecurityCode } from "../securityIdentity";
 
 import { aggregatePortfolioResults } from "./aggregatePortfolioResults";
 import { loadPortfolioFundDetails, loadPortfolioIndex } from "./portfolioIndex";
@@ -24,6 +25,8 @@ export type { AggregatedFundResult } from "./types";
 export interface PortfolioStockOption {
   code: string;
   name: string;
+  aliases?: string[];
+  marketLabel?: string;
 }
 
 export type PortfolioDetailState =
@@ -37,7 +40,6 @@ export type PendingUnsavedAction =
   | { kind: "create"; trigger: HTMLElement | null }
   | { kind: "temporary"; code: string; trigger: HTMLElement | null }
   | { kind: "switch"; basketId: string; trigger: HTMLElement | null }
-  | { kind: "delete"; basketId: string; trigger: HTMLElement | null }
   | { kind: "leave"; trigger: HTMLElement | null; action: () => void };
 
 export interface PortfolioResearchModel {
@@ -133,6 +135,8 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
   const validCodes = useMemo(() => new Set(options.stocks.map((stock) => stock.code)), [stockCodeKey]);
   const restored = useMemo(() => initialStore(validCodes), [validCodes]);
   const [store, setStore] = useState<PortfolioStoreV1>(() => restored.store);
+  const storeRef = useRef(store);
+  storeRef.current = store;
   const [draft, setDraft] = useState<BasketDraft>(() => basketDraft(currentBasket(restored.store, restored.store.activeBasketId)));
   const [activeBasketId, setActiveBasketId] = useState<string | null>(() => restored.store.activeBasketId);
   const [dirty, setDirty] = useState(false);
@@ -157,6 +161,8 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
   const draftCodesKey = stockCodesKey(draft.stockCodes);
   const currentDraftCodesKeyRef = useRef(draftCodesKey);
   currentDraftCodesKeyRef.current = draftCodesKey;
+  const savedDraft = currentBasket(store, activeBasketId);
+  const unsavedChanges = dirty && (!savedDraft || !sameDraft(draft, basketDraft(savedDraft)));
 
   useEffect(() => {
     if (storageHydratedRef.current || validCodes.size === 0) return;
@@ -169,14 +175,14 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
   }, [validCodes]);
 
   useEffect(() => {
-    if (!dirty || typeof window === "undefined") return;
+    if (!unsavedChanges || typeof window === "undefined") return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  }, [unsavedChanges]);
 
   useEffect(() => {
     const codes = draft.stockCodes;
@@ -239,6 +245,7 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
       return false;
     }
     setStore(nextStore);
+    storeRef.current = nextStore;
     setSaveError(null);
     return true;
   }, [validCodes]);
@@ -294,15 +301,17 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
   }, [activeBasketId, draft, persist, saveAs, store, validCodes]);
 
   const switchTo = useCallback((basketId: string) => {
-    const basket = store.baskets.find((item) => item.id === basketId);
+    const currentStore = storeRef.current;
+    const basket = currentStore.baskets.find((item) => item.id === basketId);
     if (!basket) return;
+    if (!persist({ ...currentStore, activeBasketId: basketId })) return;
     setDraft(basketDraft(basket));
     setActiveBasketId(basket.id);
     setIsTemporary(false);
     setDirty(false);
     setSaveError(null);
     setPendingAction(null);
-  }, [store.baskets]);
+  }, [persist]);
 
   const deleteBasket = useCallback((basketId: string) => {
     const nextBaskets = store.baskets.filter((item) => item.id !== basketId);
@@ -332,22 +341,22 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
       setSaveError(null);
       setPendingAction(null);
     } else if (action.kind === "switch") switchTo(action.basketId);
-    else if (action.kind === "delete") deleteBasket(action.basketId);
     else {
       setDirty(false);
       setPendingAction(null);
       action.action();
     }
-  }, [deleteBasket, switchTo]);
+  }, [switchTo]);
 
   const withProtection = useCallback((action: PendingUnsavedAction) => {
-    if (dirty) setPendingAction(action);
+    if (unsavedChanges) setPendingAction(action);
     else runPending(action);
-  }, [dirty, runPending]);
+  }, [unsavedChanges, runPending]);
 
   useEffect(() => {
     const selection = options.temporarySelection;
-    const code = selection?.code ?? options.temporaryStockCode ?? null;
+    const rawCode = selection?.code ?? options.temporaryStockCode ?? null;
+    const code = rawCode ? canonicalizeSecurityCode(rawCode) : null;
     const requestKey = selection?.requestId ?? code;
     if (!code || requestKey === null || !validCodes.has(code) || handledTemporaryRequestRef.current === requestKey) return;
     handledTemporaryRequestRef.current = requestKey;
@@ -389,7 +398,7 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
     activeBasketId,
     baskets: store.baskets,
     isTemporary,
-    dirty,
+    dirty: unsavedChanges,
     status: displayStatus,
     error: displayIsCurrent ? error : null,
     recoveryReason,
@@ -399,7 +408,8 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
     pendingAction,
     detail,
     create: (trigger = null) => withProtection({ kind: "create", trigger }),
-    addStock: (code) => {
+    addStock: (rawCode) => {
+      const code = canonicalizeSecurityCode(rawCode);
       if (!validCodes.has(code)) {
         setSaveError(`股票代码 ${code} 不在当前可搜索范围内。`);
         return;
@@ -428,7 +438,7 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
       setDirty(true);
     },
     requestSwitch: (basketId, trigger) => withProtection({ kind: "switch", basketId, trigger }),
-    requestDelete: (basketId, trigger) => withProtection({ kind: "delete", basketId, trigger }),
+    requestDelete: (basketId) => deleteBasket(basketId),
     requestLeave: (action, trigger) => withProtection({ kind: "leave", action, trigger }),
     resolveUnsavedDecision: (decision) => {
       const action = pendingAction;
@@ -438,7 +448,10 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
         return;
       }
       if (decision === "save" && !saveActive()) return;
-      if (decision === "discard") setDirty(false);
+      if (decision === "discard") {
+        setDirty(false);
+        if (action.kind === "leave") setDraft(basketDraft(currentBasket(store, activeBasketId)));
+      }
       runPending(action);
     },
     retry: () => setRetryToken((value) => value + 1),

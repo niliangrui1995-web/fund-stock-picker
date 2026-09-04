@@ -1,0 +1,91 @@
+.chart-data-table {
+  margin: 14px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-strong);
+  font-size: 14px;
+}
+
+.chart-data-table summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.chart-data-controls,
+.chart-data-day-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-data-controls input,
+.chart-data-controls button,
+.dashboard-retry-button {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-strong);
+  font: inherit;
+}
+
+.chart-data-controls button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chart-data-table :is(input, button, summary):focus-visible,
+.dashboard-retry-button:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.chart-data-status,
+.chart-data-empty {
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.chart-data-table table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.chart-data-table caption {
+  padding: 10px 0;
+  font-weight: 700;
+  text-align: left;
+}
+
+.chart-data-table th,
+.chart-data-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.chart-data-table tbody th {
+  position: static;
+  font-weight: 500;
+}
+
+.chart-data-table td {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dashboard-retry-button {
+  display: block;
+  margin-top: 16px;
+  cursor: pointer;
+}

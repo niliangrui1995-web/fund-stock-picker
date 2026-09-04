@@ -26,6 +26,16 @@ const derived: DerivedSeries = {
 };
 
 describe("leverage chart option", () => {
+  it("固定指数颜色并约束手机提示框，图例交互交由原生控件", () => {
+    const series = { ...derived.indices[0], code: "399006" as const };
+    const onlyChinext = buildLeverageChartOption({ metric: "margin", derived: { ...derived, indices: [series] } });
+    const bothIndices = buildLeverageChartOption({ metric: "margin", derived: { ...derived, indices: [...derived.indices, series] } });
+    expect(onlyChinext.series[1].lineStyle.color).toBe(bothIndices.series[2].lineStyle.color);
+    expect(onlyChinext.legend.selectedMode).toBe(false);
+    expect(onlyChinext.tooltip.confine).toBe(true);
+    expect(onlyChinext.tooltip.extraCssText).toContain("white-space:normal");
+  });
+
   it("将余额置于左轴、归一化指数置于右轴，且不把原始点位混入图形数据", () => {
     const option = buildLeverageChartOption({
       metric: "margin",
@@ -50,7 +60,7 @@ describe("leverage chart option", () => {
       expect.objectContaining({
         name: "上证指数",
         yAxisIndex: 1,
-        lineStyle: { width: 1.6, type: "solid" },
+        lineStyle: { width: 1.6, type: "solid", color: "#4757c8" },
         data: [
           ["2017-01-03", 100],
           ["2017-01-04", 99.66777409],

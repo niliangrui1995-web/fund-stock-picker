@@ -1,0 +1,47 @@
+{
+  "version": "fund-trading-overrides-v1",
+  "verifiedAt": "2026-09-05",
+  "description": "按官方报告逐基金确认的交易场景例外。REITs 是下列基金的投资对象，不是基金份额自身的上市形式；只匹配精确基金家族，不扩大为所有含 REIT 的产品。",
+  "funds": [
+    {
+      "fundFamilyKey": "嘉实全球房地产",
+      "fundCodes": ["070031"],
+      "isOnExchangeFund": false,
+      "operationMode": "契约型开放式",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572382",
+      "sourceTitle": "嘉实全球房地产证券投资基金2026年中期报告",
+      "page": 5,
+      "pdfSha256": "67a703744880a8e2045674d31c3e74f05d92c59d1a79ea909103a2a43502f873"
+    },
+    {
+      "fundFamilyKey": "摩根富时发达市场REITS指数(QDII)",
+      "fundCodes": ["005613", "019495"],
+      "isOnExchangeFund": false,
+      "operationMode": "契约型开放式",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569431",
+      "sourceTitle": "摩根富时发达市场REITs指数型证券投资基金(QDII)2026年中期报告",
+      "page": 5,
+      "pdfSha256": "069922d0ffd69ad5d26836ad52abd7f7c4abae830355452edbe375364716578d"
+    },
+    {
+      "fundFamilyKey": "诺安全球收益不动产(QDII)",
+      "fundCodes": ["027794", "320017"],
+      "isOnExchangeFund": false,
+      "operationMode": "契约型开放式",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569100",
+      "sourceTitle": "诺安全球收益不动产证券投资基金2026年中期报告",
+      "page": 5,
+      "pdfSha256": "b97f84e92dddda208d4201831d3f4a958c92c0b4abe110ee7e569131f4041a1d"
+    },
+    {
+      "fundFamilyKey": "鹏华美国房地产",
+      "fundCodes": ["006283", "206011"],
+      "isOnExchangeFund": false,
+      "operationMode": "契约型开放式",
+      "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1561261",
+      "sourceTitle": "鹏华美国房地产证券投资基金2026年中期报告",
+      "page": 5,
+      "pdfSha256": "6387b97496500352bbcd52343b663896cbba0df390bdb01d2103e390ff3b871d"
+    }
+  ]
+}

@@ -115,7 +115,9 @@ function validateSources(sources) {
 function buildEvidence(source, stock, exposureLabel, report) {
   const sourceEvidence = `${source.source}：${source.signal}`;
   const exposureEvidence = exposureLabel ? [`海外 AI 暴露表：${exposureLabel}`] : [];
-  const fundEvidence = `${report} 基金持仓索引：场外 ${stock.activeFundCount ?? 0} 只，最高占比 ${formatPercent(stock.maxRatioPercent)}`;
+  const fundEvidence = typeof stock.offExchangeFundCount === "number"
+    ? `${report} 基金持仓索引：场外 ${stock.offExchangeFundCount} 只（与单股结果同口径，按基金家族去重）`
+    : `${report} 基金持仓索引：主动基金 ${stock.activeFundCount ?? 0} 只，直接持仓最高占比 ${formatPercent(stock.maxRatioPercent)}`;
   return [sourceEvidence, ...exposureEvidence, fundEvidence].join("；");
 }
 

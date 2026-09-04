@@ -101,6 +101,7 @@ export function buildConcentrationChartOption(
     animation: false,
     color: ["#cb5d32", "#3f6fbb", "#16836f"],
     legend: {
+      show: false,
       top: 10,
       left: 18,
       itemWidth: 16,
@@ -110,6 +111,8 @@ export function buildConcentrationChartOption(
     grid: { left: 18, right: 18, top: 52, bottom: 46, containLabel: true },
     tooltip: {
       trigger: "axis",
+      confine: true,
+      extraCssText: "max-width:calc(100vw - 48px);white-space:normal;overflow-wrap:anywhere;font-size:12px;line-height:1.5;",
       axisPointer: { type: "cross", label: { backgroundColor: "#253247" } },
       formatter: (params: unknown) => tooltipText(
         recordsByDate,
@@ -129,6 +132,8 @@ export function buildConcentrationChartOption(
       {
         type: "value",
         name: "成交额占比（%）",
+        nameTextStyle: { align: "left" },
+        nameGap: 12,
         position: "left",
         min: (value: { min: number }) => Math.max(0, Math.floor(value.min - 2)),
         splitLine: { lineStyle: { color: "rgba(71, 85, 105, 0.12)" } },
@@ -138,6 +143,8 @@ export function buildConcentrationChartOption(
       {
         type: "value",
         name: "创业板指（基准=100）",
+        nameTextStyle: { align: "right" },
+        nameGap: 30,
         position: "right",
         splitLine: { show: false },
         axisLine: { show: true, lineStyle: { color: "#64748b" } },

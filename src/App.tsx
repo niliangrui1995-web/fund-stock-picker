@@ -12,13 +12,14 @@ import {
   X,
 } from "lucide-react";
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
 import { installInputModalityTracking } from "./inputModality";
 import { appPagePath, pageFromLegacyHash, pageFromPathname, type AppPage } from "./pageRoute";
 import { PortfolioWorkbench } from "./portfolio/PortfolioWorkbench";
 import { stockLogoFiles } from "./generated/stockLogoFiles";
+import { canonicalizeSecurityCode, getSecurityIdentity, getSecurityMarket } from "./securityIdentity";
 
 type AccessMode = "offExchange" | "onExchange";
 
@@ -42,9 +43,9 @@ function MarketSummaryFallback() {
   return (
     <section className="leverage-market-summary" aria-label="市场环境" role="status" aria-live="polite">
       <h3>市场环境</h3>
-      <p>市场环境摘要暂不可用</p>
+      <p>摘要暂不可用</p>
       <a className="leverage-market-summary-link" href={appPagePath("leverage")} aria-label="打开完整两融数据看板">
-        查看完整两融看板
+        查看两融
       </a>
     </section>
   );
@@ -93,6 +94,12 @@ type IndirectExposureRecord = FundRecord & {
 type StockRecord = {
   code: string;
   name: string;
+  aliases?: string[];
+  marketLabel?: string;
+  exchange?: string;
+  identityStatus?: "verified" | "disclosed" | "pending";
+  offExchangeFundCount?: number;
+  portfolioOnExchangeFundCount?: number;
   fundCount: number;
   activeFundCount: number;
   onExchangeFundCount?: number;
@@ -112,7 +119,7 @@ type StockRecord = {
 
 type PopularStock = Pick<
   StockRecord,
-  "code" | "name" | "fundCount" | "activeFundCount" | "maxRatioPercent"
+  "code" | "name" | "fundCount" | "activeFundCount" | "maxRatioPercent" | "aliases" | "marketLabel" | "exchange" | "identityStatus" | "offExchangeFundCount" | "portfolioOnExchangeFundCount"
 >;
 
 type FundStockIndex = {
@@ -167,11 +174,6 @@ type AiBattleHotspot = {
   homepageQuickEntry?: boolean;
 };
 
-const japaneseStockNamePattern =
-  /东京|丰田|索尼|日立|三菱|任天堂|软银|本田|东京电子|三井|住友|瑞穗|武田|迅销|基恩士|信越|村田|电装|佳能|尼康|日本/;
-const koreanStockNamePattern =
-  /三星电子|SK海力士|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华|韩国电力/;
-
 const numberFormatter = new Intl.NumberFormat("zh-CN");
 const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
@@ -219,7 +221,8 @@ function getInitialQuery() {
 }
 
 function getInitialSelectedCode() {
-  return getInitialSearchParam("stock") || null;
+  const code = getInitialSearchParam("stock");
+  return code ? canonicalizeSecurityCode(code) : null;
 }
 
 function getInitialPage(): AppPage {
@@ -263,16 +266,7 @@ export function stockLogoSources(code: string) {
 }
 
 function stockMarketBucket(code: string, name = ""): MarketBucket {
-  const normalized = code.trim().toUpperCase();
-  if (/^\d{5}$/.test(normalized)) return "hk";
-  if (/^\d{4}\.(T|JP)$/.test(normalized)) return "jp";
-  if (/^\d{6}\.(KS|KQ)$/.test(normalized)) return "kr";
-  if (/^[A-Z]{1,5}([.-][A-Z]{1,2})?$/.test(normalized)) return "us";
-  if (/^\d{4}$/.test(normalized)) return japaneseStockNamePattern.test(name) ? "jp" : "other";
-  if (/^\d{6}$/.test(normalized) && koreanStockNamePattern.test(name)) return "kr";
-  if (/^A\d+$/.test(normalized)) return "a";
-  if (/^\d{6}$/.test(normalized)) return "a";
-  return "other";
+  return getSecurityMarket(code, name);
 }
 
 function isOverseasStockCode(code: string, name = "") {
@@ -280,12 +274,13 @@ function isOverseasStockCode(code: string, name = "") {
 }
 
 function marketLabel(code: string, name = "") {
-  const bucket = stockMarketBucket(code, name);
-  if (bucket === "hk") return "港股";
-  if (bucket === "jp") return "日股";
-  if (bucket === "kr") return "韩股";
-  if (bucket === "us") return "美股";
-  return bucket === "other" ? "其他" : "A股";
+  return getSecurityIdentity(code, name).marketLabel;
+}
+
+function stockFundCountLabel(stock: PopularStock | StockRecord) {
+  return typeof stock.offExchangeFundCount === "number"
+    ? `${numberFormatter.format(stock.offExchangeFundCount)} 只场外基金`
+    : `${numberFormatter.format(stock.activeFundCount)} 只主动基金（摘要口径）`;
 }
 
 function hasWanValue(value: number | null | undefined): value is number {
@@ -335,7 +330,7 @@ type FundDetailsTarget = {
 };
 
 function normalizeStockCode(code: string) {
-  return code.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+  return canonicalizeSecurityCode(code).replace(/[^0-9A-Za-z]/g, "").toUpperCase();
 }
 
 function uniqueFundCodes(fundCode: string, fundVariantCodes?: string[]) {
@@ -647,6 +642,7 @@ function FundHoldingsHoverCard({
 
 function findMatches(stocks: StockRecord[], query: string) {
   const needle = normalize(query);
+  const canonicalNeedle = normalize(canonicalizeSecurityCode(query));
   if (!needle) {
     return [];
   }
@@ -655,16 +651,17 @@ function findMatches(stocks: StockRecord[], query: string) {
     .map((stock) => {
       const code = normalize(stock.code);
       const name = normalize(stock.name);
+      const aliases = (stock.aliases ?? []).map(normalize);
       let score = 0;
 
-      if (code === needle || name === needle) score = 1000;
+      if (code === canonicalNeedle || code === needle || name === needle || aliases.includes(needle)) score = 1000;
       else if (code.startsWith(needle) || name.startsWith(needle)) score = 700;
-      else if (code.includes(needle) || name.includes(needle)) score = 400;
+      else if (code.includes(needle) || name.includes(needle) || aliases.some((alias) => alias.includes(needle))) score = 400;
 
       return { stock, score };
     })
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || b.stock.activeFundCount - a.stock.activeFundCount)
+    .sort((a, b) => b.score - a.score || (b.stock.offExchangeFundCount ?? b.stock.activeFundCount) - (a.stock.offExchangeFundCount ?? a.stock.activeFundCount))
     .slice(0, 8)
     .map((item) => item.stock);
 }
@@ -1131,14 +1128,14 @@ function CandidateButton({
         </span>
       </span>
       <span>
-        {stock.activeFundCount} 只场外基金
-        <small>最高 {valueFormatter.format(stock.maxRatioPercent)}%</small>
+        {stockFundCountLabel(stock)}
+        <small>{stock.identityStatus === "pending" ? "代码身份待核对" : stock.exchange || stock.code}</small>
       </span>
     </button>
   );
 }
 
-function EmptyState({ loading, error }: { loading: boolean; error: string | null }) {
+function EmptyState({ loading, error, onRetry }: { loading: boolean; error: string | null; onRetry?: () => void }) {
   if (loading) {
     return (
       <section className="empty-state">
@@ -1154,7 +1151,9 @@ function EmptyState({ loading, error }: { loading: boolean; error: string | null
       <section className="empty-state error">
         <Database size={28} />
         <h2>数据载入失败</h2>
-        <p>{error}</p>
+        <p>请检查网络后重试。</p>
+        {onRetry && <button type="button" className="research-primary-action" onClick={onRetry}>重新加载</button>}
+        <details><summary>错误详情</summary><p>{error}</p></details>
       </section>
     );
   }
@@ -1458,7 +1457,6 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
       >
         <div className="feedback-dialog-header">
           <div>
-            <p className="eyeline">FEEDBACK</p>
             <h2 id="feedback-title">意见反馈</h2>
           </div>
           <button
@@ -1476,7 +1474,7 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="feedback-success">
             <MessageSquareText size={26} />
             <strong>已收到</strong>
-            <p>我会在邮箱里查看你的反馈。</p>
+            <p>感谢反馈。</p>
             <button type="button" onClick={closeDialog}>完成</button>
           </div>
         ) : (
@@ -1492,12 +1490,12 @@ function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void 
               />
             </label>
             <label>
-              留言或意见建议
+              留言
               <textarea
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 maxLength={1200}
-                placeholder="哪里不好用、数据哪里不对、想加什么功能，都可以写在这里。"
+                placeholder="问题或建议"
                 required
               />
             </label>
@@ -1539,6 +1537,8 @@ export function App() {
   const [selectedCode, setSelectedCode] = useState<string | null>(getInitialSelectedCode);
   const [popularMarketFilter, setPopularMarketFilter] = useState<PopularMarketFilter | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
+  const [researchContext, setResearchContext] = useState<{ stockCodes: string[]; isTemporary: boolean; name: string } | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
   const [hotspotsExpanded, setHotspotsExpanded] = useState(false);
@@ -1557,6 +1557,7 @@ export function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const researchLeaveGuardRef = useRef<((action: () => void, trigger: HTMLElement | null) => void) | null>(null);
   const temporarySelectionRequestIdRef = useRef(0);
+  const initialQueryHandledRef = useRef(false);
   const fundDetailsTriggerRef = useRef<HTMLElement | null>(null);
   const pendingFundDetailsFocusRef = useRef<HTMLElement | null>(null);
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1577,10 +1578,13 @@ export function App() {
     }
 
     let mounted = true;
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
 
     // 数据 URL 自带 ?v=<季度> 版本参数，季度切换时 URL 变化自动失效，
     // 因此走浏览器强缓存（配合 _headers 的 Cache-Control），避免每次访问重新下载 5MB 索引。
-    fetch(FUND_STOCK_DATA_URL)
+    fetch(FUND_STOCK_DATA_URL, { signal: controller.signal, ...(retryToken > 0 ? { cache: "reload" as const } : {}) })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`数据文件请求失败 (HTTP ${response.status})。请检查服务器是否正常运行。`);
@@ -1602,8 +1606,9 @@ export function App() {
 
     return () => {
       mounted = false;
+      controller.abort();
     };
-  }, [isResearchPage]);
+  }, [isResearchPage, retryToken]);
 
   useEffect(() => {
     if (typeof window === "undefined" || pageFromPathname(window.location.pathname) !== "research") {
@@ -1642,9 +1647,24 @@ export function App() {
     const fromSelectedCode = normalizedSelectedCode
       ? data.stocks.find((stock) => normalizeStockCode(stock.code) === normalizedSelectedCode)
       : null;
-    if (fromSelectedCode) return fromSelectedCode;
-    return matches[0] ?? null;
-  }, [data, matches, selectedCode]);
+    return fromSelectedCode ?? null;
+  }, [data, selectedCode]);
+
+  const handleResearchContextChange = useCallback((context: { stockCodes: string[]; isTemporary: boolean; name: string }) => {
+    setResearchContext(context);
+    setSelectedCode(context.isTemporary && context.stockCodes.length === 1 ? context.stockCodes[0] : null);
+  }, []);
+
+  const registerLeaveGuard = useCallback((guard: (action: () => void, trigger: HTMLElement | null) => void) => {
+    researchLeaveGuardRef.current = guard;
+  }, []);
+
+  function focusPortfolioControl(id: string) {
+    const control = document.getElementById(id);
+    if (!control) return;
+    control.scrollIntoView({ behavior: "auto", block: "center" });
+    control.focus({ preventScroll: true });
+  }
 
   const popularSuggestions = useMemo(() => {
     const source = data?.popularStocks ?? [];
@@ -1682,19 +1702,33 @@ export function App() {
   }, [data]);
 
   function chooseStock(stock: PopularStock | StockRecord, trigger: HTMLElement | null = null) {
-    setHoveredFund(null);
-    setSelectedCode(stock.code);
-    setQuery(stock.name);
     setSuggestionsOpen(false);
     setActiveSuggestionIndex(null);
-    setResultFocusRequest("selection");
-    temporarySelectionRequestIdRef.current += 1;
-    setTemporarySelection({
-      code: stock.code,
-      requestId: temporarySelectionRequestIdRef.current,
-      trigger,
-    });
+    const commitSelection = () => {
+      setHoveredFund(null);
+      setSelectedCode(stock.code);
+      setQuery(stock.name);
+      setResultFocusRequest("selection");
+      temporarySelectionRequestIdRef.current += 1;
+      setTemporarySelection({
+        code: stock.code,
+        requestId: temporarySelectionRequestIdRef.current,
+        trigger,
+      });
+    };
+    const leaveGuard = researchLeaveGuardRef.current;
+    if (leaveGuard) leaveGuard(commitSelection, trigger);
+    else commitSelection();
   }
+
+  useEffect(() => {
+    if (!data || initialQueryHandledRef.current) return;
+    initialQueryHandledRef.current = true;
+    if (!getInitialSelectedCode() && getInitialQuery()) {
+      const initialStock = findMatches(data.stocks, getInitialQuery())[0];
+      if (initialStock) chooseStock(initialStock);
+    }
+  }, [data]);
 
   function selectSearchSuggestion(index: number, trigger: HTMLElement | null = null) {
     const stock = suggestionItems[index] ?? matches[0];
@@ -1702,6 +1736,7 @@ export function App() {
   }
 
   function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return;
     if (event.key === "Escape") {
       setSuggestionsOpen(false);
       setActiveSuggestionIndex(null);
@@ -1802,8 +1837,8 @@ export function App() {
   const isAppLoading = loading && !error;
   const disclaimerText =
     page === "leverage" || page === "concentration"
-      ? "数据仅供趋势参考，不构成投资建议。"
-      : "本页面基于公开基金定期报告、基金持仓明细及申赎状态整理，仅供信息展示和研究参考，不构成任何投资建议、基金推荐、销售邀约或收益承诺。基金持仓、申购赎回、费率和限额可能存在披露滞后或实时变化，请以基金管理人、基金销售机构及监管披露文件为准。基金有风险，投资需谨慎。";
+      ? "仅供研究，不构成投资建议。"
+      : "持仓非实时；仅供研究，不构成投资建议。";
 
   return (
     <main className="app-shell" data-page={page} id="main-content" tabIndex={-1}>
@@ -1832,7 +1867,7 @@ export function App() {
             aria-current={page === "research" ? "page" : undefined}
             onClick={handleTopNavigation}
           >
-            研究
+            基金穿透
           </a>
           <a
             href={appPagePath("leverage")}
@@ -1885,10 +1920,17 @@ export function App() {
 
       {page === "research" && (
       <>
+      <section className="research-intro" aria-labelledby="research-title">
+        <div>
+          <h2 id="research-title">股票找基金</h2>
+          <p>{data?.meta.report ?? fundQuarter.report} · 持仓截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}</p>
+        </div>
+        <a href={appPagePath("methodology")} onClick={handleTopNavigation}>数据口径</a>
+      </section>
       <section className="search-zone" aria-label="基金持仓研究">
         <div className="command-panel" ref={searchPanelRef}>
           <div className="panel-status">
-            <span>全球股票 / 指数 / ETF</span>
+            <span>单股查询</span>
           </div>
           <form
             className="search-box"
@@ -1911,11 +1953,11 @@ export function App() {
                   : undefined
               }
               aria-haspopup="listbox"
+              aria-describedby="stock-search-hint"
               placeholder="NVDA / 00700 / 腾讯"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                setSelectedCode(null);
                 setHoveredFund(null);
                 setSuggestionsOpen(true);
                 setActiveSuggestionIndex(null);
@@ -1938,7 +1980,7 @@ export function App() {
               disabled={!matches[0]}
             >
               <Search size={18} />
-              查询
+              查看基金
             </button>
           </form>
           {showSuggestions && (
@@ -1957,15 +1999,75 @@ export function App() {
                   <span className="suggestion-code">{stock.code}</span>
                   <span className="suggestion-meta">
                     {marketLabel(stock.code, stock.name)} ·{" "}
-                    {numberFormatter.format(stock.activeFundCount)} 只场外基金 · 最高{" "}
-                    {valueFormatter.format(stock.maxRatioPercent)}%
+                    {stockFundCountLabel(stock)}{stock.exchange ? ` · ${stock.exchange}` : ""}
+                    {stock.identityStatus === "pending" ? " · 代码身份待核对" : ""}
                   </span>
                 </li>
               ))}
             </ul>
           )}
+          <p id="stock-search-hint" className="research-search-hint">查看单股；多股研究请用“加入组合”。</p>
+          {!isAppLoading && !error && query.trim() && matches.length === 0 && (
+            <div className="research-search-empty" role="status">
+              <p>未找到“{query}”。试试代码或名称，如 NVDA。</p>
+              <button type="button" onClick={() => { setQuery(""); searchInputRef.current?.focus(); }}>清空搜索</button>
+            </div>
+          )}
         </div>
 
+        <div className="research-entry-panel">
+          <span className="panel-status">组合研究</span>
+          <button type="button" className="research-primary-action" disabled={isAppLoading || Boolean(error)} onClick={() => focusPortfolioControl("saved-portfolio-select")}>打开组合</button>
+          <button type="button" className="research-secondary-action" disabled={isAppLoading || Boolean(error)} onClick={() => focusPortfolioControl("portfolio-stock-search")}>加入组合</button>
+          <p>最多 10 只 · 当前浏览器保存</p>
+        </div>
+      </section>
+
+      {researchContext && researchContext.stockCodes.length > 0 && (
+        <p className={`research-current-context${selectedStock?.identityStatus === "pending" ? "" : " visually-hidden"}`} aria-live="polite">
+          当前研究：{researchContext.isTemporary ? (selectedStock?.name ?? researchContext.stockCodes[0]) : (researchContext.name || "未命名组合")} · {researchContext.stockCodes.length} 只股票
+          {selectedStock?.exchange ? ` · ${selectedStock.exchange}` : ""}
+          {selectedStock?.identityStatus === "pending" ? " · 身份待核对，仅对应此代码版本" : ""}
+        </p>
+      )}
+      <section className={`workspace ${selectedStock ? "has-selection" : "no-selection"}`}>
+
+
+        <section className="results-panel">
+          {isAppLoading ? (
+            <SkeletonResults />
+          ) : error ? (
+            <EmptyState loading={false} error={error} onRetry={() => setRetryToken((value) => value + 1)} />
+          ) : (
+            <PortfolioWorkbench
+              stocks={data?.stocks ?? []}
+              report={data?.meta.report ?? fundQuarter.report}
+              cutoffDate={data?.meta.cutoffDate ?? fundQuarter.cutoffDate}
+              manifestUrl={fundQuarter.portfolioManifestUrl}
+              fundHoldingsUrl={fundQuarter.qdiiHoldingsUrl}
+              temporarySelection={temporarySelection}
+              focusResult={resultFocusRequest !== null}
+              onResultFocused={() => setResultFocusRequest(null)}
+              onLeaveGuard={registerLeaveGuard}
+              onResearchContextChange={handleResearchContextChange}
+              afterResultsReady={
+                <details className="research-market-details">
+                  <summary>市场环境 · 两融</summary>
+                <MarketSummaryBoundary>
+                  <Suspense fallback={<MarketSummaryFallback />}>
+                    <LazyLeverageMarketSummary />
+                  </Suspense>
+                </MarketSummaryBoundary>
+                </details>
+              }
+            />
+          )}
+        </section>
+      </section>
+
+      <details className="research-discovery">
+        <summary>热点与热门</summary>
+        <div className="research-discovery-body">
         <div className="recent-panel" aria-label="快速查询">
           <div className="panel-status">
             <span>AI 存储热点</span>
@@ -1984,20 +2086,16 @@ export function App() {
         </div>
 
         <div className="summary-card" aria-label="基金数据总览">
-          <span>全市场基金总数</span>
+          <span>覆盖基金</span>
           <strong>{data ? numberFormatter.format(data.meta.fundCount ?? data.meta.sourceRows) : "--"} 只</strong>
-          <small>覆盖中外市场</small>
         </div>
-      </section>
-
       <section
         className={`ai-hotspot-section ${hotspotsExpanded ? "" : "is-collapsed"}`}
         aria-labelledby="ai-hotspot-title"
       >
         <div className="ai-hotspot-head">
           <div>
-            <p className="eyeline">AI 战报热点</p>
-            <h2 id="ai-hotspot-title">最近高频标的一键穿透</h2>
+            <h2 id="ai-hotspot-title">AI 热点</h2>
           </div>
         </div>
         <div id="ai-hotspot-grid" className="ai-hotspot-grid">
@@ -2024,18 +2122,18 @@ export function App() {
                         <em>{stock.code}</em>
                       </span>
                     </span>
-                    <span className="hotspot-thesis">{hotspot.thesis}</span>
                     <span className="hotspot-metrics">
                       <span>
-                        <small>场外基金</small>
-                        <b>{numberFormatter.format(stock.activeFundCount)} 只</b>
+                        <small>{typeof stock.offExchangeFundCount === "number" ? "场外基金" : "主动基金（摘要）"}</small>
+                        <b>{numberFormatter.format(stock.offExchangeFundCount ?? stock.activeFundCount)} 只</b>
                       </span>
                       <span>
-                        <small>最高占比</small>
-                        <b>{valueFormatter.format(stock.maxRatioPercent)}%</b>
+                        <small>市场</small>
+                        <b>{stock.exchange || marketLabel(stock.code, stock.name)}</b>
                       </span>
                     </span>
                   </button>
+                  <details className="hotspot-note"><summary>研究线索</summary><p>{hotspot.thesis}</p></details>
                 </article>
               );
             })
@@ -2051,33 +2149,11 @@ export function App() {
             aria-controls="ai-hotspot-grid"
             onClick={() => setHotspotsExpanded((current) => !current)}
           >
-            {hotspotsExpanded ? "收起热点入口" : `展开其余 ${aiBattleHotspotCards.length - 3} 个热点`}
+            {hotspotsExpanded ? "收起" : `更多热点（${aiBattleHotspotCards.length - 3}）`}
           </button>
         )}
       </section>
 
-      <section className="selected-context" aria-label="当前研究上下文">
-        <div>
-          <span>数据期</span>
-          <strong>{data?.meta.report ?? fundQuarter.report}</strong>
-        </div>
-        <div>
-          <span>数据截至</span>
-          <strong>{data?.meta.cutoffDate ?? "载入中"}</strong>
-        </div>
-        <div>
-          <span>海外标的</span>
-          <strong>
-            {data ? numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount) : "--"} 只
-          </strong>
-        </div>
-        <div>
-          <span>持仓明细</span>
-          <strong>{data ? numberFormatter.format(data.meta.holdingRows ?? data.meta.sourceRows) : "--"} 条</strong>
-        </div>
-      </section>
-
-      <section className={`workspace ${selectedStock ? "has-selection" : "no-selection"}`}>
         <aside className="left-panel" aria-label="股票候选">
           <div className="left-panel-top">
             <div className="panel-heading">
@@ -2117,36 +2193,32 @@ export function App() {
             )}
           </div>
         </aside>
-
-        <section className="results-panel">
-          {isAppLoading ? (
-            <SkeletonResults />
-          ) : error ? (
-            <EmptyState loading={false} error={error} />
-          ) : (
-            <PortfolioWorkbench
-              stocks={data?.stocks ?? []}
-              report={data?.meta.report ?? fundQuarter.report}
-              cutoffDate={data?.meta.cutoffDate ?? fundQuarter.cutoffDate}
-              manifestUrl={fundQuarter.portfolioManifestUrl}
-              fundHoldingsUrl={fundQuarter.qdiiHoldingsUrl}
-              temporarySelection={temporarySelection}
-              focusResult={resultFocusRequest !== null}
-              onResultFocused={() => setResultFocusRequest(null)}
-              onLeaveGuard={(guard) => {
-                researchLeaveGuardRef.current = guard;
-              }}
-              afterResultsReady={
-                <MarketSummaryBoundary>
-                  <Suspense fallback={<MarketSummaryFallback />}>
-                    <LazyLeverageMarketSummary />
-                  </Suspense>
-                </MarketSummaryBoundary>
-              }
-            />
-          )}
-        </section>
+        </div>
+      </details>
+      <details className="research-data-overview">
+        <summary>数据范围与覆盖</summary>
+      <section className="selected-context" aria-label="数据范围与覆盖">
+        <div>
+          <span>数据期</span>
+          <strong>{data?.meta.report ?? fundQuarter.report}</strong>
+        </div>
+        <div>
+          <span>数据截至</span>
+          <strong>{data?.meta.cutoffDate ?? "载入中"}</strong>
+        </div>
+        <div>
+          <span>海外标的</span>
+          <strong>
+            {data ? numberFormatter.format(data.meta.overseasStockCount ?? data.meta.stockCount) : "--"} 只
+          </strong>
+        </div>
+        <div>
+          <span>持仓明细</span>
+          <strong>{data ? numberFormatter.format(data.meta.holdingRows ?? data.meta.sourceRows) : "--"} 条</strong>
+        </div>
       </section>
+
+      </details>
 
       </>
       )}
@@ -2170,40 +2242,54 @@ export function App() {
       {page === "methodology" && (
       <section className="methodology-section" aria-labelledby="methodology-title">
         <div className="methodology-head">
-          <span>方法论</span>
-          <h2 id="methodology-title">基金持仓穿透口径</h2>
+          <h2 id="methodology-title">数据口径</h2>
           <p>
-            数据期为 {data?.meta.report ?? fundQuarter.report}，截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。普通基金按季度报告前十大股票持仓展示；QDII 另以中期报告完整披露的权益投资更新，基金与 ETF 投资仅展示报告披露的前十项。未出现不代表基金未持有该标的。
+            {data?.meta.report ?? fundQuarter.report} · 截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。未披露不代表未持有。
           </p>
         </div>
         <div className="methodology-grid">
           <article>
-            <strong>场外样本</strong>
-            <p>剔除指数、ETF、ETF 联接等被动跟踪基金，保留主动基金里对单只股票的高权重表达。</p>
+            <strong>场外基金</strong>
+            <p>非场内主动、指数基金及 ETF 联接。场外不等于主动管理。</p>
           </article>
           <article>
-            <strong>场内样本</strong>
-            <p>ETF、LOF、封闭式基金和 REIT 单独归入场内视图，便于和场外主动配置分开判断。</p>
+            <strong>场内基金</strong>
+            <p>ETF、LOF、封闭式基金及上市 REIT，不含非上市的 REITs 主题基金。</p>
           </article>
           <article>
-            <strong>间接暴露</strong>
-            <p>海外个股杠杆 ETF/ETP/ETN 通过名称和配置映射回正股，单独展示原始占比和估算经济暴露。</p>
+            <strong>暴露估算</strong>
+            <p>总暴露 = 直接持仓 + 已识别间接暴露。缺失映射不代表零持仓。</p>
           </article>
           <article>
             <strong>排序规则</strong>
-            <p>默认按个股占基金净值比例排序；持仓市值缺失时保留披露状态，不用估算值替代。</p>
+            <p>总暴露 ↓ → 直接暴露 ↓ → 基金代码 ↑。数值为期末估算。</p>
           </article>
           <article>
             <strong>份额合并</strong>
-            <p>同一基金的 A/C、币种、前后端份额合并展示，同时保留全部基金代码供回查。</p>
+            <p>A/C、币种等份额按基金家族去重，不重复相加。</p>
+          </article>
+          <article>
+            <strong>证券身份</strong>
+            <p>仅合并已核实别名；未核实的标记待核对，原文可回查。</p>
           </article>
         </div>
+        <details className="methodology-details">
+          <summary>完整口径</summary>
+          <dl>
+            <dt>披露范围</dt>
+            <dd>普通基金为季度前十大股票；QDII 为中期报告完整权益持仓，基金与 ETF 投资仅含报告前十项。</dd>
+            <dt>间接暴露</dt>
+            <dd>仅计入已识别且合格的正向杠杆 ETF/ETP/ETN：产品原占比 × 杠杆倍数。展开基金构成可查看来源和份额代码，估算不代表实时仓位或收益。</dd>
+            <dt>分类与计数</dt>
+            <dd>场内、场外互斥，按交易场景分类，与主动、指数管理方式分开。搜索计数与未筛选的单股结果同口径；同基金的不同份额仅计一次。</dd>
+          </dl>
+        </details>
       </section>
       )}
 
       <footer className="compliance-disclaimer">
-        <strong>免责声明</strong>
         <p>{disclaimerText}</p>
+        {page === "research" || page === "methodology" ? <details><summary>使用须知</summary><p>持仓、申赎、费率及限额可能滞后，请以基金公司和监管最新披露为准。本页不构成基金推荐、销售邀约或收益承诺。</p></details> : null}
       </footer>
 
       {hoveredFund && (

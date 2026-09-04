@@ -14,6 +14,7 @@ from typing import Any
 
 from atomic_publish import publish_staged_files
 from quarter_config import load_quarter_config
+from security_identity import security_identity, verified_code_aliases
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +33,10 @@ INDIRECT_EXPOSURE_AUDIT_MD = ROOT / "public" / "seo" / f"indirect-exposure-audit
 QDII_RICH_JSON = TARGET_JSON.with_name(f"qdii-fund-holdings-{QUARTER.year}h1.json")
 INDEX_FUND_MARKERS = ("指数", "ETF", "ETF联接")
 ON_EXCHANGE_FUND_MARKERS = ("ETF", "LOF", "封闭", "REIT")
+FUND_TRADING_OVERRIDES = {
+    item["fundFamilyKey"]: item["isOnExchangeFund"]
+    for item in json.loads((ROOT / "config/fund-trading-overrides.json").read_text(encoding="utf-8"))["funds"]
+}
 LEVERAGED_LONG_MARKERS_RE = re.compile(
     r"(?i)(?:\b\d(?:\.\d+)?\s*X\b|\d(?:\.\d+)?\s*倍|杠杆|LEVERAGED|LEVERAGE|ULTRA)"
 )
@@ -87,32 +92,8 @@ def rounded_optional(value: float | None, digits: int = 4) -> float | None:
     return None if value is None else round(value, digits)
 
 
-JAPANESE_STOCK_NAME_RE = re.compile(
-    r"东京|丰田|索尼|日立|三菱|任天堂|软银|本田|东京电子|三井|住友|瑞穗|武田|迅销|基恩士|信越|村田|电装|佳能|尼康|日本"
-)
-KOREAN_STOCK_NAME_RE = re.compile(
-    r"三星电子|SK\s*(?:海力士|HYNIX)|现代汽车|起亚|LG|NAVER|Kakao|浦项|POSCO|Celltrion|韩华|韩国电力",
-    re.IGNORECASE,
-)
-
-
 def stock_market_bucket(code: str, name: str = "") -> str:
-    normalized = code.strip().upper()
-    if re.fullmatch(r"\d{5}", normalized):
-        return "hk"
-    if re.fullmatch(r"\d{4}\.(T|JP)", normalized):
-        return "jp"
-    if re.fullmatch(r"\d{6}\.(KS|KQ)", normalized):
-        return "kr"
-    if re.fullmatch(r"[A-Z]{1,5}([.-][A-Z]{1,2})?", normalized):
-        return "us"
-    if re.fullmatch(r"\d{4}", normalized):
-        return "jp" if JAPANESE_STOCK_NAME_RE.search(name) else "other"
-    if re.fullmatch(r"\d{6}", normalized) and KOREAN_STOCK_NAME_RE.search(name):
-        return "kr"
-    if re.fullmatch(r"\d{6}", normalized) or re.fullmatch(r"A\d+", normalized):
-        return "a"
-    return "other"
+    return security_identity(code, name)["market"]
 
 
 def is_overseas_stock_code(code: str, name: str = "") -> bool:
@@ -1351,6 +1332,9 @@ def is_etf_feeder_fund(fund: dict[str, Any]) -> bool:
 
 
 def is_on_exchange_fund(fund: dict[str, Any]) -> bool:
+    verified_classification = FUND_TRADING_OVERRIDES.get(fund_family_key(fund))
+    if verified_classification is not None:
+        return verified_classification
     text = f"{fund['fundName']} {fund['fundType']}".upper()
     if is_etf_feeder_fund(fund):
         return False
@@ -1557,6 +1541,7 @@ def portfolio_profile(fund: dict[str, Any], family_key: str, variant_codes: set[
         "fundVariantCodes": sorted(variant_codes),
         "isQdii": bool(fund.get("isQdii", False)),
         "isOnExchangeFund": is_on_exchange_fund(fund),
+        "managementStyle": "index" if is_index_fund(fund) else "active",
         "view": portfolio_view_for(fund),
         "detailShardKey": portfolio_detail_shard_prefix(family_key),
     }
@@ -1596,6 +1581,29 @@ def build_portfolio_profile_registry(
     return {
         family_key: portfolio_profile(representative, family_key, variants[family_key])
         for family_key, representative in sorted(representatives.items())
+    }
+
+
+def portfolio_stock_family_counts(
+    code: str,
+    direct_funds: list[dict[str, Any]],
+    indirect_candidates: list[dict[str, Any]],
+    profile_registry: dict[str, dict[str, Any]],
+) -> dict[str, int]:
+    """Use the exact portfolio edge eligibility and family classification for search counts."""
+    families = {
+        fund_family_key(fund) for fund in direct_funds
+        if portfolio_direct_ineligible_reason(fund) is None
+    }
+    families.update(
+        fund_family_key(fund) for fund in indirect_candidates
+        if portfolio_indirect_ineligible_reason(fund) is None and fund.get("targetCode") == code
+    )
+    on_exchange = sum(profile_registry[key]["isOnExchangeFund"] for key in families)
+    return {
+        "offExchangeFundCount": len(families) - on_exchange,
+        "portfolioOnExchangeFundCount": on_exchange,
+        "researchFundCount": len(families),
     }
 
 
@@ -2360,6 +2368,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     purchase_limit_metadata = load_purchase_limit_metadata()
     exposure_aliases = load_exposure_aliases()
     stock_code_aliases = configured_stock_code_aliases(exposure_aliases)
+    stock_code_aliases.update(verified_code_aliases())
     qdii_h1_source = load_qdii_h1_source()
     base_fund_investment_rows = [
         {key: csv_text(value) for key, value in row.items() if key}
@@ -2437,10 +2446,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
 
         stock_rows.setdefault(
             code,
-            {
-                "code": code,
-                "name": name,
-            },
+            security_identity(code, name),
         )
         existing = stock_funds[code].get(fund["fundCode"])
         stock_funds[code][fund["fundCode"]] = better_record(existing, fund)
@@ -2549,8 +2555,7 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             )
         stocks.append(
             {
-                "code": base["code"],
-                "name": base["name"],
+                **base,
                 "fundCount": fund_family_count,
                 "activeFundCount": active_fund_family_count,
                 "shareClassCount": len(funds),
@@ -2575,6 +2580,19 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
     stocks.sort(key=lambda item: (-item["activeFundCount"], -item["fundCount"], item["code"]))
     overseas_stocks = [item for item in stocks if is_overseas_stock_code(item["code"], item["name"])]
     export_stocks = overseas_stocks if overseas_stocks else stocks
+    shipped_stock_codes = {stock["code"] for stock in export_stocks}
+    shipped_direct_funds = {
+        code: list(stock_funds[code].values()) for code in shipped_stock_codes if code in stock_funds
+    }
+    shipped_indirect_candidates = {
+        code: candidates for code, candidates in portfolio_indirect_candidates.items() if code in shipped_stock_codes
+    }
+    profile_registry = build_portfolio_profile_registry(shipped_direct_funds, shipped_indirect_candidates)
+    for stock in export_stocks:
+        stock.update(portfolio_stock_family_counts(
+            stock["code"], shipped_direct_funds.get(stock["code"], []),
+            shipped_indirect_candidates.get(stock["code"], []), profile_registry,
+        ))
     popular_source = balanced_overseas_popular(overseas_stocks) if overseas_stocks else stocks[:60]
     popular_market_mix = {
         "hk": sum(1 for item in popular_source if stock_market_bucket(item["code"], item["name"]) == "hk"),
@@ -2590,6 +2608,10 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
             "fundCount": item["fundCount"],
             "activeFundCount": item["activeFundCount"],
             "maxRatioPercent": item["maxRatioPercent"],
+            **{key: item[key] for key in (
+                "aliases", "market", "marketLabel", "exchange", "identityStatus",
+                "offExchangeFundCount", "portfolioOnExchangeFundCount", "researchFundCount",
+            )},
         }
         for item in popular_source
     ]
@@ -2716,19 +2738,10 @@ def build_index_with_audit() -> tuple[dict[str, Any], str, dict[str, Any]]:
         indirect_exposures,
         exposure_aliases,
     )
-    shipped_stock_codes = {stock["code"] for stock in export_stocks}
     portfolio_inputs = {
         "stockRows": {code: stock_rows[code] for code in shipped_stock_codes},
-        "directFunds": {
-            code: list(stock_funds[code].values())
-            for code in shipped_stock_codes
-            if code in stock_funds
-        },
-        "indirectCandidates": {
-            code: candidates
-            for code, candidates in portfolio_indirect_candidates.items()
-            if code in shipped_stock_codes
-        },
+        "directFunds": shipped_direct_funds,
+        "indirectCandidates": shipped_indirect_candidates,
         "indirectCoverage": portfolio_indirect_coverage,
         "fundHoldings": portfolio_fund_holdings,
         "qdiiRichPayload": qdii_rich,

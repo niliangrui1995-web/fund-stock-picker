@@ -257,14 +257,15 @@ async function add(page, code) {
   );
   ok(exactIndex >= 0, `组合股票检索没有唯一的 ${code} 建议`);
   await options.nth(exactIndex).click();
-  await page.getByRole("button", { name: "添加到组合" }).click();
+  await page.locator(".portfolio-stock-search-field").getByRole("button", { name: "加入组合" }).click();
   await page
-    .getByText("正在校验并加载完整组合结果…")
+    .getByText("校验并加载结果…")
     .waitFor({ state: "hidden", timeout: 30000 });
 }
 async function target(locator, label) {
   const box = await locator.boundingBox();
-  ok(box && box.width >= 24 && box.height >= 24, `${label}小于 24×24`);
+  const minimum = locator.page().viewportSize().width <= 720 ? 44 : 24;
+  ok(box && box.width >= minimum && box.height >= minimum, `${label}小于 ${minimum}×${minimum}`);
 }
 async function overflow(page, label) {
   const size = await page.evaluate(() => [
@@ -294,7 +295,6 @@ async function portfolioEditorLayout(page, label, { wide, stacked }) {
         stockSearch: rect(".portfolio-stock-search-field input"),
         addStock: rect(".portfolio-add-stock"),
       },
-      hint: rect(".portfolio-stock-search-hint"),
     };
   });
   const sameRow = (rowName, entries) => {
@@ -312,9 +312,9 @@ async function portfolioEditorLayout(page, label, { wide, stacked }) {
     sameRow("标签", layout.labels);
     sameRow("控件", layout.controls);
   } else if (stacked) {
-    ok(Number.isFinite(layout.hint?.bottom), `${label} 缺少检索提示坐标`);
+    ok(Number.isFinite(layout.controls.stockSearch?.bottom), `${label} 缺少检索输入框坐标`);
     ok(Number.isFinite(layout.controls.addStock?.top), `${label} 缺少添加按钮坐标`);
-    const gap = layout.controls.addStock.top - layout.hint.bottom;
+    const gap = layout.controls.addStock.top - layout.controls.stockSearch.bottom;
     ok(gap >= 0 && gap <= 16, `${label} 纵向按钮间距异常：${gap.toFixed(2)}px`);
   } else {
     sameRow("检索与添加控件", {
@@ -467,7 +467,7 @@ async function detailsButton(page) {
   const count = await rows.count();
   for (let index = 0; index < count; index += 1) {
     const row = rows.nth(index);
-    if (/QDII/i.test(await row.innerText())) continue;
+    if ((await row.getAttribute("data-qdii")) === "true") continue;
     const button = row.getByRole("button", { name: /查看 .* 基金详情/ });
     await button.waitFor({ state: "visible" });
     return button;
@@ -483,7 +483,7 @@ async function emptyLazy(browser, url, result) {
       .getByRole("combobox", { name: "搜索股票名称或代码" })
       .waitFor({ state: "visible" });
     await state.page
-      .getByText("请从上方搜索、热门标的或组合选择器添加股票后开始研究。")
+      .getByText("添加股票，查看持有它们的基金。")
       .waitFor();
     network(state, "空研究", [
       /fund-portfolio-index-.*manifest/i,
@@ -509,7 +509,7 @@ async function readySummaryTabs(browser, url, result) {
     );
     await page.getByRole("heading", { name: "临时研究" }).waitFor();
     await page.getByLabel("已选股票").getByRole("button", { name: /^移除 .* NVDA$/ }).waitFor();
-    const titleFocus = await focusEvidence(page.getByRole("heading", { name: "临时研究" }), "结果标题", { keyboard: false });
+    const titleFocus = await focusEvidence(page.locator(".portfolio-result-focus"), "结果标题", { keyboard: false });
     const tabs = page.getByRole("tab", { name: /场外基金|场内 ETF/ });
     assert.equal(await tabs.count(), 2, "缺少两个互斥页签。");
     for (const tab of [tabs.nth(0), tabs.nth(1)]) {
@@ -536,9 +536,10 @@ async function readySummaryTabs(browser, url, result) {
     await page.keyboard.press("Home");
     await page.getByRole("tab", { name: "场外基金", selected: true }).waitFor();
     await page.keyboard.press("End");
+    await page.locator(".research-market-details > summary").click();
     const summary = page.getByLabel("市场环境");
     await summary
-      .getByText(/共同交易日 \d+ 天/)
+      .getByText(/\d+ 个共同交易日/)
       .waitFor({ state: "visible", timeout: 30000 });
     assert.equal(
       await summary
@@ -550,14 +551,16 @@ async function readySummaryTabs(browser, url, result) {
       summary.getByRole("link", { name: "打开完整两融数据看板" }),
       "摘要链接",
     );
-    await summary.getByText(/100 →/).nth(0).waitFor();
     const summaryText = await summary.innerText();
-    assert.equal((summaryText.match(/100 →/g) ?? []).length, 2, "摘要未分别显示融资余额和指数两个 100 基线。");
+    const comparisons = await summary.locator("dl > div").evaluateAll((items) => Object.fromEntries(items.map((item) => [item.querySelector("dt")?.textContent?.trim(), item.querySelector("dd")?.textContent?.trim()])));
+    assert.match(comparisons["融资余额变化"] ?? "", /^-?\d+\.\d{2}%$/, "摘要缺少融资余额区间变化");
+    assert.match(comparisons["上证指数变化"] ?? "", /^-?\d+\.\d{2}%$/, "摘要缺少上证指数区间变化");
+    assert.match(comparisons["融资 − 指数"] ?? "", /^-?\d+\.\d{2} 个百分点$/, "摘要差值没有使用百分点");
+    ok(Math.abs(parseFloat(comparisons["融资余额变化"]) - parseFloat(comparisons["上证指数变化"]) - parseFloat(comparisons["融资 − 指数"])) <= 0.02, "摘要差值与两个区间变化不一致");
     const interval = summaryText.match(/(20\d{2}-\d{2}-\d{2})\s*至\s*(20\d{2}-\d{2}-\d{2})/);
     ok(interval?.[1] && interval?.[2], `摘要缺少实际起止日期：${summaryText}`);
     ok(interval[1] !== interval[2], `摘要起止日期没有区分：${summaryText}`);
-    await summary.getByText(/融资余额变化减指数变化/).waitFor();
-    await summary.getByText(/不证明其造成所选股票或基金结果变化/).waitFor();
+    await summary.getByText(/不说明个股或基金表现的原因/).waitFor();
     network(
       state,
       "ready 组合",
@@ -594,8 +597,8 @@ async function selectionAndLimit(browser, url, result) {
     const pickerSuggestions = page.getByRole("listbox", { name: "匹配股票" });
     await pickerSuggestions.waitFor({ state: "visible" });
     ok(
-      (await pickerSuggestions.getByRole("option", { name: /台湾积体/ }).count()) >= 2,
-      "中文组合检索没有保留台湾积体的多个可选代码",
+      (await pickerSuggestions.getByRole("option", { name: /台积电.*TSM/ }).count()) === 1,
+      "旧中文名称没有命中标准台积电 ADR",
     );
     await picker.press("ArrowDown");
     ok(
@@ -603,7 +606,10 @@ async function selectionAndLimit(browser, url, result) {
       "中文组合检索没有激活建议",
     );
     await picker.press("Enter");
-    assert.match(await picker.inputValue(), /台湾积体/, "中文组合检索没有选中台湾积体");
+    assert.match(await picker.inputValue(), /台积电/, "中文组合检索没有以标准名称选中台积电");
+    await picker.fill("2330");
+    await pickerSuggestions.locator("#portfolio-stock-search-option-2330").waitFor();
+    assert.equal(await pickerSuggestions.getByRole("option", { name: /TSM/ }).count(), 0, "台股本股代码被误合并到 ADR");
 
     const onExchangeTab = page.getByRole("tab", { name: "场内 ETF / LOF" });
     await onExchangeTab.click();
@@ -653,18 +659,20 @@ async function selectionAndLimit(browser, url, result) {
       "键盘搜索没有激活建议",
     );
     await search.press("Enter");
+    await page.getByLabel("已选股票").getByRole("button", { name: /^移除 .* TSM$/ }).waitFor();
     for (const value of values) await add(page, value);
     assert.equal(
       await picker.isDisabled(),
       true,
       "10 只后选择器未禁用",
     );
-    await page.getByText(/每个组合最多 10 只股票/).waitFor();
+    await page.getByText(/已满 10 只/).waitFor();
     await search.fill("TSM");
     await search.press("ArrowDown");
     await search.press("Enter");
-    const dialog = page.getByRole("dialog", { name: "组合更改尚未保存" });
+    const dialog = page.getByRole("dialog", { name: "有未保存更改" });
     await dialog.waitFor().catch((error) => { throw new Error(`临时替换保护未出现：${error.message}`); });
+    const beforeCancel = await page.getByLabel("已选股票").innerText();
     await page.keyboard.press("Escape");
     await dialog.waitFor({ state: "hidden" });
     await page.waitForFunction(
@@ -672,6 +680,7 @@ async function selectionAndLimit(browser, url, result) {
         document.activeElement?.getAttribute("aria-label") ===
         "搜索股票名称或代码",
     );
+    assert.equal(await page.getByLabel("已选股票").innerText(), beforeCancel, "取消替换改变了工作台股票");
     result.limit = {
       chips: await page
         .getByLabel("已选股票")
@@ -694,11 +703,22 @@ async function storageGuards(browser, url, result) {
     await ready(page, url);
     const name = page.getByLabel("组合名称");
     await name.fill("QA 组合 A");
-    await page.getByRole("button", { name: "保存更改" }).click();
+    await page.getByRole("button", { name: "保存组合", exact: true }).click();
+    ok(await page.getByRole("button", { name: "保存更改" }).isDisabled(), "保存后重复保存未禁用");
+    await page.locator(".portfolio-status").getByText("已保存", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "另存为" }).click();
+    const copyDialog = page.getByRole("dialog", { name: "另存为" });
+    assert.equal(await copyDialog.getByLabel("副本名称").inputValue(), "QA 组合 A（副本）");
+    await copyDialog.getByRole("button", { name: "保存副本" }).click();
+    await copyDialog.waitFor({ state: "hidden" });
+    const copies = await page.evaluate(() => JSON.parse(localStorage.getItem("chuhaiqianyan.portfolio-baskets.v1")).baskets);
+    assert.equal(copies.length, 2, "另存为没有产生独立副本");
+    assert.notEqual(copies[0].id, copies[1].id, "副本沿用原组合 ID");
+    await page.getByLabel("本机组合").selectOption({ label: "QA 组合 A" });
     await page.goto(`${url}/research`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page
-      .getByRole("heading", { name: "QA 组合 A" })
+      .getByRole("heading", { name: "QA 组合 A", exact: true })
       .waitFor({ state: "visible", timeout: 30000 });
     await add(page, "TSM");
     const dirty = await page.evaluate(() => {
@@ -708,13 +728,13 @@ async function storageGuards(browser, url, result) {
     });
     ok(dirty, "脏草稿没有 beforeunload 保护");
     await page.evaluate(() => window.history.pushState(null, "", "/research?stock=NVDA"));
-    const nav = page.getByRole("link", { name: "研究" });
+    const nav = page.getByRole("link", { name: "基金穿透" });
     await nav.click();
-    const dialog = page.getByRole("dialog", { name: "组合更改尚未保存" });
+    const dialog = page.getByRole("dialog", { name: "有未保存更改" });
     await dialog.waitFor().catch((error) => { throw new Error(`顶部研究离开保护未出现：${error.message}`); });
     await page.keyboard.press("Escape");
     await page.waitForFunction(
-      () => document.activeElement?.textContent?.trim() === "研究",
+      () => document.activeElement?.textContent?.trim() === "基金穿透",
     );
     await nav.click();
     await dialog.getByRole("button", { name: "保存" }).click();
@@ -726,13 +746,13 @@ async function storageGuards(browser, url, result) {
     });
     ok(!clean, "保存后 beforeunload 仍阻止离开");
     await page
-      .getByRole("heading", { name: "QA 组合 A" })
+      .getByRole("heading", { name: "QA 组合 A", exact: true })
       .waitFor({ state: "visible", timeout: 30000 });
     await page.getByRole("button", { name: "新建" }).click();
     await name.fill("QA 组合 B");
     await add(page, "TSM");
-    await page.getByRole("button", { name: "保存更改" }).click();
-    const saved = page.getByLabel("切换已保存组合");
+    await page.getByRole("button", { name: "保存组合", exact: true }).click();
+    const saved = page.getByLabel("本机组合");
     await saved.selectOption({ label: "QA 组合 A" });
     await add(page, "AAPL");
     await saved.selectOption({ label: "QA 组合 B" });
@@ -740,18 +760,22 @@ async function storageGuards(browser, url, result) {
     await dialog.getByRole("button", { name: "取消" }).click();
     await saved.selectOption({ label: "QA 组合 B" });
     await dialog.getByRole("button", { name: "放弃" }).click();
-    await page.getByRole("heading", { name: "QA 组合 B" }).waitFor();
+    await page.getByRole("heading", { name: "QA 组合 B", exact: true }).waitFor();
     await add(page, "AAPL");
-    const deleteButton = page.getByRole("button", { name: "删除" });
+    await page.locator(".portfolio-more-actions > summary").click();
+    const deleteButton = page.getByRole("button", { name: "删除组合", exact: true });
     await deleteButton.click();
-    await dialog.waitFor();
+    const deleteDialog = page.getByRole("alertdialog", { name: "删除“QA 组合 B”？" });
+    await deleteDialog.waitFor();
+    await deleteDialog.getByText(/及当前未保存的更改/).waitFor();
     await page.keyboard.press("Escape");
-    await dialog.waitFor({ state: "hidden" });
-    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === "删除");
+    await deleteDialog.waitFor({ state: "hidden" });
+    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === "删除组合");
+    await page.getByRole("heading", { name: "QA 组合 B", exact: true }).waitFor();
     await deleteButton.click();
-    await dialog.getByRole("button", { name: "放弃" }).click();
-    await page.getByRole("heading", { name: "QA 组合 A" }).waitFor();
-    result.storage = { beforeUnload: { dirty, clean } };
+    await deleteDialog.getByRole("button", { name: "确认删除" }).click();
+    await page.getByRole("heading", { name: "QA 组合 A", exact: true }).waitFor();
+    result.storage = { beforeUnload: { dirty, clean }, independentCopy: true, deletionConfirmation: true };
   } finally {
     network(state, "本机保存最终", [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
     await state.context.close();
@@ -769,7 +793,7 @@ async function paginationAndEmpty(browser, url, result) {
       assert.equal(await rows.count(), 50, `${name}初始不是 50 行`);
       const firstPageCount = await rows.count();
       const first = await rows.first().innerText();
-      const loadMore = page.getByRole("button", { name: /加载更多/ });
+      const loadMore = page.getByRole("button", { name: /^更多（/ });
       await focusEvidence(loadMore, `${name} 加载更多`);
       await target(loadMore, `${name} 加载更多`);
       await loadMore.click();
@@ -787,11 +811,12 @@ async function paginationAndEmpty(browser, url, result) {
         items
           .map((item) =>
             Number(
-              (item.textContent?.match(/总估算经济暴露\s*([\d.]+)%/) ?? [])[1],
+              item.querySelector(".portfolio-total-exposure")?.textContent?.replace(/[,%]/g, ""),
             ),
           )
           .filter(Number.isFinite),
       );
+      assert.equal(totals.length, loadedCount, "比较表没有可读取的总估算暴露数值");
       totals
         .slice(1)
         .forEach((value, index) =>
@@ -805,14 +830,17 @@ async function paginationAndEmpty(browser, url, result) {
   }
   const empty = await scenario(browser, url, { width: 1440, height: 1024 });
   try {
-    await ready(empty.page, url, "TSM");
+    const currentIndex = JSON.parse(await readFile(join(root, "public/data/fund-stock-index-2026q2.json"), "utf8"));
+    const emptyStock = currentIndex.stocks.find((stock) => stock.offExchangeFundCount > 0 && stock.portfolioOnExchangeFundCount === 0);
+    ok(emptyStock, "当前索引缺少可验证场内空分类的真实证券");
+    await ready(empty.page, url, emptyStock.code);
     const tab = empty.page.getByRole("tab", { name: "场内 ETF / LOF" });
     await tab.click();
     const panel = empty.page.getByRole("tabpanel", { name: "场内 ETF / LOF" });
     await panel.focus();
     assert.equal(await panel.getAttribute("tabindex"), "0");
-    await panel.getByText("该分类暂无匹配基金。").waitFor();
-    result.emptyOnExchange = true;
+    await panel.getByText("该分类暂无匹配基金。未出现不代表未持有。").waitFor();
+    result.emptyOnExchange = { stockCode: emptyStock.code };
   } finally {
     network(empty, "空分类最终", [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i]);
     await empty.context.close();
@@ -821,11 +849,12 @@ async function paginationAndEmpty(browser, url, result) {
 async function detailsAndFailure(browser, url, fixtureSource, result) {
   const normal = await scenario(browser, url, { width: 1440, height: 1024 });
   try {
-    await ready(normal.page, url);
+    await ready(normal.page, url, "00700");
     const trigger = await detailsButton(normal.page);
     await trigger.click();
     const dialog = normal.page.getByRole("dialog");
     await dialog.waitFor();
+    await dialog.locator("ol li").first().waitFor();
     const count = await dialog.locator("ol li").count();
     ok(count > 0 && count <= 10, "available 详情不是 1–10 行");
     await normal.page.keyboard.press("Escape");
@@ -841,12 +870,13 @@ async function detailsAndFailure(browser, url, fixtureSource, result) {
   const info = await fixture(fixtureSource.preview, fixtureSource.temp);
   const absent = await scenario(browser, url, { width: 1440, height: 1024 });
   try {
-    await ready(absent.page, url);
-    const absentMore = absent.page.getByRole("button", { name: /加载更多/ });
+    await ready(absent.page, url, "00700");
+    const absentMore = absent.page.getByRole("button", { name: /^更多（/ });
     if (await absentMore.count()) await absentMore.click();
     await (await detailsButton(absent.page)).click();
     const dialog = absent.page.getByRole("dialog");
     await dialog.waitFor();
+    await dialog.getByText(/QA 临时夹具：当前已采集公开股票明细未包含详情/).waitFor();
     const detailText = await dialog.innerText();
     ok(detailText.includes("QA 临时夹具：当前已采集公开股票明细未包含详情。"), `not-captured 文案缺失：${detailText}`);
     ok(detailText.includes("未出现不代表未持有"), `not-captured 未披露边界：${detailText}`);
@@ -864,8 +894,8 @@ async function detailsAndFailure(browser, url, fixtureSource, result) {
   const abortDetail = (route) => route.abort("failed");
   await unavailable.context.route(detailPath, abortDetail);
   try {
-    await ready(unavailable.page, url);
-    const unavailableMore = unavailable.page.getByRole("button", { name: /加载更多/ });
+    await ready(unavailable.page, url, "00700");
+    const unavailableMore = unavailable.page.getByRole("button", { name: /^更多（/ });
     if (await unavailableMore.count()) await unavailableMore.click();
     await (await detailsButton(unavailable.page)).click();
     const dialog = unavailable.page.getByRole("dialog");
@@ -911,7 +941,7 @@ async function detailsAndFailure(browser, url, fixtureSource, result) {
     await blocked.page.getByRole("button", { name: /^移除 .* TSM$/ }).click();
     await blocked.context.unroute(tsmShardPath, abortTsm);
     await blocked.page.locator(".portfolio-fund-row").first().waitFor({ state: "visible", timeout: 30000 });
-    ok((await blocked.page.getByLabel("市场环境").count()) > 0, "移除失败股票后组合未恢复摘要");
+    await blocked.page.locator(".research-market-details > summary").waitFor();
     result.blocked = { removedFailedStockAndRecovered: true, blockedNotice };
   } finally {
     network(blocked, "阻断并移除恢复最终", [/LeverageDashboard|LeverageChart|LeverageControls|echarts|zrender/i], [], [tsmShardPath]);
@@ -928,13 +958,14 @@ async function detailsAndFailure(browser, url, fixtureSource, result) {
   );
   try {
     await ready(summaryFail.page, url);
+    await summaryFail.page.locator(".research-market-details > summary").click();
     ok(
       (await summaryFail.page.locator(".portfolio-fund-row").count()) > 0,
       "摘要失败清空了组合结果",
     );
     await summaryFail.page
       .getByLabel("市场环境")
-      .getByText("市场环境摘要暂不可用")
+      .getByText("摘要暂不可用")
       .waitFor({ state: "visible", timeout: 30000 });
     const fallbackLink = summaryFail.page.getByLabel("市场环境").getByRole("link", { name: "打开完整两融数据看板" });
     assert.equal(await fallbackLink.getAttribute("href"), "/leverage");
@@ -973,7 +1004,7 @@ async function viewportMatrix(browser, url, result) {
       await add(page, "TSM");
       await page.getByRole("button", { name: /^移除 .* TSM$/ }).click();
       await page.getByRole("tab", { name: "场内 ETF / LOF" }).click();
-      const detail = await detailsButton(page);
+      const detail = page.getByRole("tabpanel").getByRole("button", { name: /查看 .* 基金详情/ }).first();
       await detail.click();
       await page.getByRole("dialog").waitFor();
       await page.keyboard.press("Escape");

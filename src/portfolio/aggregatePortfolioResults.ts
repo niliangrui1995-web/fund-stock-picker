@@ -17,6 +17,7 @@ interface MutableContribution {
   directRatioPercent: number;
   indirectEstimatedRatioPercent: number;
   indirectSources: QualifiedIndirectEdge[];
+  directSources: DirectEdge[];
 }
 
 interface MutableAggregate {
@@ -106,6 +107,7 @@ function contributionFor(
     directRatioPercent: 0,
     indirectEstimatedRatioPercent: 0,
     indirectSources: [],
+    directSources: [],
   };
   aggregate.contributions.set(targetCode, created);
   return created;
@@ -143,6 +145,7 @@ function toResult(
     return [{
       ...contribution,
       indirectSources: [...contribution.indirectSources],
+      directSources: [...contribution.directSources],
     }];
   });
   return {
@@ -219,8 +222,9 @@ export function aggregatePortfolioResults(input: {
     if (profile === undefined) continue;
     const aggregate = ensureAggregate(aggregates, profile);
     aggregate.directRatioPercent += edge.ratioPercent;
-    contributionFor(aggregate, edge.targetCode, edge.targetName).directRatioPercent +=
-      edge.ratioPercent;
+    const contribution = contributionFor(aggregate, edge.targetCode, edge.targetName);
+    contribution.directRatioPercent += edge.ratioPercent;
+    contribution.directSources.push(edge);
   }
   for (const edge of indirectRepresentatives.values()) {
     const profile = profiles.get(edge.fundFamilyKey);

@@ -115,12 +115,14 @@ export function LeverageDisclosure({ payload, manifest }: LeverageDisclosureProp
 
   return (
     <aside className="leverage-disclosure" aria-label="数据说明">
+      <div className="leverage-disclosure-essential">
+        <p>融资余额反映市场杠杆，不预示涨跌；占市值比例 = 融资余额 ÷ 沪深 A 股市值。</p>
+        {ratioAvailable && <p className="leverage-disclosure-warning">厂商分段未经交易所复核；融资余额可能含非 A 股标的，跨来源占比不可直接比较。</p>}
+      </div>
       <details>
-        <summary>
-          <span>数据说明</span>
-          <small>来源与范围</small>
-        </summary>
+        <summary>数据说明</summary>
         <div className="leverage-disclosure-content">
+          <p>数据包更新日：{payload.generated_at_beijing.slice(0, 10)}；已通过校验。</p>
           <p>融资数据：东方财富；指数数据：通达信。</p>
           <p>数据范围：{fullRange}。</p>
           {ratioAvailable && ratioRange !== "" && ratioRange !== fullRange && (
@@ -128,11 +130,8 @@ export function LeverageDisclosure({ payload, manifest }: LeverageDisclosureProp
           )}
           {!ratioAvailable && <p>融资余额占市值：暂不可用。</p>}
           <p>{marketCapSourceSummary(manifest)}</p>
-          <p>计算方式：融资余额 ÷ 沪深 A 股市值。</p>
-          <p className="leverage-disclosure-warning">
-            融资余额变化用于观察市场杠杆，不代表涨跌判断。
-          </p>
-          <p className="leverage-disclosure-warning">仅供趋势参考，不构成投资建议。</p>
+          <p>该聚合比值不是正式财务比例，也不代表分子与分母的证券类别完全匹配。</p>
+          <p>仅供趋势参考，不构成投资建议。</p>
         </div>
       </details>
     </aside>

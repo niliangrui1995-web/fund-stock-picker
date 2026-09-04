@@ -16,7 +16,6 @@ import {
   type LeveragePeriod,
 } from "./leverageDateRange";
 import { LeverageLoadLifecycle, isAbortError } from "./leverageLoadLifecycle";
-import { LEVERAGE_METRIC_LABELS } from "./leverageLabels";
 import { loadLeveragePackage } from "./leveragePackageLoader";
 import type {
   LeverageDashboardPayload,
@@ -65,6 +64,7 @@ export function LeverageDashboard() {
   const [indexCodes, setIndexCodes] = useState<LeverageIndexCode[]>(DEFAULT_INDEX_CODES);
   const [period, setPeriod] = useState<LeveragePeriod>("10y");
   const [customRange, setCustomRange] = useState<LeverageDateRange | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const lifecycleRef = useRef<LeverageLoadLifecycle | null>(null);
 
   if (lifecycleRef.current === null) {
@@ -103,7 +103,7 @@ export function LeverageDashboard() {
         lifecycle.clear(request.controller);
 
         if (!validation.ok) {
-          setLoadState({ kind: "blocked", reason: validation.reason, cutoffDate: null });
+          setLoadState({ kind: "blocked", reason: validation.reason, failureKind: "validation", cutoffDate: null });
           return;
         }
 
@@ -123,13 +123,14 @@ export function LeverageDashboard() {
         lifecycle.clear(request.controller);
         setLoadState({
           kind: "blocked",
-          reason: "数据读取失败。",
+          reason: "请检查网络后重试。",
+          failureKind: "load",
           cutoffDate: null,
         });
       });
 
     return undefined;
-  }, [loadedPackage]);
+  }, [loadedPackage, loadAttempt]);
 
   const ratioAvailable = loadedPackage?.payload.provenance.ratio_available ?? false;
   useEffect(() => {
@@ -197,7 +198,11 @@ export function LeverageDashboard() {
         <span className="leverage-eyebrow">两融</span>
         <h2>{view.heading}</h2>
         <p>{view.detail}</p>
-        {view.blocking && <small className="leverage-state-cutoff">数据截至：{view.cutoffDate ?? "暂无"}</small>}
+        {view.blocking && (
+          <button type="button" className="dashboard-retry-button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+            重新加载
+          </button>
+        )}
       </section>
     );
   }
@@ -206,9 +211,8 @@ export function LeverageDashboard() {
     <section className="leverage-dashboard" aria-labelledby="leverage-dashboard-title">
       <header className="leverage-dashboard-header">
         <div>
-          <span className="leverage-eyebrow">两融</span>
           <h2 id="leverage-dashboard-title">两融数据</h2>
-          <p>融资余额与指数走势</p>
+          <p className="leverage-package-date">最新交易日：{loadedPackage.manifest.data_range.end}</p>
         </div>
       </header>
 
@@ -232,8 +236,6 @@ export function LeverageDashboard() {
         metric={metric}
         currentRecord={currentRecord}
         previousRecord={previousRecord}
-        dataEndDate={loadedPackage.manifest.data_range.end}
-        manifest={loadedPackage.manifest}
       />
 
       <div className="leverage-workspace">
@@ -243,11 +245,6 @@ export function LeverageDashboard() {
               <span>
                 {derived.main[0]?.date ?? controlsRange.startDate} 至 {derived.main[derived.main.length - 1]?.date ?? controlsRange.endDate}
               </span>
-              <strong>
-                {metric === "margin"
-                  ? `${LEVERAGE_METRIC_LABELS.margin}与指数`
-                  : `${LEVERAGE_METRIC_LABELS.ratio}与指数`}
-              </strong>
             </div>
             {derived.baseDate !== null && <em>对比基准：{derived.baseDate} = 100</em>}
           </div>

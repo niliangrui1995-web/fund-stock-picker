@@ -1,3 +1,4 @@
+import { canonicalizeSecurityCode } from "../securityIdentity";
 import type {
   BasketDraft,
   BasketValidationResult,
@@ -198,8 +199,12 @@ function parseSavedBasket(
     return null;
   }
 
+  const originalCodes = candidate.stockCodes;
+  const migratedCodes = Array.isArray(originalCodes) && originalCodes.every((code) => typeof code === "string") && new Set(originalCodes).size === originalCodes.length
+    ? [...new Set(originalCodes.map((code) => canonicalizeSecurityCode(code)))]
+    : originalCodes;
   const validation = validateBasketDraft(
-    { name: candidate.name as string, stockCodes: candidate.stockCodes as string[] },
+    { name: candidate.name as string, stockCodes: migratedCodes as string[] },
     validStockCodes,
   );
   if (!validation.ok

@@ -1,0 +1,1570 @@
+{
+  "version": "security-identity-v1",
+  "verifiedAt": "2026-09-05",
+  "policy": "只归并有限白名单中由官方报告代码和名称、OpenFIGI 证券级标识共同核实的版本。GOOG/GOOGL、TSM/2330、ASML/ASMLNA、腾讯 ADR/港币柜台/未确定柜台的 ISIN 保持独立。未核实版本不参与别名合并。",
+  "sources": [
+    "https://www.openfigi.com/api/documentation",
+    "https://api.openfigi.com/v3/mapping",
+    "https://investor.nvidia.com/investor-resources/faqs/",
+    "https://www.skhynix.com/ir/UI-FR-IR99/",
+    "https://www.samsung.com/global/ir/stock-information/listing-Info/"
+  ],
+  "securities": [
+    {
+      "code": "NVDA",
+      "name": "英伟达 NVIDIA",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "NVDA",
+        "NVDAUS",
+        "NVDAUW",
+        "NVDAUSEquity"
+      ],
+      "nameAliases": [
+        "NVIDIA",
+        "Nvidia",
+        "英伟达",
+        "NVIDI A CORP",
+        "NVIDIA Corporation",
+        "英伟达公司",
+        "NVIDIA CORP",
+        "NVIDIA Corp"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BBJQV0",
+      "shareClassFIGI": "BBG001S5TZJ6",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "NVDA",
+          "disclosedNames": [
+            "NVIDI A CORP",
+            "NVIDIA Corporation",
+            "英伟达公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "38",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "NVDAUS",
+          "disclosedNames": [
+            "NVIDIA CORP",
+            "NVIDIA Corp",
+            "英伟达",
+            "英伟达公司"
+          ],
+          "fundCode": "000934",
+          "reportName": "富兰克林国海大中华精选混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1563021",
+          "page": "43",
+          "pdfSha256": "2aba7964ee4c66456a01493892fa88ee0d37eb8956e310e523c3dea72d942176"
+        },
+        {
+          "alias": "NVDAUW",
+          "disclosedNames": [
+            "英伟达公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "40",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "NVDAUSEquity",
+          "disclosedNames": [
+            "英伟达公司"
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "46",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "AAPL",
+      "name": "苹果 Apple",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "AAPL",
+        "AAPLUS",
+        "AAPLUW"
+      ],
+      "nameAliases": [
+        "Apple",
+        "苹果",
+        "APPLE INC",
+        "苹果公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000B9XRY4",
+      "shareClassFIGI": "BBG001S5N8V8",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "AAPL",
+          "disclosedNames": [
+            "APPLE INC",
+            "苹果公",
+            "苹果公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "39",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "AAPLUS",
+          "disclosedNames": [
+            "APPLE INC",
+            "苹果",
+            "苹果公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "AAPLUW",
+          "disclosedNames": [
+            "苹果公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "40",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "AMD",
+      "name": "超威半导体 AMD",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "AMD",
+        "AMDUS",
+        "AMDUW",
+        "AMDUSEquity"
+      ],
+      "nameAliases": [
+        "Advanced Micro Devices",
+        "AMD",
+        "超威半导体",
+        "ADVAN CED MICRO DEVIC ES",
+        "ADVANCED MICRO DEVICES INC",
+        "Advanced Micro Devices Inc",
+        "Advanced Micro Devices, Inc.",
+        "ADVANC ED MICRO DEVICES",
+        "ADVANCED MICRO DEVICES",
+        "AMD 公司",
+        "美国超威半导体公司",
+        "超威半导体公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BBQCY0",
+      "shareClassFIGI": "BBG001S5NN36",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "AMD",
+          "disclosedNames": [
+            "ADVAN CED MICRO DEVIC ES",
+            "ADVANCED MICRO DEVICES INC",
+            "Advanced Micro Devices Inc",
+            "Advanced Micro Devices, Inc."
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "39",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "AMDUS",
+          "disclosedNames": [
+            "ADVANC ED MICRO DEVICES",
+            "ADVANCED MICRO DEVICES",
+            "AMD 公司",
+            "Advanced Micro Devices Inc",
+            "美国超威半导体公司",
+            "超威",
+            "超威半导体",
+            "超威半导体公司"
+          ],
+          "fundCode": "000934",
+          "reportName": "富兰克林国海大中华精选混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1563021",
+          "page": "43",
+          "pdfSha256": "2aba7964ee4c66456a01493892fa88ee0d37eb8956e310e523c3dea72d942176"
+        },
+        {
+          "alias": "AMDUW",
+          "disclosedNames": [
+            "AMD 公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "42",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "AMDUSEquity",
+          "disclosedNames": [
+            "超威半导体公司"
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "44",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "AMZN",
+      "name": "亚马逊 Amazon",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "AMZN",
+        "AMZNUS",
+        "AMZNUW"
+      ],
+      "nameAliases": [
+        "Amazon",
+        "亚马逊",
+        "AMAZO N.COM INC",
+        "Amazon.Com , Inc.",
+        "亚马逊公司",
+        "AMAZON.COM INC"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BVPV84",
+      "shareClassFIGI": "BBG001S5PQL7",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "AMZN",
+          "disclosedNames": [
+            "AMAZO N.COM INC",
+            "Amazon.Com , Inc.",
+            "亚马逊",
+            "亚马逊公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "39",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "AMZNUS",
+          "disclosedNames": [
+            "AMAZO N.COM INC",
+            "AMAZON.COM INC",
+            "亚马逊",
+            "亚马逊公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "AMZNUW",
+          "disclosedNames": [
+            "亚马逊公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "ASML",
+      "name": "阿斯麦 ASML（美国登记股）",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "ASML",
+        "ASMLUS",
+        "ASMLUW",
+        "ASMLUSEquity"
+      ],
+      "nameAliases": [
+        "ASML",
+        "阿斯麦",
+        "ASML HOLDI NG NV-NY REG SHS",
+        "ASML HOLDING NV",
+        "ASML Holding NV",
+        "阿斯麦控股公司",
+        "ASML HOLDIN G NV-NY REG SHS",
+        "ASML HOLDING NV-NY REG SHS",
+        "阿斯麦公司",
+        "Asml Holding N.V."
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000K6MRN4",
+      "shareClassFIGI": "BBG001SCG0R3",
+      "securityType": "NY Reg Shrs",
+      "evidence": [
+        {
+          "alias": "ASML",
+          "disclosedNames": [
+            "ASML HOLDI NG NV-NY REG SHS",
+            "ASML HOLDING NV",
+            "ASML Holding NV",
+            "阿斯麦控股公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "40",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "ASMLUS",
+          "disclosedNames": [
+            "ASML HOLDIN G NV-NY REG SHS",
+            "ASML HOLDING NV-NY REG SHS",
+            "阿斯麦",
+            "阿斯麦公司",
+            "阿斯麦控股公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "55",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "ASMLUW",
+          "disclosedNames": [
+            "阿斯麦控股公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "44",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "ASMLUSEquity",
+          "disclosedNames": [
+            "Asml Holding N.V."
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "45",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "AVGO",
+      "name": "博通 Broadcom",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "AVGO",
+        "AVGOUS",
+        "AVGOUW"
+      ],
+      "nameAliases": [
+        "Broadcom",
+        "博通",
+        "BROAD COM INC",
+        "Broadcom Inc.",
+        "博通股份有限公司",
+        "BROADC OM INC",
+        "博通公司",
+        "博通股份"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG00KHY5S69",
+      "shareClassFIGI": "BBG00KHY5SY8",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "AVGO",
+          "disclosedNames": [
+            "BROAD COM INC",
+            "Broadcom Inc.",
+            "博通股",
+            "博通股份有限公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "39",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "AVGOUS",
+          "disclosedNames": [
+            "BROADC OM INC",
+            "Broadcom Inc.",
+            "博通公司",
+            "博通股份",
+            "博通股份有限公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "AVGOUW",
+          "disclosedNames": [
+            "博通股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "GOOG",
+      "name": "Alphabet C 类股",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "GOOG",
+        "GOOGUS",
+        "GOOGUW"
+      ],
+      "nameAliases": [
+        "Google",
+        "Alphabet",
+        "谷歌",
+        "ALPHA BET INC-C L C",
+        "ALPHAB ET INC",
+        "Alphabet Inc",
+        "Alphabet 公司",
+        "Alphabet 股份有限公司",
+        "Alphabet 股份有限公司公司",
+        "谷歌- C",
+        "谷歌公司",
+        "Alphabet 股份有限公"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG009S3NB30",
+      "shareClassFIGI": "BBG009S3NB21",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "GOOG",
+          "disclosedNames": [
+            "ALPHA BET INC-C L C"
+          ],
+          "fundCode": "017641",
+          "reportName": "摩根标普500指数型发起式证券投资基金(QDII)2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569764",
+          "page": "45",
+          "pdfSha256": "4c1754e89c807e34037182616ed3a9dd21a79036a3a82ba5ba3d217e526b1ec1"
+        },
+        {
+          "alias": "GOOGUS",
+          "disclosedNames": [
+            "ALPHAB ET INC",
+            "Alphabet Inc",
+            "Alphabet 公司",
+            "Alphabet 股份有限公司",
+            "Alphabet 股份有限公司公司",
+            "谷歌- C",
+            "谷歌公司"
+          ],
+          "fundCode": "006308",
+          "reportName": "汇添富全球消费行业混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567492",
+          "page": "48",
+          "pdfSha256": "e50e29bb8ecab84c6feb6dfddc621f65edda9346df7c4f3b52398cd4f56e1df2"
+        },
+        {
+          "alias": "GOOGUW",
+          "disclosedNames": [
+            "Alphabet 股份有限公",
+            "Alphabet 股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "GOOGL",
+      "name": "Alphabet A 类股",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "GOOGL",
+        "GOOGLUS",
+        "GOOGLUW",
+        "GOOGLUSEquity"
+      ],
+      "nameAliases": [
+        "Google",
+        "Alphabet",
+        "谷歌",
+        "ALPHA BET INC-C L A",
+        "Alphab",
+        "谷歌 (Alphabet)",
+        "谷歌公司",
+        "ALPHAB ET INC",
+        "ALPHABET INC",
+        "ALPHABET INC-CL A",
+        "ALPHABET 公司",
+        "Alphabet Inc",
+        "Alphabet 公司",
+        "Alphabet 股份有限公司",
+        "谷歌-A",
+        "Alphabet Inc."
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG009S39JX6",
+      "shareClassFIGI": "BBG009S39JY5",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "GOOGL",
+          "disclosedNames": [
+            "ALPHA BET INC-C L A",
+            "Alphab",
+            "谷歌 (Alphabet)",
+            "谷歌公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "38",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "GOOGLUS",
+          "disclosedNames": [
+            "ALPHAB ET INC",
+            "ALPHABET INC",
+            "ALPHABET INC-CL A",
+            "ALPHABET 公司",
+            "Alphabet Inc",
+            "Alphabet 公司",
+            "Alphabet 股份有限公司",
+            "谷歌",
+            "谷歌-A",
+            "谷歌公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "GOOGLUW",
+          "disclosedNames": [
+            "Alphabet 股份有限公司",
+            "司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "GOOGLUSEquity",
+          "disclosedNames": [
+            "Alphabet Inc."
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "52",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "META",
+      "name": "Meta Platforms A 类股",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "META",
+        "METAUS",
+        "METAUW"
+      ],
+      "nameAliases": [
+        "Meta Platforms",
+        "Meta",
+        "META PLATF ORMS INC-C LASS A",
+        "META PLATFORMS INC",
+        "Meta Platforms Inc",
+        "Meta Platforms, Inc.",
+        "META PLATFO RMS INC-CLA SS A",
+        "META PLATFORMS INC-CLASS A",
+        "META 公司",
+        "Meta 公司",
+        "Meta 平台股份有限公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000MM2P62",
+      "shareClassFIGI": "BBG001SQCQC5",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "META",
+          "disclosedNames": [
+            "META PLATF ORMS INC-C LASS A",
+            "META PLATFORMS INC",
+            "Meta Platforms Inc",
+            "Meta Platforms, Inc."
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "40",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "METAUS",
+          "disclosedNames": [
+            "META PLATFO RMS INC-CLA SS A",
+            "META PLATFORMS INC-CLASS A",
+            "META 公司",
+            "Meta Platforms Inc",
+            "Meta 公司",
+            "Meta 平台股份有限公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "54",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "METAUW",
+          "disclosedNames": [
+            "Meta 平台股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "42",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "MSFT",
+      "name": "微软 Microsoft",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "MSFT",
+        "MSFTUS",
+        "MSFTUW"
+      ],
+      "nameAliases": [
+        "Microsoft",
+        "微软",
+        "MICRO SOFT CORP",
+        "Microsoft Corporation",
+        "微软公司",
+        "MICROS OFT CORP",
+        "MICROSOFT CORP"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BPH459",
+      "shareClassFIGI": "BBG001S5TD05",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "MSFT",
+          "disclosedNames": [
+            "MICRO SOFT CORP",
+            "Microsoft Corporation",
+            "微软公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "39",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "MSFTUS",
+          "disclosedNames": [
+            "MICROS OFT CORP",
+            "MICROSOFT CORP",
+            "微软",
+            "微软公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "MSFTUW",
+          "disclosedNames": [
+            "微软公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "MU",
+      "name": "美光 Micron",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "MU",
+        "MUUS",
+        "MUUW",
+        "MUUSEquity"
+      ],
+      "nameAliases": [
+        "Micron",
+        "美光",
+        "MICRO N TECHN OLOGY INC",
+        "Micron Technology , Inc.",
+        "美光科技股份有限公司",
+        "MICRON TECHNO LOGY INC",
+        "美光科技",
+        "美光科技公司",
+        "美光科技股份有限公"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000C5Z1S3",
+      "shareClassFIGI": "BBG001S6P675",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "MU",
+          "disclosedNames": [
+            "MICRO N TECHN OLOGY INC",
+            "Micron Technology , Inc.",
+            "美光科技股份有限公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "38",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "MUUS",
+          "disclosedNames": [
+            "MICRON TECHNO LOGY INC",
+            "美光科",
+            "美光科技",
+            "美光科技公司",
+            "美光科技股份有限公",
+            "美光科技股份有限公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "MUUW",
+          "disclosedNames": [
+            "美光科技股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "MUUSEquity",
+          "disclosedNames": [
+            "美光科技公司"
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "44",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "TSLA",
+      "name": "特斯拉 Tesla",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "TSLA",
+        "TSLAUS",
+        "TSLAUW"
+      ],
+      "nameAliases": [
+        "Tesla",
+        "特斯拉",
+        "TESLA INC",
+        "Tesla, Inc.",
+        "特斯拉公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000N9MNX3",
+      "shareClassFIGI": "BBG001SQKGD7",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "TSLA",
+          "disclosedNames": [
+            "TESLA INC",
+            "Tesla, Inc.",
+            "特斯拉公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "40",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "TSLAUS",
+          "disclosedNames": [
+            "TESLA INC",
+            "特斯拉",
+            "特斯拉公司"
+          ],
+          "fundCode": "015204",
+          "reportName": "银华全球新能源车量化优选股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565396",
+          "page": "42",
+          "pdfSha256": "6dc9b79ccbd9c791e9acf65b8433def4f7ecb325792a6e1b44fbd568013f4918"
+        },
+        {
+          "alias": "TSLAUW",
+          "disclosedNames": [
+            "特斯拉公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "TSM",
+      "name": "台积电 TSMC（ADR）",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NYSE",
+      "aliases": [
+        "TSM",
+        "TSMUS",
+        "TSMUN",
+        "TSMUSEquity"
+      ],
+      "nameAliases": [
+        "Taiwan Semiconductor",
+        "TSMC",
+        "台积电",
+        "Taiwan Semiconductor Manufacturing Company Ltd.",
+        "台湾积体电路制造股份有限公司",
+        "台湾集成电路制造股份有限公司",
+        "TAIWAN SEMICONDUCTOR-SP ADR"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BD8ZK0",
+      "shareClassFIGI": "BBG001S5WWW4",
+      "securityType": "ADR",
+      "evidence": [
+        {
+          "alias": "TSM",
+          "disclosedNames": [
+            "Taiwan Semiconductor Manufacturing Company Ltd.",
+            "台湾积体电路制造股份有限公司",
+            "台湾集成电路制造股份有限公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "39",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "TSMUS",
+          "disclosedNames": [
+            "TAIWAN SEMICONDUCTOR-SP ADR",
+            "台湾积体电路制造股份有限公司",
+            "台积电"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "53",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "TSMUN",
+          "disclosedNames": [
+            "台湾积体电路制造股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "41",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "TSMUSEquity",
+          "disclosedNames": [
+            "台湾积体电路制造股份有限公司"
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "46",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "PLTR",
+      "name": "Palantir A 类股",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "PLTR",
+        "PLTRUS",
+        "PLTRUW"
+      ],
+      "nameAliases": [
+        "Palantir",
+        "PALAN TIR TECHN OLOGI ES INC-A",
+        "PALANTIR TECHNOLOGIES INC",
+        "Palantir Technologies Inc.",
+        "帕兰提尔技术公司",
+        "PALANTI R TECHNO LOGIES INC-A",
+        "Palantir Technologies Inc",
+        "Palantir 公司",
+        "Palantir 技术公司",
+        "Palantir 技术股份有限公司",
+        "Palantir 科技股份有限公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000N7QR55",
+      "shareClassFIGI": "BBG001T53796",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "PLTR",
+          "disclosedNames": [
+            "PALAN TIR TECHN OLOGI ES INC-A",
+            "PALANTIR TECHNOLOGIES INC",
+            "Palantir Technologies Inc.",
+            "帕兰提尔技术公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "53",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "PLTRUS",
+          "disclosedNames": [
+            "PALANTI R TECHNO LOGIES INC-A",
+            "Palantir Technologies Inc",
+            "Palantir 公司",
+            "Palantir 技术公司",
+            "Palantir 技术股份有限公司",
+            "Palantir 科技股份有限公司",
+            "帕兰提尔技术公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "56",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "PLTRUW",
+          "disclosedNames": [
+            "Palantir 技术股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "42",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        }
+      ]
+    },
+    {
+      "code": "LITE",
+      "name": "Lumentum",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "LITE",
+        "LITEUS",
+        "LITEUW",
+        "LITEUSEquity"
+      ],
+      "nameAliases": [
+        "Lumentum",
+        "LUMEN TUM HOLDI NGS INC",
+        "LUMENTUM HOLDINGS INC",
+        "Lumentum Holdings Inc",
+        "Lumentum Holdings Inc.",
+        "LUMENT UM HOLDIN GS INC",
+        "Lumentum Holdings 公司",
+        "Lumentum 控股公司",
+        "Lumentum 控股股份有限公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG0073F9RT7",
+      "shareClassFIGI": "BBG0073F9RS8",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "LITE",
+          "disclosedNames": [
+            "LUMEN TUM HOLDI NGS INC",
+            "LUMENTUM HOLDINGS INC",
+            "Lumentum Holdings Inc",
+            "Lumentum Holdings Inc."
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "42",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "LITEUS",
+          "disclosedNames": [
+            "LUMENT UM HOLDIN GS INC",
+            "LUMENTUM HOLDINGS INC",
+            "Lumentum Holdings Inc",
+            "Lumentum Holdings 公司",
+            "Lumentum 控股公司",
+            "Lumentum 控股股份有限公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "54",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "LITEUW",
+          "disclosedNames": [
+            "Lumentum 控股股份有限公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "42",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "LITEUSEquity",
+          "disclosedNames": [
+            "Lumentum 控股公司"
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "54",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "COHR",
+      "name": "相干 Coherent",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NYSE",
+      "aliases": [
+        "COHR",
+        "COHRUS",
+        "COHRUN",
+        "COHRUSEquity"
+      ],
+      "nameAliases": [
+        "Coherent",
+        "COHER ENT CORP",
+        "Coherent Corp.",
+        "相干公司",
+        "COHERE NT CORP",
+        "Coherent 公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BLW102",
+      "shareClassFIGI": "BBG001S5S6N6",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "COHR",
+          "disclosedNames": [
+            "COHER ENT CORP",
+            "Coherent Corp.",
+            "相干公",
+            "相干公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "44",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "COHRUS",
+          "disclosedNames": [
+            "COHERE NT CORP",
+            "Coherent 公司",
+            "相干公司"
+          ],
+          "fundCode": "001668",
+          "reportName": "汇添富全球移动互联灵活配置混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1567337",
+          "page": "55",
+          "pdfSha256": "ee42d197543d035f6e66d4d93b09357a543f5358691be44cde529df6704f4c3b"
+        },
+        {
+          "alias": "COHRUN",
+          "disclosedNames": [
+            "相干公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "44",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "COHRUSEquity",
+          "disclosedNames": [
+            "Coherent Corp."
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "50",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "GLW",
+      "name": "康宁 Corning",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NYSE",
+      "aliases": [
+        "GLW",
+        "GLWUS",
+        "GLWUN",
+        "GLWUSEquity"
+      ],
+      "nameAliases": [
+        "CORNI NG INC",
+        "康宁公司",
+        "CORNIN G INC"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BKFZM4",
+      "shareClassFIGI": "BBG001S5RLH1",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "GLW",
+          "disclosedNames": [
+            "CORNI NG INC",
+            "康宁公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "40",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "GLWUS",
+          "disclosedNames": [
+            "CORNIN G INC",
+            "康宁",
+            "康宁公司"
+          ],
+          "fundCode": "006373",
+          "reportName": "富兰克林国海全球科技互联混合型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1563107",
+          "page": "46",
+          "pdfSha256": "f7584fee74eceb979202d42ca9a436676293e257c7f94dc2c73fbdd637498473"
+        },
+        {
+          "alias": "GLWUN",
+          "disclosedNames": [
+            "康宁公司"
+          ],
+          "fundCode": "000043",
+          "reportName": "嘉实美国成长股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572383",
+          "page": "44",
+          "pdfSha256": "afeb3f312e2bf8e24b94dc642a2281ce5633ed4500f2f999a755caf9ca7f60c6"
+        },
+        {
+          "alias": "GLWUSEquity",
+          "disclosedNames": [
+            "康宁公司"
+          ],
+          "fundCode": "017653",
+          "reportName": "创金合信全球芯片产业股票型发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558103",
+          "page": "57",
+          "pdfSha256": "f155685522b9103a6782f8511198ea85ade51cf05b2faf7738b750971527f012"
+        }
+      ]
+    },
+    {
+      "code": "MSTR",
+      "name": "Strategy",
+      "market": "us",
+      "marketLabel": "美股",
+      "exchange": "NASDAQ",
+      "aliases": [
+        "MSTR",
+        "MSTRUS",
+        "MSTRUW"
+      ],
+      "nameAliases": [
+        "Microstrategy Incorporated",
+        "STRAT EGY INC",
+        "STRATEGY INC",
+        "Strategy Inc",
+        "MicroStrategy Inc",
+        "STRATE GY INC",
+        "Strategy 股份有限公司",
+        "微策投资公司",
+        "微策略股份有限公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000GQJPZ0",
+      "shareClassFIGI": "BBG001SC7PX1",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "MSTR",
+          "disclosedNames": [
+            "Microstrategy Incorporated",
+            "STRAT EGY INC",
+            "STRATEGY INC",
+            "Strategy Inc"
+          ],
+          "fundCode": "019172",
+          "reportName": "摩根纳斯达克100指数型发起式证券投资基金(QDII)2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569570",
+          "page": "56",
+          "pdfSha256": "1696c841760bf7b0d67c982b1ce8b890ce4f4ce7cc84b3476e7ea4a8e539ebcd"
+        },
+        {
+          "alias": "MSTRUS",
+          "disclosedNames": [
+            "MicroStrategy Inc",
+            "STRATE GY INC",
+            "Strategy Inc",
+            "Strategy 股份有限公司",
+            "微策投资公司",
+            "微策略股份有限公司"
+          ],
+          "fundCode": "019441",
+          "reportName": "万家纳斯达克100指数型发起式证券投资基金(QDII)2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1568117",
+          "page": "52",
+          "pdfSha256": "fddee574d1385976d6820d2da87e87b74eac325971466db5f83dbf1699ede96a"
+        },
+        {
+          "alias": "MSTRUW",
+          "disclosedNames": [
+            "Strategy 股份有限公司"
+          ],
+          "fundCode": "016452",
+          "reportName": "南方纳斯达克100指数发起式证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1572961",
+          "page": "54",
+          "pdfSha256": "e46ce6618fcfec080df2bc9a9aa7f437cf69bf84e1c371c1ed3f7e5bbb942ac9"
+        }
+      ]
+    },
+    {
+      "code": "000660",
+      "name": "SK 海力士",
+      "market": "kr",
+      "marketLabel": "韩股",
+      "exchange": "KRX",
+      "aliases": [
+        "000660",
+        "000660KS",
+        "000660KP",
+        "KR7000660001",
+        "HY9HGF"
+      ],
+      "nameAliases": [
+        "SK Hynix",
+        "SK hynix",
+        "SK海力士",
+        "海力士",
+        "SK HYNIX INC",
+        "SK 海力",
+        "SK Hynix Inc",
+        "SK 海力士株式会社",
+        "SK hynix Inc"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000GQVT51",
+      "shareClassFIGI": "BBG001S90F76",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "000660",
+          "disclosedNames": [
+            "SK HYNIX INC",
+            "SK 海力"
+          ],
+          "fundCode": "005534",
+          "reportName": "华夏新时代灵活配置混合型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565727",
+          "page": "37",
+          "pdfSha256": "b731a62a8d79e813074ed6afa631a78e37c901a58d02088669ec70957fec3b31"
+        },
+        {
+          "alias": "000660KS",
+          "disclosedNames": [
+            "SK Hynix Inc",
+            "SK 海力士株式会社"
+          ],
+          "fundCode": "012920",
+          "reportName": "易方达全球成长精选混合型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569018",
+          "page": "47",
+          "pdfSha256": "40109bb77fcc6fd83b9e07e37262535479cfef466a79e3fccbc8e52eb0d62a49"
+        },
+        {
+          "alias": "000660KP",
+          "disclosedNames": [
+            "海力士"
+          ],
+          "fundCode": "501226",
+          "reportName": "长城全球新能源汽车股票型发起式证券投资基金（QDII-LOF）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573185",
+          "page": "52",
+          "pdfSha256": "02f7682500160a3b9a4b2eb2adca1b3a583cdc36f470cbae62d8d77cb481721d"
+        },
+        {
+          "alias": "KR7000660001",
+          "disclosedNames": [
+            "SK hynix Inc",
+            "SK 海力士株式会社"
+          ],
+          "fundCode": "486001",
+          "reportName": "工银瑞信中国机会全球配置股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1570380",
+          "page": "44",
+          "pdfSha256": "afe44d71a37cb335865f86fcb3ea6669b1738ae6d4d9e9901a7d7a26072ebbfd"
+        },
+        {
+          "alias": "HY9HGF",
+          "disclosedNames": [
+            "SK 海力士株式会社"
+          ],
+          "fundCode": "013328",
+          "reportName": "嘉实全球价值机会股票型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1571815",
+          "page": "41",
+          "pdfSha256": "2fd30bd6a36a085702c588935c699bfe761e11f5be449c3ed5dee128168bacf9"
+        }
+      ]
+    },
+    {
+      "code": "005930",
+      "name": "三星电子（普通股）",
+      "market": "kr",
+      "marketLabel": "韩股",
+      "exchange": "KRX",
+      "aliases": [
+        "005930",
+        "005930KS",
+        "005930KP"
+      ],
+      "nameAliases": [
+        "Samsung Electronics",
+        "Samsung Elec",
+        "三星电子",
+        "SAMSUNG ELECTRONI CS CO LTD",
+        "SAMSUNG ELECTRONIC S CO LTD",
+        "三星电子有限公司"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BCY2S8",
+      "shareClassFIGI": "BBG001S6K037",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "005930",
+          "disclosedNames": [
+            "SAMSUNG ELECTRONI CS CO LTD",
+            "SAMSUNG ELECTRONIC S CO LTD",
+            "三星电子有限公司"
+          ],
+          "fundCode": "005534",
+          "reportName": "华夏新时代灵活配置混合型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565727",
+          "page": "40",
+          "pdfSha256": "b731a62a8d79e813074ed6afa631a78e37c901a58d02088669ec70957fec3b31"
+        },
+        {
+          "alias": "005930KS",
+          "disclosedNames": [
+            "三星电子有限公司"
+          ],
+          "fundCode": "006555",
+          "reportName": "浦银全球智能科技股票型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1570893",
+          "page": "45",
+          "pdfSha256": "0cf2e8f054723c30984464269d19eae1c79423180b6cb1f198255e48d885e247"
+        },
+        {
+          "alias": "005930KP",
+          "disclosedNames": [
+            "三星电子"
+          ],
+          "fundCode": "501226",
+          "reportName": "长城全球新能源汽车股票型发起式证券投资基金（QDII-LOF）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1573185",
+          "page": "52",
+          "pdfSha256": "02f7682500160a3b9a4b2eb2adca1b3a583cdc36f470cbae62d8d77cb481721d"
+        }
+      ]
+    },
+    {
+      "code": "00700",
+      "name": "腾讯控股",
+      "market": "hk",
+      "marketLabel": "港股",
+      "exchange": "HKEX",
+      "aliases": [
+        "00700",
+        "700",
+        "700HK",
+        "700HKEquity"
+      ],
+      "nameAliases": [
+        "腾讯控股有限公司",
+        "腾讯控股",
+        "TENCEN T HOLDIN GS LTD"
+      ],
+      "identityStatus": "verified",
+      "compositeFIGI": "BBG000BJ35F4",
+      "shareClassFIGI": "BBG001S8C4T6",
+      "securityType": "Common Stock",
+      "evidence": [
+        {
+          "alias": "00700",
+          "disclosedNames": [
+            "腾讯控股有限公司"
+          ],
+          "fundCode": "000041",
+          "reportName": "华夏全球精选股票型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1565549",
+          "page": "45",
+          "pdfSha256": "5de8410019a8639b9959832f8e334bc0d028719e9e5df4f48d4fb00407f706d7"
+        },
+        {
+          "alias": "700",
+          "disclosedNames": [
+            "腾讯控股",
+            "腾讯控股有限公司"
+          ],
+          "fundCode": "003243",
+          "reportName": "摩根中国世纪灵活配置混合型证券投资基金(QDII)2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1569382",
+          "page": "43",
+          "pdfSha256": "33bfe0b097f5f3dc545faf96742157f5a0dcb9d0913605fd6b3bd921c0e9b526"
+        },
+        {
+          "alias": "700HK",
+          "disclosedNames": [
+            "TENCEN T HOLDIN GS LTD",
+            "腾讯控股",
+            "腾讯控股有限公司"
+          ],
+          "fundCode": "000934",
+          "reportName": "富兰克林国海大中华精选混合型证券投资基金2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1563021",
+          "page": "41",
+          "pdfSha256": "2aba7964ee4c66456a01493892fa88ee0d37eb8956e310e523c3dea72d942176"
+        },
+        {
+          "alias": "700HKEquity",
+          "disclosedNames": [
+            "腾讯控股有限公司"
+          ],
+          "fundCode": "012379",
+          "reportName": "创金合信港股互联网3个月持有期混合型证券投资基金（QDII）2026年中期报告",
+          "sourceUrl": "http://eid.csrc.gov.cn/fund/disclose/instance_show_pdf_id.do?instanceid=1558126",
+          "page": "40",
+          "pdfSha256": "5f7c403ada71c7fad4e999a50a9c5238d1314b0dcebd0bd767550bf9e219eb21"
+        }
+      ]
+    }
+  ]
+}

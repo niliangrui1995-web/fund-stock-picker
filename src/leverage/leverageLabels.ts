@@ -10,3 +10,9 @@ export const LEVERAGE_INDEX_LABELS: Record<LeverageIndexCode, string> = {
   "399106": "深证综指",
   "399006": "创业板指",
 };
+
+export const LEVERAGE_INDEX_COLORS: Record<LeverageIndexCode, string> = {
+  "000001": "#4757c8",
+  "399106": "#1c9f8a",
+  "399006": "#d98633",
+};

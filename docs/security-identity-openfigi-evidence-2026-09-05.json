@@ -1,0 +1,938 @@
+{
+  "checkedAt": "2026-09-05",
+  "source": "https://api.openfigi.com/v3/mapping",
+  "records": [
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "NVDA",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BBJQV0",
+            "name": "NVIDIA CORP",
+            "ticker": "NVDA",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BBJQV0",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5TZJ6",
+            "securityType2": "Common Stock",
+            "securityDescription": "NVDA"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "NVDA",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BBK0R0",
+            "name": "NVIDIA CORP",
+            "ticker": "NVDA",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000BBJQV0",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5TZJ6",
+            "securityType2": "Common Stock",
+            "securityDescription": "NVDA"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AAPL",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000B9XRY4",
+            "name": "APPLE INC",
+            "ticker": "AAPL",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000B9XRY4",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5N8V8",
+            "securityType2": "Common Stock",
+            "securityDescription": "AAPL"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AAPL",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000B9Y5X2",
+            "name": "APPLE INC",
+            "ticker": "AAPL",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000B9XRY4",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5N8V8",
+            "securityType2": "Common Stock",
+            "securityDescription": "AAPL"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AMD",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BBQCY0",
+            "name": "ADVANCED MICRO DEVICES",
+            "ticker": "AMD",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BBQCY0",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5NN36",
+            "securityType2": "Common Stock",
+            "securityDescription": "AMD"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AMD",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BBQPP1",
+            "name": "ADVANCED MICRO DEVICES",
+            "ticker": "AMD",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000BBQCY0",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5NN36",
+            "securityType2": "Common Stock",
+            "securityDescription": "AMD"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AMZN",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BVPV84",
+            "name": "AMAZON.COM INC",
+            "ticker": "AMZN",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BVPV84",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5PQL7",
+            "securityType2": "Common Stock",
+            "securityDescription": "AMZN"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AMZN",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BVQ4Z3",
+            "name": "AMAZON.COM INC",
+            "ticker": "AMZN",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000BVPV84",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5PQL7",
+            "securityType2": "Common Stock",
+            "securityDescription": "AMZN"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "ASML",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000K6MRN4",
+            "name": "ASML HOLDING NV-NY REG SHS",
+            "ticker": "ASML",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000K6MRN4",
+            "securityType": "NY Reg Shrs",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SCG0R3",
+            "securityType2": "Depositary Receipt",
+            "securityDescription": "ASML"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "ASML",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000K6N6G7",
+            "name": "ASML HOLDING NV-NY REG SHS",
+            "ticker": "ASML",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000K6MRN4",
+            "securityType": "NY Reg Shrs",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SCG0R3",
+            "securityType2": "Depositary Receipt",
+            "securityDescription": "ASML"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AVGO",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG00KHY5S69",
+            "name": "BROADCOM INC",
+            "ticker": "AVGO",
+            "exchCode": "US",
+            "compositeFIGI": "BBG00KHY5S69",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG00KHY5SY8",
+            "securityType2": "Common Stock",
+            "securityDescription": "AVGO"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "AVGO",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG00KHY5SQ7",
+            "name": "BROADCOM INC",
+            "ticker": "AVGO",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG00KHY5S69",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG00KHY5SY8",
+            "securityType2": "Common Stock",
+            "securityDescription": "AVGO"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "GOOG",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG009S3NB30",
+            "name": "ALPHABET INC-CL C",
+            "ticker": "GOOG",
+            "exchCode": "US",
+            "compositeFIGI": "BBG009S3NB30",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG009S3NB21",
+            "securityType2": "Common Stock",
+            "securityDescription": "GOOG"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "GOOG",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG009S4MVF2",
+            "name": "ALPHABET INC-CL C",
+            "ticker": "GOOG",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG009S3NB30",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG009S3NB21",
+            "securityType2": "Common Stock",
+            "securityDescription": "GOOG"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "GOOGL",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG009S39JX6",
+            "name": "ALPHABET INC-CL A",
+            "ticker": "GOOGL",
+            "exchCode": "US",
+            "compositeFIGI": "BBG009S39JX6",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG009S39JY5",
+            "securityType2": "Common Stock",
+            "securityDescription": "GOOGL"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "GOOGL",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG009S4MT03",
+            "name": "ALPHABET INC-CL A",
+            "ticker": "GOOGL",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG009S39JX6",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG009S39JY5",
+            "securityType2": "Common Stock",
+            "securityDescription": "GOOGL"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "META",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000MM2P62",
+            "name": "META PLATFORMS INC-CLASS A",
+            "ticker": "META",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000MM2P62",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SQCQC5",
+            "securityType2": "Common Stock",
+            "securityDescription": "META"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "META",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG002GPKKZ7",
+            "name": "META PLATFORMS INC-CLASS A",
+            "ticker": "META",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000MM2P62",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SQCQC5",
+            "securityType2": "Common Stock",
+            "securityDescription": "META"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "MSFT",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BPH459",
+            "name": "MICROSOFT CORP",
+            "ticker": "MSFT",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BPH459",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5TD05",
+            "securityType2": "Common Stock",
+            "securityDescription": "MSFT"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "MSFT",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BPHFS9",
+            "name": "MICROSOFT CORP",
+            "ticker": "MSFT",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000BPH459",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5TD05",
+            "securityType2": "Common Stock",
+            "securityDescription": "MSFT"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "MU",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000C5Z1S3",
+            "name": "MICRON TECHNOLOGY INC",
+            "ticker": "MU",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000C5Z1S3",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S6P675",
+            "securityType2": "Common Stock",
+            "securityDescription": "MU"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "MU",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000C60FN3",
+            "name": "MICRON TECHNOLOGY INC",
+            "ticker": "MU",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000C5Z1S3",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S6P675",
+            "securityType2": "Common Stock",
+            "securityDescription": "MU"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "TSLA",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000N9MNX3",
+            "name": "TESLA INC",
+            "ticker": "TSLA",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000N9MNX3",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SQKGD7",
+            "securityType2": "Common Stock",
+            "securityDescription": "TSLA"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "TSLA",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000N9P426",
+            "name": "TESLA INC",
+            "ticker": "TSLA",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000N9MNX3",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SQKGD7",
+            "securityType2": "Common Stock",
+            "securityDescription": "TSLA"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "TSM",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BD8ZK0",
+            "name": "TAIWAN SEMICONDUCTOR-SP ADR",
+            "ticker": "TSM",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BD8ZK0",
+            "securityType": "ADR",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5WWW4",
+            "securityType2": "Depositary Receipt",
+            "securityDescription": "TSM"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "TSM",
+        "exchCode": "UN"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BD90Z0",
+            "name": "TAIWAN SEMICONDUCTOR-SP ADR",
+            "ticker": "TSM",
+            "exchCode": "UN",
+            "compositeFIGI": "BBG000BD8ZK0",
+            "securityType": "ADR",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5WWW4",
+            "securityType2": "Depositary Receipt",
+            "securityDescription": "TSM"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "PLTR",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000N7QR55",
+            "name": "PALANTIR TECHNOLOGIES INC-A",
+            "ticker": "PLTR",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000N7QR55",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001T53796",
+            "securityType2": "Common Stock",
+            "securityDescription": "PLTR"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "PLTR",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG00X7K6XH8",
+            "name": "PALANTIR TECHNOLOGIES INC-A",
+            "ticker": "PLTR",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000N7QR55",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001T53796",
+            "securityType2": "Common Stock",
+            "securityDescription": "PLTR"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "LITE",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG0073F9RT7",
+            "name": "LUMENTUM HOLDINGS INC",
+            "ticker": "LITE",
+            "exchCode": "US",
+            "compositeFIGI": "BBG0073F9RT7",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG0073F9RS8",
+            "securityType2": "Common Stock",
+            "securityDescription": "LITE"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "LITE",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG0073F9SD2",
+            "name": "LUMENTUM HOLDINGS INC",
+            "ticker": "LITE",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG0073F9RT7",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG0073F9RS8",
+            "securityType2": "Common Stock",
+            "securityDescription": "LITE"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "COHR",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BLW102",
+            "name": "COHERENT CORP",
+            "ticker": "COHR",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BLW102",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5S6N6",
+            "securityType2": "Common Stock",
+            "securityDescription": "COHR"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "COHR",
+        "exchCode": "UN"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BLW3R9",
+            "name": "COHERENT CORP",
+            "ticker": "COHR",
+            "exchCode": "UN",
+            "compositeFIGI": "BBG000BLW102",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5S6N6",
+            "securityType2": "Common Stock",
+            "securityDescription": "COHR"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "GLW",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BKFZM4",
+            "name": "CORNING INC",
+            "ticker": "GLW",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000BKFZM4",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5RLH1",
+            "securityType2": "Common Stock",
+            "securityDescription": "GLW"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "GLW",
+        "exchCode": "UN"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BKG0Z6",
+            "name": "CORNING INC",
+            "ticker": "GLW",
+            "exchCode": "UN",
+            "compositeFIGI": "BBG000BKFZM4",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S5RLH1",
+            "securityType2": "Common Stock",
+            "securityDescription": "GLW"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "MSTR",
+        "exchCode": "US"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000GQJPZ0",
+            "name": "STRATEGY INC",
+            "ticker": "MSTR",
+            "exchCode": "US",
+            "compositeFIGI": "BBG000GQJPZ0",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SC7PX1",
+            "securityType2": "Common Stock",
+            "securityDescription": "MSTR"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "MSTR",
+        "exchCode": "UW"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000GQK387",
+            "name": "STRATEGY INC",
+            "ticker": "MSTR",
+            "exchCode": "UW",
+            "compositeFIGI": "BBG000GQJPZ0",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001SC7PX1",
+            "securityType2": "Common Stock",
+            "securityDescription": "MSTR"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "000660",
+        "exchCode": "KS"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000GQVT51",
+            "name": "SK HYNIX INC",
+            "ticker": "000660",
+            "exchCode": "KS",
+            "compositeFIGI": "BBG000GQVT51",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S90F76",
+            "securityType2": "Common Stock",
+            "securityDescription": "000660"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "005930",
+        "exchCode": "KS"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BCY2S8",
+            "name": "SAMSUNG ELECTRONICS CO LTD",
+            "ticker": "005930",
+            "exchCode": "KS",
+            "compositeFIGI": "BBG000BCY2S8",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S6K037",
+            "securityType2": "Common Stock",
+            "securityDescription": "005930"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "TICKER",
+        "idValue": "700",
+        "exchCode": "HK"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BJ35N5",
+            "name": "TENCENT HOLDINGS LTD",
+            "ticker": "700",
+            "exchCode": "HK",
+            "compositeFIGI": "BBG000BJ35F4",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S8C4T6",
+            "securityType2": "Common Stock",
+            "securityDescription": "700"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "idType": "ID_ISIN",
+        "idValue": "KYG875721634",
+        "exchCode": "HK"
+      },
+      "response": {
+        "data": [
+          {
+            "figi": "BBG000BJ35N5",
+            "name": "TENCENT HOLDINGS LTD",
+            "ticker": "700",
+            "exchCode": "HK",
+            "compositeFIGI": "BBG000BJ35F4",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S8C4T6",
+            "securityType2": "Common Stock",
+            "securityDescription": "700"
+          },
+          {
+            "figi": "BBG01GXJQJS5",
+            "name": "TENCENT HOLDINGS LTD",
+            "ticker": "80700",
+            "exchCode": "HK",
+            "compositeFIGI": "BBG01GXJQJR6",
+            "securityType": "Common Stock",
+            "marketSector": "Equity",
+            "shareClassFIGI": "BBG001S8C4T6",
+            "securityType2": "Common Stock",
+            "securityDescription": "80700"
+          }
+        ]
+      }
+    }
+  ]
+}

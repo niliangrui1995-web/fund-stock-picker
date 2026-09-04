@@ -28,7 +28,7 @@ describe("LeverageMarketSummary", () => {
     let resolveLoad: ((value: ReturnType<typeof loaded>) => void) | undefined;
     const load = vi.fn(() => new Promise<ReturnType<typeof loaded>>((resolve) => { resolveLoad = resolve; }));
     await act(async () => { root.render(<LeverageMarketSummary load={load} />); });
-    expect(node.textContent).toContain("正在加载市场环境摘要");
+    expect(node.textContent).toContain("加载中");
     expect(node.querySelector('[role="status"]')).not.toBeNull();
 
     await act(async () => { resolveLoad?.(loaded([
@@ -37,8 +37,8 @@ describe("LeverageMarketSummary", () => {
     ])); });
     await settle();
 
-    expect(node.textContent).toContain("融资余额：100 → 110.00（10.00%）");
-    expect(node.textContent).toContain("不证明其造成");
+    expect(node.textContent).toContain("融资余额变化10.00%");
+    expect(node.textContent).toContain("不说明个股或基金表现的原因");
     const link = node.querySelector("a");
     expect(link?.getAttribute("href")).toBe("/leverage");
     expect(link?.getAttribute("aria-label")).toBe("打开完整两融数据看板");
@@ -56,7 +56,7 @@ describe("LeverageMarketSummary", () => {
   ])("%s 时非阻断地降级并保留完整看板入口", async (_caseName, load) => {
     await act(async () => { root.render(<LeverageMarketSummary load={load} />); });
     await settle();
-    expect(node.textContent).toContain("市场环境摘要暂不可用");
+    expect(node.textContent).toContain("摘要暂不可用");
     expect(node.querySelector("a")?.getAttribute("href")).toBe("/leverage");
   });
 

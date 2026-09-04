@@ -2,7 +2,7 @@ export type LeverageDashboardLoadState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "ready" }
-  | { kind: "blocked"; reason: string; cutoffDate?: string | null };
+  | { kind: "blocked"; reason: string; failureKind?: "load" | "validation"; cutoffDate?: string | null };
 
 export interface DashboardStateView {
   heading: string;
@@ -35,8 +35,8 @@ export function getDashboardStateView(
       };
     case "blocked":
       return {
-        heading: "数据暂不可用",
-        detail: "请稍后刷新再试。",
+        heading: state.failureKind === "load" ? "数据读取失败" : "数据包未通过校验",
+        detail: /[\u3400-\u9fff]/.test(state.reason) ? state.reason : "数据包不完整或版本不匹配，请重新加载。",
         blocking: true,
         cutoffDate: state.cutoffDate ?? "暂无",
       };
