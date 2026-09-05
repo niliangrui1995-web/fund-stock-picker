@@ -633,10 +633,15 @@ def main() -> int:
                         )
 
         candidate_results.sort(key=lambda item: item["fundCode"])
-        error_count = status_counts.get("error", 0)
-        if error_count > 0:
+        failed_statuses = {
+            status: count
+            for status, count in status_counts.items()
+            if status in {"error", "pdf_parse_error"} and count > 0
+        }
+        if failed_statuses:
             raise RuntimeError(
-                f"基金定期报告抓取包含 error 状态 {error_count} 条，拒绝覆盖上一版发布文件"
+                "基金定期报告抓取包含失败状态，拒绝覆盖上一版发布文件："
+                + json.dumps(failed_statuses, ensure_ascii=False, sort_keys=True)
             )
         summary = {
             "report": report_label(year, quarter_num),

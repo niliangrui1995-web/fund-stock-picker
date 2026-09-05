@@ -2,7 +2,7 @@ import { connect } from "cloudflare:sockets";
 
 const MAX_CONTACT_LENGTH = 120;
 const MAX_MESSAGE_LENGTH = 1200;
-const MAX_REQUEST_BYTES = 4096;
+const MAX_REQUEST_BYTES = 16_384;
 const MAX_TURNSTILE_TOKEN_LENGTH = 2048;
 const TURNSTILE_VERIFY_TIMEOUT_MS = 5_000;
 const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -326,6 +326,10 @@ async function handleFeedback(request, env) {
       return jsonResponse({ ok: false, error: "反馈内容过长。" }, { status: 413 });
     }
     return jsonResponse({ ok: false, error: "请求内容无法解析。" }, { status: 400 });
+  }
+
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return jsonResponse({ ok: false, error: "请求内容必须为对象。" }, { status: 400 });
   }
 
   const website = cleanText(payload.website, 120);

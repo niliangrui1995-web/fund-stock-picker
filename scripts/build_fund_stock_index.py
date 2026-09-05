@@ -219,10 +219,15 @@ def validate_source_summary(summary: dict[str, Any], actual_stock_rows: int) -> 
             "run summary status_counts.stock 未覆盖全部基金："
             f"counted={sum(normalized_counts.values())}, fund_count={fund_count}"
         )
-    if normalized_counts.get("error", 0) > 0:
+    failed_statuses = {
+        status: count
+        for status, count in normalized_counts.items()
+        if status in {"error", "parse_error"} and count > 0
+    }
+    if failed_statuses:
         raise ValueError(
-            "run summary status_counts.stock 包含 error 状态，拒绝生成发布包："
-            f"error={normalized_counts['error']}"
+            "run summary status_counts.stock 包含失败状态，拒绝生成发布包："
+            + json.dumps(failed_statuses, ensure_ascii=False, sort_keys=True)
         )
 
 
@@ -1184,6 +1189,8 @@ def validate_qdii_h1_summary(summary: dict[str, Any], rows: list[dict[str, str]]
 
 def load_qdii_h1_source() -> dict[str, Any] | None:
     """Load the official H1 overlay, or return None for a normal non-H1 rebuild."""
+    if QUARTER.quarter != 2:
+        return None
     if not QDII_H1_CSV.exists() and not QDII_H1_SUMMARY_JSON.exists():
         return None
     if not QDII_H1_CSV.exists() or not QDII_H1_SUMMARY_JSON.exists():
@@ -2891,6 +2898,7 @@ def main() -> None:
     )
     INDIRECT_EXPOSURE_AUDIT_MD.parent.mkdir(parents=True, exist_ok=True)
     staged_portfolio_manifest: Path | None = None
+    release_already_existed = portfolio_release_dir.exists()
     try:
         with temp_json.open("w", encoding="utf-8") as handle:
             json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
@@ -2921,8 +2929,18 @@ def main() -> None:
             replacements.append((temp_qdii_rich, QDII_RICH_JSON))
         publish_staged_files(replacements)
     except Exception:
-        if portfolio_release_dir.exists():
-            shutil.rmtree(portfolio_release_dir)
+        if not release_already_existed and portfolio_release_dir.exists():
+            try:
+                active_manifest = json.loads(portfolio_manifest_path.read_text(encoding="utf-8"))
+                active_release_id = active_manifest.get("releaseId") if isinstance(active_manifest, dict) else None
+            except FileNotFoundError:
+                active_release_id = ""
+            except (OSError, ValueError):
+                active_release_id = None
+            # A failed rollback may leave the new manifest active. Preserve its
+            # shards, and retain them when the current reference cannot be read.
+            if isinstance(active_release_id, str) and active_release_id != portfolio_manifest["releaseId"]:
+                shutil.rmtree(portfolio_release_dir)
         raise
     finally:
         staged_paths = [temp_json, temp_holdings, temp_audit]

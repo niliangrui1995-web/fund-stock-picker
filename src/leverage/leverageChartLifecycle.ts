@@ -4,7 +4,7 @@ export interface LeverageChartAdapter {
     options: {
       notMerge: boolean;
       lazyUpdate: boolean;
-      replaceMerge: ["series"];
+      replaceMerge: ["series", "yAxis"];
     },
   ): void;
   resize(): void;
@@ -34,7 +34,7 @@ export function createLeverageChartLifecycle(
       chart?.setOption(option, {
         notMerge: false,
         lazyUpdate: true,
-        replaceMerge: ["series"],
+        replaceMerge: ["series", "yAxis"],
       });
     },
     resize() {

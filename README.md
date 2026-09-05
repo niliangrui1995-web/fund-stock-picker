@@ -122,6 +122,14 @@ npm install
 npm run dev
 ```
 
+运行前端、Node 发布门禁和 Python 数据脚本的全部自动化测试：
+
+```powershell
+npm test
+```
+
+Vitest 只收集 `src` 下的测试；`scripts` 中的 Node 测试由 `node --test` 执行。
+
 生产构建：
 
 ```powershell

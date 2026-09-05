@@ -59,7 +59,7 @@ def publish_staged_files(replacements: Iterable[tuple[Path, Path]]) -> None:
                         if target.exists():
                             target.unlink()
                     else:
-                        backup.replace(target)
+                        replace_staged_file(backup, target)
                 except Exception as rollback_error:
                     rollback_errors.append(
                         f"{target}: {rollback_error}; backup={backups[target]}"

@@ -248,8 +248,8 @@ async function openConcentrationPage(page, baseUrl) {
 async function waitForPaintedChart(page, hasAiChainSeries) {
   const chart = page.getByRole("img", {
     name: hasAiChainSeries
-      ? "C5、AI产业链成交额占比与创业板指趋势图"
-      : "成交活跃 A 股前百分之五个股成交额占比与创业板指双轴趋势图",
+      ? "C5、AI产业链成交额占比与创业板指趋势图；历史数值可在下方数据表查询"
+      : "成交活跃 A 股前百分之五个股成交额占比与创业板指双轴趋势图；历史数值可在下方数据表查询",
     exact: true,
   });
   await chart.waitFor({ state: "visible", timeout: 30_000 });
@@ -289,17 +289,17 @@ async function runViewportScenario(browser, baseUrl, viewport) {
     const dashboardTitle = page.locator("#concentration-dashboard-title");
     await dashboardTitle.waitFor({ state: "visible", timeout: 30_000 });
     const title = (await dashboardTitle.textContent())?.trim() ?? "";
-    const hasAiChainSeries = title === "交易集中度与 AI 产业链成交额占比";
+    const hasAiChainSeries = await page.locator(".concentration-summary-ai").count() === 1;
     assertCondition(
-      hasAiChainSeries || title === "前 5% 个股成交额占比",
+      title === "交易集中度",
       `交易集中度标题不正确：${title}`,
     );
 
     const summaryCards = page.locator(".concentration-summary-card");
     await summaryCards.first().waitFor({ state: "visible", timeout: 30_000 });
     const summaryLabels = hasAiChainSeries
-      ? ["最新 C5", "最新 AI产业链成交额占比", "较上一交易日", "成交活跃 A 股", "全A等权 AMOUNT"]
-      : ["最新 C5", "较上一交易日", "成交活跃 A 股", "全A等权 AMOUNT"];
+      ? ["区间末日 C5", "AI 产业链成交占比", "较上一交易日", "成交活跃 A 股", "全 A 等权成交额"]
+      : ["区间末日 C5", "较上一交易日", "成交活跃 A 股", "全 A 等权成交额"];
     assertCondition(
       await summaryCards.count() === summaryLabels.length,
       `交易集中度关键指标卡应为 ${summaryLabels.length} 张。`,

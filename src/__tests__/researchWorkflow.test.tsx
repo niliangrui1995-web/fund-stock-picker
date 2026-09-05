@@ -191,3 +191,40 @@ describe("研究入口与上下文", () => {
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ cache: "reload" });
   });
 });
+
+
+describe("研究页导航的浏览器行为", () => {
+  it.each([
+    ["Ctrl", { ctrlKey: true }],
+    ["Meta", { metaKey: true }],
+    ["Shift", { shiftKey: true }],
+    ["Alt", { altKey: true }],
+    ["中键", { button: 1 }],
+  ] as const)("%s 点击不触发离开保护或阻止浏览器默认行为", async (_name, modifiers) => {
+    await renderAt("/research?stock=NVDA");
+    allowSwitch = false;
+    leaveGuard.mockClear();
+    const link = container.querySelector<HTMLAnchorElement>('nav a[href="/leverage"]')!;
+    let preventedByApp = true;
+    const suppressJsdomNavigation = (event: MouseEvent) => {
+      preventedByApp = event.defaultPrevented;
+      event.preventDefault();
+    };
+    document.addEventListener("click", suppressJsdomNavigation, { once: true });
+    await act(async () => link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, ...modifiers })));
+    expect(preventedByApp).toBe(false);
+    expect(leaveGuard).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("NVDA");
+  });
+
+  it("普通左键导航仍由未保存离开保护处理", async () => {
+    await renderAt("/research?stock=NVDA");
+    allowSwitch = false;
+    leaveGuard.mockClear();
+    const link = container.querySelector<HTMLAnchorElement>('nav a[href="/leverage"]')!;
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    await act(async () => link.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(true);
+    expect(leaveGuard).toHaveBeenCalledOnce();
+  });
+});

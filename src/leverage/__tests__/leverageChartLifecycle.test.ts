@@ -6,6 +6,8 @@ import { SVGRenderer } from "echarts/renderers";
 import type { EChartsOption } from "echarts";
 
 import { createLeverageChartLifecycle } from "../leverageChartLifecycle";
+import { buildLeverageChartOption } from "../leverageChartOption";
+import type { DerivedSeries } from "../deriveLeverageSeries";
 
 echarts.use([LineChart, DataZoomComponent, GridComponent, LegendComponent, SVGRenderer]);
 
@@ -49,12 +51,12 @@ describe("leverage chart lifecycle", () => {
     expect(setOption).toHaveBeenNthCalledWith(1, { series: ["initial"] }, {
       notMerge: false,
       lazyUpdate: true,
-      replaceMerge: ["series"],
+      replaceMerge: ["series", "yAxis"],
     });
     expect(setOption).toHaveBeenNthCalledWith(2, { series: ["updated"] }, {
       notMerge: false,
       lazyUpdate: true,
-      replaceMerge: ["series"],
+      replaceMerge: ["series", "yAxis"],
     });
     expect(resize).toHaveBeenCalledTimes(1);
     expect(dispose).toHaveBeenCalledTimes(1);
@@ -89,5 +91,55 @@ describe("leverage chart lifecycle", () => {
     ]);
     expect(currentOption.legend[0]?.selected?.["399006"]).toBe(false);
     lifecycle.dispose();
+  });
+
+  it("取消全部指数时移除右轴，重新选择指数后恢复右轴并保留缩放", () => {
+    const chart = echarts.init(null, undefined, {
+      renderer: "svg",
+      ssr: true,
+      width: 320,
+      height: 180,
+    });
+    const lifecycle = createLeverageChartLifecycle(() => ({
+      setOption: (option, options) => chart.setOption(option as EChartsOption, options),
+      resize: () => chart.resize(),
+      dispose: () => chart.dispose(),
+    }));
+    const derived: DerivedSeries = {
+      main: [{ date: "2026-09-01", value: 100 }, { date: "2026-09-02", value: 105 }],
+      indices: [{
+        code: "000001",
+        points: [
+          { date: "2026-09-01", rawClose: 3000, normalized: 100 },
+          { date: "2026-09-02", rawClose: 3003, normalized: 100.1 },
+        ],
+      }],
+      unavailableIndexCodes: [],
+      baseDate: "2026-09-01",
+      unavailableReason: null,
+    };
+
+    try {
+      lifecycle.attach({} as HTMLDivElement);
+      lifecycle.update(buildLeverageChartOption({ metric: "margin", derived }));
+      chart.dispatchAction({ type: "dataZoom", start: 23, end: 81 });
+      lifecycle.update(buildLeverageChartOption({
+        metric: "margin",
+        derived: { ...derived, indices: [], baseDate: null },
+      }));
+
+      const withoutIndices = chart.getOption() as {
+        yAxis: Array<{ name: string }>;
+        dataZoom: Array<{ start: number; end: number }>;
+      };
+      expect(withoutIndices.yAxis.map((axis) => axis.name)).toEqual(["融资余额（亿元）"]);
+      expect(withoutIndices.dataZoom.map((zoom) => [zoom.start, zoom.end])).toEqual([[23, 81], [23, 81]]);
+
+      lifecycle.update(buildLeverageChartOption({ metric: "margin", derived }));
+      const withIndices = chart.getOption() as { yAxis: Array<{ name: string }> };
+      expect(withIndices.yAxis.map((axis) => axis.name)).toEqual(["融资余额（亿元）", "指数（基准=100）"]);
+    } finally {
+      lifecycle.dispose();
+    }
   });
 });

@@ -1839,6 +1839,7 @@ export function App() {
   }
 
   function handleTopNavigation(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (!isResearchPage || event.currentTarget.href === window.location.href) return;
 
     const leaveGuard = researchLeaveGuardRef.current;

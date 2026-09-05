@@ -546,13 +546,13 @@ async function runDesktopScenario(
     await page.locator(".search-zone").waitFor({ state: "visible", timeout: 30_000 });
     assert.equal(await page.locator(".leverage-dashboard").count(), 0, "研究页不应渲染两融面板。");
     assert.equal(
-      await page.getByRole("link", { name: "研究", exact: true }).getAttribute("aria-current"),
+      await page.getByRole("link", { name: "基金穿透", exact: true }).getAttribute("aria-current"),
       "page",
       "研究页导航状态无效。",
     );
 
     await page.goto(`${baseUrl}/methodology`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "基金持仓穿透口径" }).waitFor({ state: "visible", timeout: 30_000 });
+    await page.getByRole("heading", { name: "数据口径", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
     assert.equal(await page.locator(".search-zone").count(), 0, "方法论页不应渲染研究面板。");
     assert.equal(
       await page.getByRole("link", { name: "方法论", exact: true }).getAttribute("aria-current"),
@@ -578,7 +578,7 @@ async function runDesktopScenario(
     );
 
     const chartHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(chartHead, "融资余额与指数", "默认主图标题");
+    textContains(await page.locator(".leverage-chart-canvas").getAttribute("aria-label"), "融资余额与指数走势", "默认主图标签");
     textContains(chartHead, "对比基准", "默认主图基准标签");
     const baseBeforeZoom = await page.locator(".leverage-chart-panel-head em").innerText();
     const beforeZoom = await moveToMidChartAndReadTooltip(page);
@@ -604,7 +604,7 @@ async function runDesktopScenario(
     const disclosure = await disclosureDetails.innerText();
     textContains(disclosure, "融资数据：东方财富；指数数据：通达信。", "数据来源说明");
     textContains(disclosure, marketCapSourceText, "市值来源说明");
-    textContains(disclosure, "计算方式：融资余额 ÷ 沪深 A 股市值。", "比例计算说明");
+    textContains(await page.locator(".leverage-disclosure-essential").innerText(), "占市值比例 = 融资余额 ÷ 沪深 A 股市值。", "比例计算说明");
 
     await page.mouse.move(
       beforeZoom.box.x + beforeZoom.box.width - 50,
@@ -706,7 +706,7 @@ async function runMobileScenario(browser, result, baseUrl) {
     );
     const navLinks = page.locator(".topbar-nav a");
     assert.equal(await navLinks.count(), 4, "移动端导航应保留研究、两融、交易集中度、方法论。");
-    for (const expectedName of ["研究", "两融", "交易集中度", "方法论"]) {
+    for (const expectedName of ["基金穿透", "两融", "交易集中度", "方法论"]) {
       await page.getByRole("link", { name: expectedName, exact: true }).waitFor({ state: "visible" });
     }
     const buttonMetrics = await navLinks.evaluateAll((elements) =>
@@ -750,10 +750,11 @@ async function runBlockedScenario(browser, result, badUrl) {
   const page = await context.newPage();
   try {
     await page.goto(`${badUrl}/leverage`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "数据暂不可用" }).waitFor({ state: "visible", timeout: 30_000 });
+    await page.getByRole("heading", { name: "数据包未通过校验", exact: true }).waitFor({ state: "visible", timeout: 30_000 });
     const blockedText = await page.locator(".leverage-dashboard-state").innerText();
-    textContains(blockedText, "请稍后刷新再试。", "坏包阻断提示");
-    textContains(blockedText, "数据截至：暂无", "坏包截止日");
+    textContains(blockedText, "SHA-256", "坏包阻断原因");
+    assert.equal(await page.locator(".leverage-summary-primary, .leverage-package-date").count(), 0, "坏包不得展示未经校验的指标或截止日。");
+    assert.equal(await page.getByRole("button", { name: "重新加载", exact: true }).isVisible(), true, "坏包应提供重新加载入口。");
     assert.equal(await page.locator(".leverage-chart-canvas").count(), 0, "坏包时不得渲染图表。");
     await page.locator(".leverage-dashboard-state").evaluate((element) =>
       element.scrollIntoView({ block: "center" }),
@@ -789,7 +790,7 @@ async function runRatioUnavailableScenario(browser, result, baseUrl, dataCutoff,
     textContains(disclosureText, "融资余额占市值：暂不可用。", "比例不可用披露状态");
 
     const chartHead = await page.locator(".leverage-chart-panel-head").innerText();
-    textContains(chartHead, "融资余额与指数", "比例不可用时余额主图标题");
+    textContains(await page.locator(".leverage-chart-canvas").getAttribute("aria-label"), "融资余额与指数走势", "比例不可用时余额主图标签");
     textContains(chartHead, dataCutoff, "比例不可用时余额主图截止日");
     assert.equal(await page.locator(".leverage-chart-canvas").count(), 1, "比例不可用时余额图表未渲染。");
     const tooltip = await moveToMidChartAndReadTooltip(page);

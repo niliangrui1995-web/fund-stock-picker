@@ -92,11 +92,17 @@ export function TradingConcentrationChart({
     const option = buildConcentrationChartOption(records, aiChainSeries);
     chartRef.current?.setOption({
       ...option,
-      legend: { show: false, selected: Object.fromEntries(series.map((item) => [item.name, !hiddenSeries.includes(item.name)])) },
+      legend: { show: false },
     }, {
       notMerge: true,
       lazyUpdate: true,
     });
+  }, [aiChainSeries, records]);
+
+  useEffect(() => {
+    chartRef.current?.setOption({
+      legend: { selected: Object.fromEntries(series.map((item) => [item.name, !hiddenSeries.includes(item.name)])) },
+    }, { lazyUpdate: true });
   }, [aiChainSeries, records, hiddenSeries]);
 
   return (

@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 import build_fund_stock_index as index_builder
+from quarter_config import FundQuarterConfig
 from build_fund_stock_index import (
     build_portfolio_release,
     json_utf8_bytes,
@@ -660,7 +661,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 target_json: b"old index",
                 holdings_json: b"old holdings",
                 audit_path: b"old audit",
-                manifest_path: b"old manifest",
+                manifest_path: b'{"releaseId":"old-release"}',
             }
             for path, content in old_files.items():
                 path.write_bytes(content)
@@ -797,6 +798,62 @@ class PortfolioReleaseTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "holding_rows.stock"):
                     index_builder.build_index_with_audit()
 
+    def test_main_preserves_active_release_when_manifest_rollback_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = Path(temp_dir) / "data"
+            data_dir.mkdir()
+            target_json = data_dir / "fund-stock-index-2026q2.json"
+            qdii_json = data_dir / "qdii-fund-holdings-2026h1.json"
+            audit_path = Path(temp_dir) / "audit.md"
+            manifest_path = data_dir / "fund-portfolio-index-2026q2.manifest.json"
+            old_manifest = b'{"releaseId":"old"}'
+            manifest_path.write_bytes(old_manifest)
+            payload = {
+                "meta": {
+                    "report": "2026Q2", "generatedAt": "2026-09-05T00:00:00",
+                    "cutoffDate": "2026-06-30", "sourceRows": 1,
+                    "fundInvestmentSourceRows": 0, "stockCount": 1,
+                },
+                "stocks": [], "fundHoldings": {},
+            }
+            portfolio_inputs = {
+                "stockRows": {"000660": {"code": "000660", "name": "SK海力士"}},
+                "directFunds": {"000660": [fund("A", 0.042)]},
+                "indirectCandidates": {}, "indirectCoverage": {}, "fundHoldings": {},
+                "qdiiRichPayload": {"fundHoldings": {}},
+            }
+            original_replace = Path.replace
+
+            def fail_qdii_publish_and_manifest_rollback(path: Path, target: Path):
+                if Path(target) == qdii_json:
+                    raise OSError("injected QDII publish failure")
+                if Path(target) == manifest_path and ".rollback-" in path.name:
+                    raise OSError("injected manifest rollback failure")
+                return original_replace(path, target)
+
+            with (
+                mock.patch.object(index_builder, "TARGET_JSON", target_json),
+                mock.patch.object(index_builder, "QDII_RICH_JSON", qdii_json),
+                mock.patch.object(index_builder, "INDIRECT_EXPOSURE_AUDIT_MD", audit_path),
+                mock.patch.object(
+                    index_builder, "build_index_with_audit",
+                    return_value=(payload, "new audit", portfolio_inputs),
+                ),
+                mock.patch.object(Path, "replace", new=fail_qdii_publish_and_manifest_rollback),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "无法回滚"):
+                    index_builder.main()
+
+            active_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            release_dir = data_dir / "fund-portfolio-index-2026q2" / active_manifest["releaseId"]
+            self.assertTrue(release_dir.is_dir())
+            for code, shard in active_manifest["shards"].items():
+                shard_path = release_dir / f"{index_builder.portfolio_stock_file_stem(code)}.json"
+                self.assertEqual(sha256_bytes(shard_path.read_bytes()), shard["sha256"])
+            backups = list(data_dir.glob(f".{manifest_path.name}.rollback-*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), old_manifest)
+
     def test_source_summary_rejects_incomplete_status_coverage(self):
         summary = {
             "fund_count": 10,
@@ -816,8 +873,21 @@ class PortfolioReleaseTests(unittest.TestCase):
             "status_counts": {"stock": {"error": 1}},
         }
 
-        with self.assertRaisesRegex(ValueError, "error"):
-            index_builder.validate_source_summary(summary, 0)
+        for failure_status in ("error", "parse_error"):
+            with self.subTest(status=failure_status):
+                summary["status_counts"]["stock"] = {failure_status: 1}
+                with self.assertRaisesRegex(ValueError, failure_status):
+                    index_builder.validate_source_summary(summary, 0)
+
+    def test_source_summary_accepts_normal_missing_disclosures(self):
+        summary = {
+            "fund_count": 3,
+            "status_rows": 3,
+            "selected_types": ["stock"],
+            "holding_rows": {"stock": 1},
+            "status_counts": {"stock": {"ok": 1, "no_data": 1, "out_of_period": 1}},
+        }
+        index_builder.validate_source_summary(summary, 1)
 
     def test_qdii_h1_incomplete_summary_is_rejected_even_when_counts_match(self):
         rows = [
@@ -892,6 +962,17 @@ class PortfolioReleaseTests(unittest.TestCase):
                 mock.patch.object(index_builder, "FUND_LIST_CSV", temp_path / "missing-fund-list.csv"),
             ):
                 loaded = index_builder.load_qdii_h1_source()
+                for quarter in (1, 3, 4):
+                    with (
+                        self.subTest(quarter=quarter),
+                        mock.patch.object(index_builder, "QUARTER", FundQuarterConfig(2026, quarter)),
+                    ):
+                        self.assertIsNone(index_builder.load_qdii_h1_source())
+
+                summary["cutoffDate"] = "2026-03-31"
+                summary_json.write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "截止日期"):
+                    index_builder.load_qdii_h1_source()
 
         self.assertIsNotNone(loaded)
         assert loaded is not None

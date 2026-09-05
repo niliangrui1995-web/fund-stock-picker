@@ -165,3 +165,89 @@ describe("单股查询与组合编辑的模型边界", () => {
     expect(current.dirty).toBe(false);
   });
 });
+
+
+describe("多个页面保存组合", () => {
+  it("较早打开的页面不能覆盖另一页面新保存的组合，检查后可重试保留两者", async () => {
+    let other: PortfolioResearchModel;
+    function OtherPage() {
+      other = usePortfolioResearch({ stocks, manifestUrl: "/portfolio.json" });
+      return null;
+    }
+    const otherContainer = document.createElement("div");
+    document.body.appendChild(otherContainer);
+    const otherRoot = createRoot(otherContainer);
+    try {
+      await render();
+      await act(async () => otherRoot.render(<OtherPage />));
+      await act(async () => other.addStock("NVDA"));
+      await act(async () => { expect(other.saveAs("页面 A 组合")).toBe(true); });
+      const savedByOther = window.localStorage.getItem(PORTFOLIO_STORAGE_KEY);
+      await act(async () => current.addStock("TSM"));
+      await act(async () => { expect(current.saveAs("页面 B 组合")).toBe(false); });
+      expect(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)).toBe(savedByOther);
+      expect(current.draft.stockCodes).toEqual(["TSM"]);
+      expect(current.dirty).toBe(true);
+      expect(current.saveError).toContain("其他页面已更新");
+      expect(current.baskets.map((basket) => basket.name)).toEqual(["页面 A 组合"]);
+      await act(async () => { expect(current.saveAs("页面 B 组合")).toBe(true); });
+      const saved = JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!);
+      expect(saved.baskets.map((basket: { name: string }) => basket.name)).toEqual(["页面 A 组合", "页面 B 组合"]);
+      expect(current.dirty).toBe(false);
+    } finally {
+      await act(async () => otherRoot.unmount());
+      otherContainer.remove();
+    }
+  });
+
+  it("另一页面修改当前组合时保留草稿和离开保护，另存为保留两个版本", async () => {
+    const original = savedBasket({ stockCodes: ["NVDA"] });
+    window.localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, activeBasketId: original.id, baskets: [original] }));
+    await render();
+    await act(async () => current.addStock("TSM"));
+    const remote = { ...original, stockCodes: ["MSFT"], updatedAt: "2026-09-05T00:00:00.000Z" };
+    const remoteStore = JSON.stringify({ schemaVersion: 1, activeBasketId: remote.id, baskets: [remote] });
+    window.localStorage.setItem(PORTFOLIO_STORAGE_KEY, remoteStore);
+    const leave = vi.fn();
+    await act(async () => current.requestLeave(leave, null));
+    await act(async () => current.resolveUnsavedDecision("save"));
+    expect(leave).not.toHaveBeenCalled();
+    expect(current.pendingAction?.kind).toBe("leave");
+    expect(current.draft.stockCodes).toEqual(["NVDA", "TSM"]);
+    expect(current.dirty).toBe(true);
+    expect(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)).toBe(remoteStore);
+    await act(async () => current.resolveUnsavedDecision("cancel"));
+    await act(async () => { expect(current.saveAs("本页副本")).toBe(true); });
+    const saved = JSON.parse(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)!);
+    expect(saved.baskets[0]).toEqual(remote);
+    expect(saved.baskets[1].stockCodes).toEqual(["NVDA", "TSM"]);
+  });
+
+  it("当前组合被另一页面删除后仍可将保留的草稿保存为新组合", async () => {
+    const original = savedBasket({ stockCodes: ["NVDA"] });
+    window.localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, activeBasketId: original.id, baskets: [original] }));
+    await render();
+    await act(async () => current.addStock("TSM"));
+    window.localStorage.removeItem(PORTFOLIO_STORAGE_KEY);
+    await act(async () => { expect(current.saveActive()).toBe(false); });
+    expect(window.localStorage.getItem(PORTFOLIO_STORAGE_KEY)).toBeNull();
+    expect(current.activeBasketId).toBeNull();
+    expect(current.draft.stockCodes).toEqual(["NVDA", "TSM"]);
+    await act(async () => { expect(current.saveActive()).toBe(true); });
+    expect(current.baskets).toHaveLength(1);
+    expect(current.baskets[0].id).not.toBe(original.id);
+    expect(current.baskets[0].stockCodes).toEqual(["NVDA", "TSM"]);
+  });
+
+  it("写前无法读取最新记录时不覆盖存储并保留草稿", async () => {
+    await render();
+    await act(async () => current.addStock("NVDA"));
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("read denied"); });
+    await act(async () => { expect(current.saveActive()).toBe(false); });
+    expect(write).not.toHaveBeenCalled();
+    expect(current.draft.stockCodes).toEqual(["NVDA"]);
+    expect(current.dirty).toBe(true);
+    expect(current.saveError).toContain("无法读取");
+  });
+});

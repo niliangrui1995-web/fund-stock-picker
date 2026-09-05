@@ -106,6 +106,15 @@ function sameDraft(left: BasketDraft, right: BasketDraft): boolean {
     left.stockCodes.every((code, index) => code === right.stockCodes[index]);
 }
 
+function sameStore(left: PortfolioStoreV1, right: PortfolioStoreV1): boolean {
+  return left.activeBasketId === right.activeBasketId && left.baskets.length === right.baskets.length &&
+    left.baskets.every((basket, index) => {
+      const other = right.baskets[index];
+      return basket.id === other.id && basket.createdAt === other.createdAt &&
+        basket.updatedAt === other.updatedAt && sameDraft(basket, other);
+    });
+}
+
 function createBasketId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -250,6 +259,22 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
     }
     let outcome;
     try {
+      const latest = readPortfolioStore(window.localStorage, validCodes);
+      if (latest.kind === "unavailable") {
+        setSaveError("无法读取本机保存，当前草稿已保留，请稍后重试。");
+        return false;
+      }
+      if (!sameStore(latest.store, storeRef.current)) {
+        setStore(latest.store);
+        storeRef.current = latest.store;
+        if (activeBasketId !== null && !currentBasket(latest.store, activeBasketId)) {
+          setActiveBasketId(null);
+        }
+        setDirty(draft.stockCodes.length > 0);
+        setIsTemporary(false);
+        setSaveError("其他页面已更新保存的组合。本页草稿已保留，组合列表已刷新；请检查后再次保存，或另存为保留两个版本。");
+        return false;
+      }
       outcome = writePortfolioStore(window.localStorage, nextStore, validCodes);
     } catch {
       outcome = { ok: false as const, reason: "无法保存到本机，当前研究仍可继续。" };
@@ -262,7 +287,7 @@ export function usePortfolioResearch(options: UsePortfolioResearchOptions): Port
     storeRef.current = nextStore;
     setSaveError(null);
     return true;
-  }, [validCodes]);
+  }, [activeBasketId, draft.stockCodes.length, validCodes]);
 
   const saveAs = useCallback((name: string): boolean => {
     const candidate = { name, stockCodes: draft.stockCodes };

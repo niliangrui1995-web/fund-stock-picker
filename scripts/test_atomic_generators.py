@@ -74,6 +74,41 @@ class AtomicGeneratorTests(unittest.TestCase):
             self.assertEqual(len(backups), 1)
             self.assertEqual(backups[0].read_bytes(), b"old first")
 
+    def test_group_rollback_retries_transient_permission_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staged_first, staged_second = root / "staged-first.txt", root / "staged-second.txt"
+            target_first, target_second = root / "first.txt", root / "second.txt"
+            for path, content in (
+                (staged_first, b"new first"), (staged_second, b"new second"),
+                (target_first, b"old first"), (target_second, b"old second"),
+            ):
+                path.write_bytes(content)
+            original_replace = Path.replace
+            rollback_attempts = 0
+
+            def fail_publish_and_lock_rollback(path: Path, target: Path):
+                nonlocal rollback_attempts
+                if path == staged_second:
+                    raise OSError("injected publish failure")
+                if ".rollback-" in path.name and Path(target) == target_first:
+                    rollback_attempts += 1
+                    if rollback_attempts < 3:
+                        raise PermissionError("transient rollback lock")
+                return original_replace(path, target)
+
+            with (
+                mock.patch.object(Path, "replace", new=fail_publish_and_lock_rollback),
+                mock.patch.object(atomic_publish.time, "sleep"),
+            ):
+                with self.assertRaisesRegex(OSError, "injected publish failure"):
+                    publish_staged_files([(staged_first, target_first), (staged_second, target_second)])
+
+            self.assertEqual(rollback_attempts, 3)
+            self.assertEqual(target_first.read_bytes(), b"old first")
+            self.assertEqual(target_second.read_bytes(), b"old second")
+            self.assertEqual(list(root.glob(".*.rollback-*")), [])
+
     def test_fund_holding_fetch_failure_keeps_previous_published_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -183,11 +218,13 @@ class AtomicGeneratorTests(unittest.TestCase):
                 mock.patch.object(fetch_fund_holdings, "parse_fund_list", return_value=[fund]),
                 mock.patch.object(fetch_fund_holdings, "fetch_one_fund", return_value=record),
             ):
-                with self.assertRaisesRegex(RuntimeError, "error"):
-                    fetch_fund_holdings.main()
-
-            for path in published_paths:
-                self.assertEqual(path.read_bytes(), f"old:{path.name}".encode("utf-8"))
+                for failure_status in ("error", "parse_error"):
+                    with self.subTest(status=failure_status):
+                        record["status"]["stock"]["status"] = failure_status
+                        with self.assertRaisesRegex(RuntimeError, failure_status):
+                            fetch_fund_holdings.main()
+                        for path in published_paths:
+                            self.assertEqual(path.read_bytes(), f"old:{path.name}".encode("utf-8"))
 
     def test_fund_holding_publish_failure_rolls_back_all_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -376,11 +413,13 @@ class AtomicGeneratorTests(unittest.TestCase):
                 ),
                 mock.patch.object(fetch_fund_report_holdings, "fetch_one_fund", return_value=result),
             ):
-                with self.assertRaisesRegex(RuntimeError, "error"):
-                    fetch_fund_report_holdings.main()
-
-            self.assertEqual(output_csv.read_bytes(), b"old csv")
-            self.assertEqual(summary_json.read_bytes(), b"old summary")
+                for failure_status in ("error", "pdf_parse_error"):
+                    with self.subTest(status=failure_status):
+                        result["status"] = failure_status
+                        with self.assertRaisesRegex(RuntimeError, failure_status):
+                            fetch_fund_report_holdings.main()
+                        self.assertEqual(output_csv.read_bytes(), b"old csv")
+                        self.assertEqual(summary_json.read_bytes(), b"old summary")
 
     def test_fund_report_publish_failure_rolls_back_csv(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

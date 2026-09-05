@@ -659,13 +659,17 @@ def main() -> int:
         }
 
         failed_types = {
-            holding_type: status_counts[holding_type].get("error", 0)
+            holding_type: {
+                status: count
+                for status, count in status_counts[holding_type].items()
+                if status in {"error", "parse_error"} and count > 0
+            }
             for holding_type in selected_types
-            if status_counts[holding_type].get("error", 0) > 0
+            if any(status_counts[holding_type].get(status, 0) > 0 for status in ("error", "parse_error"))
         }
         if failed_types:
             raise RuntimeError(
-                "基金持仓抓取包含 error 状态，拒绝覆盖上一版发布文件："
+                "基金持仓抓取包含失败状态，拒绝覆盖上一版发布文件："
                 + json.dumps(failed_types, ensure_ascii=False, sort_keys=True)
             )
 
