@@ -205,7 +205,6 @@ async function closeServer(server) {
 }
 
 async function ensureChromium() {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = "0";
   let chromium;
   try {
     ({ chromium } = await import("playwright"));

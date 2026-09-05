@@ -476,8 +476,6 @@ async function closeServer(server) {
 }
 
 async function ensureChromium() {
-  // 固定到本工作树 node_modules，避免继承用户机器上某个手工安装的浏览器缓存。
-  process.env.PLAYWRIGHT_BROWSERS_PATH = "0";
   let chromium;
   try {
     ({ chromium } = await import("playwright"));
