@@ -50,13 +50,14 @@
   justify-content: center;
   width: fit-content;
   min-width: 24px;
+  /* 触屏下抬到 44px（见 src/styles.css 的 @media (pointer: coarse) 补丁） */
   min-height: 32px;
-  color: #3730a3;
+  color: var(--blue-hover, #0C447C);
   font-weight: 700;
 }
 
 .leverage-market-summary-link:focus-visible {
-  outline: 3px solid #312e81;
+  outline: 3px solid var(--focus-ring, #185FA5);
   outline-offset: 2px;
 }
 

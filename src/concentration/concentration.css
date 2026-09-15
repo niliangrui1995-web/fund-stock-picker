@@ -3,11 +3,7 @@
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background:
-    radial-gradient(circle at 88% 4%, rgba(203, 93, 50, 0.1), transparent 26%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(252, 249, 246, 0.95)),
-    var(--surface);
-  box-shadow: var(--shadow-card);
+  background: var(--surface);
 }
 
 .concentration-dashboard-header {
@@ -17,17 +13,15 @@
   gap: 24px;
   padding: 28px 30px 24px;
   border-bottom: 1px solid var(--line-soft);
-  background:
-    repeating-linear-gradient(110deg, transparent 0 22px, rgba(203, 93, 50, 0.026) 22px 23px),
-    linear-gradient(135deg, rgba(245, 158, 11, 0.08), transparent 43%);
+  background: var(--surface);
 }
 
 .concentration-eyebrow {
   display: block;
   margin-bottom: 7px;
-  color: #b44b29;
-  font-size: 10px;
-  font-weight: 800;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.16em;
 }
 
@@ -49,25 +43,49 @@
   line-height: 1.75;
 }
 
+/* 原先的 .dashboard-metrics / .metric-card 指标卡网格已移除：
+   C5、成交活跃 A 股、全 A 等权成交额三项与下方摘要卡完全重复，
+   仅保留摘要卡一组，首屏因此减少一整行。 */
+
+/* 统一控件栏 */
+.concentration-dashboard .dashboard-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 30px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+}
+
 .concentration-header-status {
   display: grid;
   min-width: 176px;
   gap: 8px;
   padding: 11px 13px;
-  border: 1px solid rgba(180, 75, 41, 0.18);
+  border: 1px solid rgba(24, 95, 165, 0.18);
   border-radius: 9px;
-  background: rgba(255, 252, 248, 0.75);
-  color: #9a4c31;
-  font-size: 10px;
-  font-weight: 800;
+  background: rgba(250, 252, 255, 0.8);
+  color: #0C447C;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.06em;
 }
 
 .concentration-header-status strong {
-  color: #425167;
+  color: var(--ink-strong);
   font-size: 12px;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+/* 记录条数与区间是元数据而非 KPI，收进页头避免与摘要卡争夺首屏。 */
+.concentration-header-meta {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .concentration-controls {
@@ -77,13 +95,13 @@
   gap: 16px;
   padding: 15px 30px;
   border-bottom: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface-soft);
 }
 
 .concentration-controls > span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.08em;
 }
 
@@ -97,27 +115,28 @@
 .concentration-period-toggle button {
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid rgba(71, 85, 105, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.86);
   color: #526178;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
   transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
 }
 
-.concentration-period-toggle button:hover {
-  border-color: rgba(203, 93, 50, 0.5);
-  color: #9e3e23;
+.concentration-period-toggle button:hover,
+.concentration-period-toggle button:focus-visible {
+  border-color: rgba(24, 95, 165, 0.45);
+  color: #0C447C;
   transform: translateY(-1px);
 }
 
 .concentration-period-toggle button.is-active {
-  border-color: #b94e2c;
-  background: #b94e2c;
+  border-color: #185FA5;
+  background: #185FA5;
   color: #fff;
-  box-shadow: 0 6px 14px rgba(185, 78, 44, 0.18);
+  box-shadow: 0 6px 14px rgba(24, 95, 165, 0.18);
 }
 
 .concentration-summary-grid {
@@ -136,21 +155,21 @@
   align-content: start;
   min-height: 125px;
   padding: 17px 18px;
-  border: 1px solid rgba(71, 85, 105, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.10);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.74);
 }
 
 .concentration-summary-card > span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.04em;
 }
 
 .concentration-summary-card strong {
   margin-top: 10px;
-  color: #1e293b;
+  color: var(--ink-strong);
   font-size: clamp(17px, 1.6vw, 22px);
   line-height: 1.12;
   letter-spacing: -0.035em;
@@ -164,42 +183,47 @@
   line-height: 1.6;
 }
 
+/* 单一主色（蓝）+ 层级区分：主卡用左侧色条与更深底色，次级卡同色系但更轻。
+   方向涨跌改用红/绿语义（--up/--down），不再与主卡同色，避免"涨跌看不出方向"。 */
 .concentration-summary-primary {
   position: relative;
   overflow: hidden;
-  border-color: rgba(203, 93, 50, 0.26);
-  background: linear-gradient(135deg, #fff8f3, #fff);
+  border-color: rgba(24, 95, 165, 0.20);
+  background: linear-gradient(135deg, #f2f8ff, #fff);
 }
 
 .concentration-summary-primary::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
-  background: #cb5d32;
+  background: var(--blue);
   content: "";
 }
 
-.concentration-summary-primary strong,
-.concentration-summary-card strong.is-up {
-  color: #b64b2a;
+.concentration-summary-primary strong {
+  color: #0C447C;
 }
 
 .concentration-summary-ai {
-  border-color: rgba(22, 131, 111, 0.2);
-  background: linear-gradient(135deg, #f2fbf8, #fff);
+  border-color: rgba(24, 95, 165, 0.14);
+  background: linear-gradient(135deg, #f7fbff, #fff);
 }
 
 .concentration-summary-ai strong {
-  color: #16836f;
+  color: #0C447C;
+}
+
+.concentration-summary-card strong.is-up {
+  color: var(--up);
 }
 
 .concentration-summary-card strong.is-down {
-  color: #16836f;
+  color: var(--down);
 }
 
 .concentration-summary-volume {
-  border-color: rgba(217, 134, 51, 0.18);
-  background: linear-gradient(135deg, #fffbf4, #fff);
+  border-color: rgba(0, 0, 0, 0.10);
+  background: rgba(255, 255, 255, 0.74);
 }
 
 .concentration-workspace {
@@ -212,7 +236,7 @@
 
 .concentration-chart-panel,
 .concentration-disclosure {
-  border: 1px solid rgba(71, 85, 105, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.10);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.82);
 }
@@ -235,7 +259,7 @@
 .concentration-chart-panel-head em {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   line-height: 1.5;
 }
@@ -251,8 +275,8 @@
 .concentration-chart-panel-head em {
   padding: 4px 7px;
   border-radius: 4px;
-  background: #f7f4f1;
-  color: #7c6258;
+  background: #eef2f7;
+  color: #526178;
   text-align: right;
   white-space: nowrap;
 }
@@ -285,7 +309,7 @@
   color: var(--ink-strong);
   cursor: pointer;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
   list-style: none;
 }
 
@@ -310,8 +334,8 @@
 .concentration-disclosure-content .concentration-disclosure-warning {
   padding: 9px 10px;
   border-radius: 7px;
-  background: #fff8f3;
-  color: #9a5235;
+  background: var(--warn-soft);
+  color: #8a4a08;
 }
 
 .concentration-disclosure-essential {
@@ -328,8 +352,8 @@
 .concentration-disclosure-essential .concentration-disclosure-warning {
   padding: 9px 10px;
   border-radius: 7px;
-  background: #fff8f3;
-  color: #9a5235;
+  background: var(--warn-soft);
+  color: #8a4a08;
 }
 
 .concentration-disclosure summary::after {
@@ -364,10 +388,12 @@
   cursor: pointer;
 }
 
+/* 复选框 16×16，但其所在的 <label>（min-height 44px，见上）才是真正的命中目标。
+   WCAG 2.2 SC 2.5.8 对"被更大可点击元素包裹的目标"有豁免，故不强行放大控件本身。 */
 .concentration-series-controls input {
   width: 16px;
   height: 16px;
-  accent-color: #b94e2c;
+  accent-color: var(--blue);
 }
 
 .concentration-series-controls label > span {
@@ -385,15 +411,15 @@
 }
 
 .concentration-dashboard-state.is-blocked {
-  border-color: rgba(185, 78, 44, 0.28);
-  background: linear-gradient(135deg, #fff8f4, #fff);
+  border-color: rgba(225, 29, 72, 0.24);
+  background: linear-gradient(135deg, #fff7f8, #fff);
 }
 
 .concentration-dashboard-state small {
   display: block;
   margin-top: 12px;
-  color: #9a5235;
-  font-size: 11px;
+  color: var(--danger-ink);
+  font-size: 12px;
 }
 
 @media (max-width: 1240px) {

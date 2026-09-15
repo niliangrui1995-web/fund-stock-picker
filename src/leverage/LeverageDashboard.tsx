@@ -207,16 +207,20 @@ export function LeverageDashboard() {
     );
   }
 
-  return (
-    <section className="leverage-dashboard" aria-labelledby="leverage-dashboard-title">
-      <header className="leverage-dashboard-header">
-        <div>
-          <h2 id="leverage-dashboard-title">两融数据</h2>
-          <p className="leverage-package-date">最新交易日：{loadedPackage.manifest.data_range.end}</p>
-        </div>
-      </header>
+    return (
+      <section className="leverage-dashboard" aria-labelledby="leverage-dashboard-title">
+        <header className="leverage-dashboard-header">
+          <div>
+            <h2 id="leverage-dashboard-title" tabIndex={-1}>两融数据</h2>
+            <p className="leverage-package-date">最新交易日：{loadedPackage.manifest.data_range.end}</p>
+            {/* 记录条数/区间是元数据，不是 KPI：放页头，避免与下方摘要卡重复占首屏 */}
+            <p className="leverage-data-meta">
+              {records.length.toLocaleString("zh-CN")} 条记录 · {dataBounds.startDate} 至 {dataBounds.endDate}
+            </p>
+          </div>
+        </header>
 
-      <LeverageControls
+        <LeverageControls
         metric={metric}
         ratioAvailable={ratioAvailable}
         indexCodes={indexCodes}
@@ -236,6 +240,7 @@ export function LeverageDashboard() {
         metric={metric}
         currentRecord={currentRecord}
         previousRecord={previousRecord}
+        ratioAvailable={ratioAvailable}
       />
 
       <div className="leverage-workspace">

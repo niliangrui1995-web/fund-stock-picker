@@ -7,60 +7,71 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 
-  /* HSL-based Colors */
-  --bg: #f8fafc;
-  --bg-gradient-start: #f1f5f9;
-  --bg-gradient-mid: #f8fafc;
-  --bg-gradient-end: #f1f5f9;
+  /* Background —— 统一冷调中性色，避免暖灰与冷灰混用 */
+  --bg: #f5f6f8;
+  --bg-gradient-start: #f5f6f8;
+  --bg-gradient-mid: #f8f9fb;
+  --bg-gradient-end: #f5f6f8;
   
   --surface: #ffffff;
-  --surface-soft: #fafbfe;
-  --surface-blue: #f5f8ff;
-  
-  /* Topbar Navigation (Glassmorphic) */
+  --surface-soft: #f8fafc;
+  --surface-blue: #E6F1FB;
+
+  /* Topbar Navigation */
   --nav: #0b1329;
   --nav-soft: #111a36;
   --nav-border: rgba(255, 255, 255, 0.06);
-  
+
   --ink: #334155;
-  --ink-strong: #0f172a;
-  --muted: #64748b;
-  --muted-strong: #475569;
+  --ink-strong: #16202e;
+  /* 中性色统一为冷调灰蓝，避免与 --ink 的冷灰或品牌蓝产生色相冲突 */
+  --muted: #5f6d7e;
+  --muted-strong: #4b5563;
+
+  /* Borders and Dividers — neutral */
+  --line: rgba(0, 0, 0, 0.08);
+  --line-soft: rgba(0, 0, 0, 0.04);
+  --line-solid: #e2e8f0;   /* 实边：表格行分隔、卡片描边（装饰性） */
+  --line-input: #8593a6;   /* 强调描边：表单控件与需明确边界的容器，对白底 3.12:1，满足 WCAG 1.4.11 */
+  --track: rgba(15, 23, 42, 0.28); /* 进度条轨道：半透明中性，在纯白与淡蓝行底上观感一致 */
   
-  /* Borders and Dividers */
-  --line: rgba(99, 102, 241, 0.08);
-  --line-soft: rgba(99, 102, 241, 0.04);
+  /* Branding / Accents — Indigo Blue series */
+  --accent: #378ADD;        /* Blue 400 — emphasis */
+
+  --blue: #185FA5;          /* Indigo Blue 600 */
+  --blue-hover: #0C447C;   /* Indigo Blue 800 */
+  --blue-soft: #E6F1FB;    /* Indigo Blue 50 */
+  --blue-line: #B7D4EE;    /* 描边：次级按钮边框 */
+  --blue-line-strong: #9CC3EA;
+  --blue-soft-hover: #D5E7F8;
   
-  /* Branding / Accents */
-  --accent: #f43f5e;        /* Rose / Coral Red */
-  --accent-hover: #e11d48;
-  --accent-soft: #fff1f2;
-  
-  --blue: #4f46e5;          /* Indigo Blue */
-  --blue-hover: #4338ca;
-  --blue-soft: #eef2ff;
-  
-  --green: #10b981;         /* Emerald Green */
-  --green-soft: #ecfdf5;
-  
-  --amber: #d97706;         /* Amber Yellow */
-  --amber-soft: #fef3c7;
-  
+  /* 状态语义色：每个语义只暴露「文字墨色 + 浅底」一对，避免同值多令牌。
+     墨色均按浅底实测 ≥4.5:1，可直接用于 12–13px 正文。 */
+  --success-ink: #0f5132;
+  --success-soft: #E7F5EE;
+  --warn-ink: #b45309;
+  --warn-soft: #FDF3E3;
+  --danger-ink: #9f1239;
+  --danger-soft: #fff1f2;
   --danger: #e11d48;
+
+  /* 涨跌语义（A 股惯例：涨=红 / 跌=绿）。两者均满足 WCAG AA 正文对比度。 */
+  --up: #be123c;
+  --down: #0f7a5a;
   
-  /* Shadows and Elevations */
-  --shadow-soft: 0 16px 48px -12px rgba(99, 102, 241, 0.08);
-  --shadow-tiny: 0 1px 3px rgba(99, 102, 241, 0.03), 0 1px 2px rgba(99, 102, 241, 0.02);
-  --shadow-card: 0 10px 30px -10px rgba(99, 102, 241, 0.06);
-  --shadow-hover: 0 20px 40px -15px rgba(99, 102, 241, 0.12);
+  /* Shadows and Elevations — flat, neutral */
+  --shadow-soft: 0 16px 48px -12px rgba(0, 0, 0, 0.06);
+  --shadow-tiny: 0 1px 3px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
   
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --content-max: 1280px;
-  --focus-ring: #4338ca;
-  --focus-ring-on-dark: #c7d2fe;
-  --placeholder: #64748b;
+  --focus-ring: #185FA5;
+  --focus-ring-on-dark: #85B7EB;
+  --placeholder: #5f6d7e;
 
-  /* Design Tokens: 间距 / 圆角 / 字号，统一全站节奏 */
+  /* Design Tokens: 间距 / 圆角，统一全站节奏 */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -69,10 +80,7 @@
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-md: 13px;
-  --text-base: 14px;
+  /* 字号不设令牌：全站节奏为 12 / 13 / 14 / 16 / 18 / 20 / 24 / 30，最小 12px（正文下限） */
 }
 
 * {
@@ -105,10 +113,16 @@ button {
   cursor: pointer;
 }
 
+/* 键盘焦点环统一：除原生表单控件外，也覆盖 summary 与可滚动/可编程聚焦区域
+   （如横向滚动表格容器的 [tabindex="0"]），否则这些元素只会拿到浏览器默认的
+   1px 细虚线，键盘用户几乎看不到自己在哪。 */
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
-a:focus-visible {
+summary:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -134,17 +148,16 @@ a {
 .topbar {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  align-items: stretch;
-  min-height: 70px;
+  align-items: center;
+  min-height: 48px;
   margin: 0 calc(50% - 50vw);
   padding: 0 max(20px, calc(50vw - 640px));
-  background: linear-gradient(135deg, var(--nav) 0%, var(--nav-soft) 100%);
-  color: #f1f5f9;
+  background: var(--nav);
+  color: #e2e8f0;
   border-bottom: 1px solid var(--nav-border);
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .brand-mark {
@@ -153,7 +166,7 @@ a {
   gap: 12px;
   color: #ffffff;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 
@@ -164,11 +177,10 @@ a {
   height: 28px;
   padding: 0 10px;
   border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent) 0%, #ff6b8b 100%);
+  background: var(--blue);
   color: #ffffff;
   font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 0 12px rgba(244, 63, 94, 0.4);
+  font-weight: 500;
 }
 
 .topbar-nav {
@@ -182,38 +194,27 @@ a {
 .topbar-nav a {
   display: inline-flex;
   align-items: center;
-  padding: 0 30px;
+  padding: 6px 12px;
   border: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
   background: transparent;
   color: #94a3b8;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 400;
   text-decoration: none;
   transition: all 0.25s var(--ease);
 }
 
 .topbar-nav a:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
 }
 
 .topbar-nav a.active {
   position: relative;
-  background: rgba(255, 255, 255, 0.02);
-  color: #ffffff;
-}
-
-.topbar-nav a.active::after {
-  position: absolute;
-  right: 24px;
-  bottom: 0;
-  left: 24px;
-  height: 3px;
-  border-radius: 99px 99px 0 0;
   background: var(--blue);
-  box-shadow: 0 -2px 10px rgba(99, 102, 241, 0.6);
-  content: "";
+  color: #ffffff;
+  border-radius: 4px;
 }
 
 .topbar-nav a:focus-visible {
@@ -226,7 +227,7 @@ a {
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  color: #cbd5e1;
+  color: #9fb0c7;
   font-size: 13px;
   white-space: nowrap;
 }
@@ -235,18 +236,18 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #cbd5e1;
-  font-weight: 500;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #c3d0e0;
+  font-weight: 400;
 }
 
 .search-zone {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-md);
   padding: 16px 0 20px;
   scroll-margin-top: 18px;
@@ -280,9 +281,9 @@ a {
   padding: 7px 9px;
   border-radius: 5px;
   background: rgba(71, 87, 200, 0.08);
-  color: #5968ca;
-  font-size: 10px;
-  font-weight: 800;
+  color: #185FA5;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.14em;
 }
 
@@ -296,7 +297,7 @@ a {
   margin: 0;
   color: var(--ink-strong);
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.03em;
 }
 
@@ -360,7 +361,7 @@ a {
 .eyeline {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -369,7 +370,7 @@ a {
   color: var(--ink-strong);
   font-size: 26px;
   line-height: 1.15;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 
@@ -394,7 +395,7 @@ a {
   gap: 12px;
   min-height: 52px;
   padding: 4px 4px 4px 18px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(24, 95, 165, 0.15);
   border-radius: 99px;
   background: #ffffff;
   transition: all 0.3s var(--ease);
@@ -403,7 +404,7 @@ a {
 
 :root[data-input-mode="keyboard"] .search-box:focus-within {
   border-color: var(--blue);
-  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.15), 0 0 0 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 10px 25px -5px rgba(24, 95, 165, 0.15), 0 0 0 3px rgba(24, 95, 165, 0.12);
 }
 
 .search-box svg {
@@ -418,7 +419,7 @@ a {
   background: transparent;
   color: var(--ink-strong);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .search-box input::placeholder {
@@ -435,17 +436,17 @@ a {
   min-width: 116px;
   border: 0;
   border-radius: 99px;
-  background: linear-gradient(135deg, var(--blue) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--blue) 0%, #378ADD 100%);
   color: #ffffff;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 12px rgba(24, 95, 165, 0.25);
 }
 
 .search-box button:hover {
-  background: linear-gradient(135deg, var(--blue-hover) 0%, #4f46e5 100%);
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+  background: linear-gradient(135deg, var(--blue-hover) 0%, #185FA5 100%);
+  box-shadow: 0 6px 16px rgba(24, 95, 165, 0.35);
   transform: translateY(-1px);
 }
 
@@ -483,21 +484,21 @@ a {
   justify-content: center;
   min-height: 32px;
   padding: 0 16px;
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(24, 95, 165, 0.08);
   border-radius: 99px;
   background: var(--surface-soft);
-  color: #475569;
+  color: #5F5E5A;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   transition: all 0.2s var(--ease);
 }
 
 .recent-chips button:hover {
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: rgba(24, 95, 165, 0.3);
   background: var(--blue-soft);
   color: var(--blue);
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.08);
+  box-shadow: 0 4px 10px rgba(24, 95, 165, 0.08);
 }
 
 .ai-hotspot-section {
@@ -523,7 +524,7 @@ a {
   color: var(--ink-strong);
   font-size: 22px;
   line-height: 1.15;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 
@@ -538,15 +539,16 @@ a {
   grid-template-rows: minmax(176px, 1fr) auto;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(24, 95, 165, 0.08);
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff 0%, #fafbfe 100%);
   transition: all 0.25s var(--ease);
 }
 
 .ai-hotspot-card:hover,
+.ai-hotspot-card:focus-visible,
 .ai-hotspot-card.active {
-  border-color: rgba(99, 102, 241, 0.35);
+  border-color: rgba(24, 95, 165, 0.35);
   box-shadow: var(--shadow-hover);
   transform: translateY(-2px);
 }
@@ -589,12 +591,12 @@ a {
   align-items: center;
   height: 22px;
   padding: 0 8px;
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(24, 95, 165, 0.08);
   border-radius: 99px;
   background: var(--surface-soft);
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .hotspot-title-row {
@@ -613,16 +615,16 @@ a {
   color: var(--ink-strong);
   font-size: 15px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .hotspot-title-row em {
-  color: #64748b;
+  color: var(--muted);
   font-size: 12px;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -645,14 +647,14 @@ a {
 
 .hotspot-metrics small {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .hotspot-metrics b {
   color: var(--ink-strong);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -661,12 +663,12 @@ a {
   display: grid;
   min-height: 88px;
   place-items: center;
-  border: 1px dashed rgba(99, 102, 241, 0.2);
+  border: 1px dashed rgba(24, 95, 165, 0.2);
   border-radius: 10px;
   background: #fcfdfe;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .selected-context {
@@ -692,7 +694,7 @@ a {
 .selected-context strong {
   color: var(--ink-strong);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .workspace {
@@ -708,9 +710,10 @@ a {
 
 .left-panel-top {
   padding: 16px;
-  background: linear-gradient(135deg, var(--nav) 0%, var(--nav-soft) 100%);
-  color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  /* 深色块与全站浅色视觉语言不一致，改为浅色面板头部，保留蓝色主操作态 */
+  background: linear-gradient(135deg, #eef4fb 0%, #f7fafd 100%);
+  color: var(--ink-strong);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .panel-heading,
@@ -727,7 +730,7 @@ a {
   margin: 0;
   color: var(--ink-strong);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
@@ -742,11 +745,11 @@ a {
   gap: 6px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .left-panel-top .panel-heading span {
-  color: #94a3b8;
+  color: var(--muted-strong);
 }
 
 .market-shortcuts {
@@ -757,27 +760,29 @@ a {
 }
 
 .market-shortcut {
-  min-height: 32px;
+  min-height: 36px;
   padding: 0 4px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #94a3b8;
+  background: #ffffff;
+  color: var(--muted-strong);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   transition: all 0.2s var(--ease);
 }
 
-.market-shortcut:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+.market-shortcut:hover,
+.market-shortcut:focus-visible {
+  border-color: rgba(24, 95, 165, 0.35);
+  background: var(--blue-soft);
+  color: var(--blue);
 }
 
 .market-shortcut.active {
-  border-color: rgba(99, 102, 241, 0.4);
+  border-color: var(--blue);
   background: var(--blue);
   color: #ffffff;
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 10px rgba(24, 95, 165, 0.3);
 }
 
 .candidate-list {
@@ -787,22 +792,19 @@ a {
 }
 
 .candidate-list::-webkit-scrollbar,
-.table-wrap::-webkit-scrollbar,
-.fund-holdings-hover-card::-webkit-scrollbar {
+.table-wrap::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .candidate-list::-webkit-scrollbar-thumb,
-.table-wrap::-webkit-scrollbar-thumb,
-.fund-holdings-hover-card::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+.table-wrap::-webkit-scrollbar-thumb {
+  background: #a9b6c6;
   border-radius: 99px;
 }
 
 .candidate-list::-webkit-scrollbar-track,
-.table-wrap::-webkit-scrollbar-track,
-.fund-holdings-hover-card::-webkit-scrollbar-track {
+.table-wrap::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -822,7 +824,8 @@ a {
   transition: all 0.2s var(--ease);
 }
 
-.candidate:hover {
+.candidate:hover,
+.candidate:focus-visible {
   background: var(--blue-soft);
   padding-left: 22px;
 }
@@ -852,16 +855,16 @@ a {
   width: 36px;
   height: 36px;
   overflow: hidden;
-  border: 1px solid rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(24, 95, 165, 0.12);
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.04);
+  box-shadow: 0 2px 8px rgba(24, 95, 165, 0.04);
 }
 
 .stock-logo.large {
   width: 52px;
   height: 52px;
-  border-color: rgba(99, 102, 241, 0.18);
+  border-color: rgba(24, 95, 165, 0.18);
   border-radius: 12px;
 }
 
@@ -895,23 +898,23 @@ a {
   overflow: hidden;
   color: var(--ink-strong);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .candidate em {
-  color: #64748b;
+  color: var(--muted);
   font-size: 12px;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
 .candidate > span:last-child {
   color: var(--ink-strong);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -919,19 +922,19 @@ a {
 .candidate small {
   margin-top: 4px;
   color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .market-badge {
   flex: 0 0 auto;
   padding: 2px 8px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(24, 95, 165, 0.1);
   border-radius: 99px;
   background: var(--blue-soft);
   color: var(--blue);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.3;
 }
 
@@ -969,7 +972,7 @@ a {
   color: var(--ink-strong);
   font-size: 32px;
   line-height: 1.1;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 
@@ -984,12 +987,12 @@ a {
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(24, 95, 165, 0.1);
   border-radius: 6px;
   background: var(--blue-soft);
   color: var(--blue);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .result-tags {
@@ -1004,47 +1007,12 @@ a {
   align-items: center;
   min-height: 26px;
   padding: 0 10px;
-  border: 1px solid rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(24, 95, 165, 0.06);
   border-radius: 6px;
   background: var(--surface-soft);
-  color: #475569;
+  color: #5F5E5A;
   font-size: 12px;
-  font-weight: 600;
-}
-
-.segmented {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  min-width: 200px;
-  padding: 4px;
-  border: 1px solid rgba(99, 102, 241, 0.08);
-  border-radius: 99px;
-  background: #f1f5f9;
-}
-
-.segmented button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 34px;
-  border: 0;
-  border-radius: 99px;
-  background: transparent;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-  transition: all 0.25s var(--ease);
-}
-
-.segmented button:hover {
-  color: var(--ink-strong);
-}
-
-.segmented button.active {
-  background: linear-gradient(135deg, var(--blue) 0%, #6366f1 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  font-weight: 400;
 }
 
 .metrics-grid {
@@ -1067,17 +1035,15 @@ a {
   transition: all 0.25s var(--ease);
 }
 
-.metric:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
-}
+/* 注意：.metric 只用于加载骨架（.metric.skeleton），不是可点击卡片。
+   此处不再给出 :hover 抬升，避免对等待中的占位块造成"可点击"的虚假暗示。 */
 
 .metric-icon {
   display: grid;
   width: 42px;
   height: 42px;
   place-items: center;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(24, 95, 165, 0.1);
   border-radius: 10px;
   background: var(--blue-soft);
   color: var(--blue);
@@ -1094,7 +1060,7 @@ a {
   color: var(--ink-strong);
   font-size: 24px;
   line-height: 1.1;
-  font-weight: 800;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
@@ -1104,24 +1070,6 @@ a {
   padding-top: 4px;
 }
 
-.section-title-spaced {
-  margin-top: 26px;
-}
-
-.indirect-exposure-panel {
-  margin-top: 22px;
-}
-
-.indirect-note {
-  margin: 8px 0 0;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.indirect-table-wrap {
-  margin-top: 10px;
-}
 
 .table-wrap {
   margin-top: 12px;
@@ -1152,9 +1100,9 @@ th {
   top: 0;
   z-index: 1;
   background: #f8fafc;
-  color: #475569;
+  color: #5F5E5A;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 td {
@@ -1166,7 +1114,9 @@ tbody tr {
   transition: all 0.2s var(--ease);
 }
 
-tbody tr:hover {
+/* 行高亮同时响应鼠标悬停与键盘聚焦，两者共享同一视觉反馈 */
+tbody tr:hover,
+tbody tr:focus-within {
   background: var(--surface-soft);
 }
 
@@ -1179,223 +1129,15 @@ tbody tr:last-child td {
   width: 24px;
   height: 24px;
   place-items: center;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(24, 95, 165, 0.1);
   border-radius: 99px;
   background: var(--surface-soft);
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.rank-1 {
-  background: linear-gradient(135deg, var(--accent) 0%, #ff6b8b 100%);
-  border: 0;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.3);
-}
-
-.rank-2 {
-  background: linear-gradient(135deg, #f59e0b 0%, #ffc048 100%);
-  border: 0;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-}
-
-.rank-3 {
-  background: linear-gradient(135deg, var(--blue) 0%, #818cf8 100%);
-  border: 0;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-}
-
-.fund-name {
-  max-width: 270px;
-  overflow: hidden;
-  color: var(--ink-strong);
-  font-size: 14px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fund-code {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  max-width: 360px;
-  margin-top: 4px;
-  color: #667b96;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-.fund-code-list {
-  font-weight: 800;
-}
-
-.indirect-product-name {
-  max-width: 300px;
-  overflow: hidden;
-  color: var(--ink-strong);
-  font-size: 14px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.indirect-product-code {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  color: #667b96;
-  font-size: 12px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.leverage-pill {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 2px 8px;
-  border: 1px solid rgba(244, 63, 94, 0.15);
-  border-radius: 99px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.fund-trade-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-width: 360px;
-  margin-top: 8px;
-}
-
-.fund-type-badge,
-.trade-pill,
-.trade-limit {
-  display: inline-flex;
-  align-items: center;
-  height: 23px;
-  padding: 2px 10px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.fund-type-badge {
-  border: 1px solid rgba(99, 102, 241, 0.08);
-  background: #f8fafc;
-  color: #475569;
-}
-
-.trade-limit {
-  border: 1px solid rgba(99, 102, 241, 0.06);
-  background: #f8fafc;
-  color: #475569;
-}
-
-.trade-pill.open {
-  border: 1px solid rgba(16, 185, 129, 0.15);
-  background: var(--green-soft);
-  color: #065f46;
-}
-
-.trade-pill.limited {
-  border: 1px solid rgba(217, 119, 6, 0.15);
-  background: var(--amber-soft);
-  color: #92400e;
-}
-
-.trade-pill.blocked {
-  border: 1px solid rgba(244, 63, 94, 0.15);
-  background: var(--accent-soft);
-  color: #9f1239;
-}
-
-.trade-pill.neutral {
-  border: 1px solid rgba(100, 116, 139, 0.12);
-  background: #f8fafc;
-  color: #475569;
-}
-
-.status-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.strong {
-  color: var(--ink-strong);
-  font-weight: 700;
-}
-
-.table-metric-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 126px;
-}
-
-.metric-num {
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.metric-num-passive {
-  color: #475569;
-  font-size: 14px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.table-progress-track {
-  width: 100%;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: #f1f5f9;
-}
-
-.table-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #6366f1 0%, var(--accent) 100%);
-  transition: width 0.6s var(--ease);
-}
-
-.passive-fill {
-  background: linear-gradient(90deg, #cbd5e1 0%, #94a3b8 100%);
-}
-
-.estimated-num {
-  color: #c2410c;
-}
-
-.estimated-fill {
-  background: linear-gradient(90deg, #fb923c 0%, #ea580c 100%);
-}
-
-.shares-cell {
-  color: #334155;
-  font-weight: 700;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
 
 .empty-state {
   display: grid;
@@ -1411,7 +1153,7 @@ tbody tr:last-child td {
   margin: 4px 0 0;
   color: var(--ink-strong);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
@@ -1419,18 +1161,6 @@ tbody tr:last-child td {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
-}
-
-.table-empty {
-  display: grid;
-  min-height: 220px;
-  place-items: center;
-  border: 1px dashed rgba(99, 102, 241, 0.2);
-  border-radius: 10px;
-  background: #fafbfc;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
 }
 
 .empty-state.error {
@@ -1445,7 +1175,7 @@ tbody tr:last-child td {
   border: 1px solid var(--line);
   border-radius: 12px;
   background:
-    linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(244, 63, 94, 0.03)),
+    linear-gradient(135deg, rgba(24, 95, 165, 0.05), rgba(55, 138, 221, 0.02)),
     #ffffff;
   box-shadow: var(--shadow-card);
   scroll-margin-top: 18px;
@@ -1460,7 +1190,7 @@ tbody tr:last-child td {
 .methodology-head span {
   color: var(--blue);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -1469,7 +1199,7 @@ tbody tr:last-child td {
   margin: 0;
   color: var(--ink-strong);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
@@ -1493,7 +1223,7 @@ tbody tr:last-child td {
   gap: 8px;
   min-height: 138px;
   padding: 16px;
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(24, 95, 165, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.85);
 }
@@ -1501,7 +1231,7 @@ tbody tr:last-child td {
 .methodology-grid strong {
   color: var(--ink-strong);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .compliance-disclaimer {
@@ -1518,7 +1248,7 @@ tbody tr:last-child td {
 .compliance-disclaimer strong {
   color: var(--ink-strong);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .compliance-disclaimer p {
@@ -1543,7 +1273,7 @@ tbody tr:last-child td {
   color: #223652;
   box-shadow: var(--shadow-soft);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .feedback-trigger:hover {
@@ -1592,7 +1322,7 @@ tbody tr:last-child td {
   color: var(--ink-strong);
   font-size: 24px;
   line-height: 1.1;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .feedback-close {
@@ -1617,7 +1347,7 @@ tbody tr:last-child td {
   gap: 7px;
   color: var(--ink-strong);
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .feedback-form input,
@@ -1665,14 +1395,14 @@ tbody tr:last-child td {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .feedback-error {
   margin: 0;
   color: var(--danger);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .feedback-submit,
@@ -1687,7 +1417,7 @@ tbody tr:last-child td {
   background: var(--blue);
   color: #ffffff;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .feedback-submit:disabled {
@@ -1711,7 +1441,7 @@ tbody tr:last-child td {
 .feedback-success strong {
   color: var(--ink-strong);
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .feedback-success p {
@@ -1851,305 +1581,6 @@ tbody tr:last-child td {
   padding: 16px;
 }
 
-.fund-holdings-hover-card {
-  width: 382px;
-  max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 24px);
-  overflow: hidden auto;
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 30px 80px -10px rgba(99, 102, 241, 0.18), 0 10px 30px -15px rgba(0, 0, 0, 0.05);
-  padding: 16px;
-  pointer-events: none;
-  animation: hover-card-pop 0.2s var(--ease) forwards;
-}
-
-.fund-holdings-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9998;
-  border: 0;
-  padding: 0;
-  background: rgba(7, 17, 31, 0.36);
-}
-
-@keyframes hover-card-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.hover-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.hover-card-fund-info {
-  min-width: 0;
-}
-
-.hover-card-fund-name {
-  overflow: hidden;
-  color: var(--ink-strong);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hover-card-meta-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 7px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.hover-card-meta-line strong {
-  color: #334155;
-  font-weight: 700;
-}
-
-.hover-card-fund-codes {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.4;
-}
-
-.hover-card-close {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
-  color: var(--ink);
-}
-
-.hover-card-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.hover-card-summary div {
-  border: 1px solid rgba(99, 102, 241, 0.06);
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.02);
-  padding: 8px 10px;
-}
-
-.hover-card-summary span,
-.hover-card-target-strip span {
-  display: block;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.hover-card-summary strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink-strong);
-  font-size: 14px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.hover-card-target-strip {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  border: 1px solid rgba(244, 63, 94, 0.15);
-  border-radius: 8px;
-  background: rgba(244, 63, 94, 0.04);
-  padding: 8px 10px;
-}
-
-.hover-card-target-strip strong {
-  overflow: hidden;
-  color: var(--ink-strong);
-  font-size: 13px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hover-card-target-strip b {
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.hover-card-title-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.hover-card-holdings-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.hover-card-holding-row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 58px;
-  align-items: stretch;
-  gap: 9px;
-  min-height: 34px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 6px 7px;
-  background: transparent;
-  transition: all 0.2s var(--ease);
-}
-
-.hover-card-holding-row:hover {
-  background: rgba(99, 102, 241, 0.03);
-}
-
-.holding-rank {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.holding-main {
-  min-width: 0;
-}
-
-.holding-name-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  margin-bottom: 4px;
-}
-
-.holding-stock-name {
-  overflow: hidden;
-  color: var(--ink-strong);
-  font-size: 12px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.holding-stock-code {
-  flex: 0 0 auto;
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.holding-progress-bar {
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #f1f5f9;
-}
-
-.holding-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #818cf8 0%, #4f46e5 100%);
-}
-
-.holding-stock-ratio {
-  align-self: center;
-  color: var(--muted-strong);
-  font-size: 12px;
-  font-weight: 700;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.hover-card-holding-row.row-highlight {
-  border-color: rgba(244, 63, 94, 0.15);
-  background: rgba(244, 63, 94, 0.04);
-}
-
-.hover-card-holding-row.row-highlight .holding-rank,
-.hover-card-holding-row.row-highlight .holding-stock-name,
-.hover-card-holding-row.row-highlight .holding-stock-ratio {
-  color: var(--accent);
-}
-
-.hover-card-holding-row.row-highlight .holding-progress-fill {
-  background: linear-gradient(90deg, #f43f5e 0%, #fb7185 100%);
-}
-
-.target-badge {
-  display: inline-flex;
-  padding: 2px 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(244, 63, 94, 0.12);
-  background: #ffffff;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.no-holdings-msg {
-  margin: 0;
-  padding: 12px 0;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
-}
-
-/* 懒加载期间给出行内加载提示，避免误显示“暂无持仓记录” */
-.no-holdings-msg.no-holdings-loading::before {
-  content: "";
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 6px;
-  vertical-align: -2px;
-  border: 2px solid var(--line);
-  border-top-color: var(--blue);
-  border-radius: 50%;
-  animation: holdings-spinner 0.7s linear infinite;
-}
-
-@keyframes holdings-spinner {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* ---------- 可访问性：跳转链接与视觉隐藏 ---------- */
 
 .skip-link {
@@ -2162,7 +1593,7 @@ tbody tr:last-child td {
   background: var(--ink-strong);
   color: #ffffff;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
   transform: translateY(-200%);
   transition: transform 0.2s var(--ease);
@@ -2170,6 +1601,15 @@ tbody tr:last-child td {
 
 .skip-link:focus-visible {
   transform: translateY(0);
+}
+
+/* 跳转链接的落点是各页正文标题；顶栏是 48px 的粘性元素，
+   若不给 scroll-margin-top，标题会被压在导航下面（实测 top=0 而导航底边=48）。 */
+#research-title,
+#leverage-dashboard-title,
+#concentration-dashboard-title,
+#methodology-title {
+  scroll-margin-top: 68px;
 }
 
 .visually-hidden {
@@ -2201,7 +1641,7 @@ tbody tr:last-child td {
   padding: 6px;
   overflow-y: auto;
   list-style: none;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(24, 95, 165, 0.15);
   border-radius: var(--radius-md);
   background: #ffffff;
   box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.18);
@@ -2244,7 +1684,7 @@ tbody tr:last-child td {
   overflow: hidden;
   color: var(--ink-strong);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2252,15 +1692,15 @@ tbody tr:last-child td {
 .suggestion-code {
   color: var(--blue);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .suggestion-meta {
   grid-column: 1 / -1;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 /* ---------- 动效偏好 ---------- */
@@ -2294,8 +1734,8 @@ tbody tr:last-child td {
 
   .topbar-nav a {
     flex: 0 0 auto;
-    min-height: 52px;
-    padding: 0 20px;
+    min-height: 44px;
+    padding: 6px 10px;
   }
 
   .search-zone {
@@ -2376,12 +1816,7 @@ tbody tr:last-child td {
 
   .topbar-nav a {
     min-height: 44px;
-    padding: 0 18px;
-  }
-
-  .topbar-nav a.active::after {
-    right: 16px;
-    left: 16px;
+    padding: 6px 10px;
   }
 
   .search-zone {
@@ -2398,12 +1833,36 @@ tbody tr:last-child td {
     gap: 8px;
   }
 
+  /* 小屏热点改为横向滑动卡片：避免 8 张竖排卡片把页面拉长近 3000px */
   .ai-hotspot-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: min(78%, 300px);
+    gap: 10px;
+    margin: 0 -16px;
+    padding: 2px 16px 10px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .ai-hotspot-grid::-webkit-scrollbar {
+    display: none;
   }
 
   .ai-hotspot-card {
+    scroll-snap-align: start;
     grid-template-rows: auto auto;
+  }
+
+  /* 轮播已完整展示全部热点，收起逻辑与展开按钮在小屏不再生效 */
+  .ai-hotspot-section.is-collapsed .ai-hotspot-card:nth-of-type(n + 4) {
+    display: grid;
+  }
+
+  .ai-hotspot-expand-toggle {
+    display: none;
   }
 
   .search-box {
@@ -2509,55 +1968,25 @@ tbody tr:last-child td {
   .feedback-dialog {
     width: 100%;
   }
-
-  .fund-holdings-hover-card.mobile-panel {
-    width: auto;
-    max-width: none;
-    max-height: min(72vh, 620px);
-    border-radius: 8px 8px 0 0;
-    pointer-events: auto;
-    animation: mobile-card-rise 0.2s var(--ease) forwards;
-  }
-
-  .hover-card-close {
-    display: inline-flex;
-  }
-
-  .hover-card-meta-line {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
-  }
-}
-
-@keyframes mobile-card-rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* ---------- 查询工作台与小屏数据表优化 ---------- */
 
 /* 搜索承担首屏主操作；摘要和快捷查询保留信息密度，但降低同级卡片的视觉重量。 */
 .search-zone > .command-panel {
-  border-color: rgba(99, 102, 241, 0.16);
+  border-color: rgba(24, 95, 165, 0.16);
   background: linear-gradient(145deg, #ffffff 0%, #fbfcff 100%);
   box-shadow: 0 18px 42px -24px rgba(49, 46, 129, 0.28);
 }
 
 .search-zone > .recent-panel,
 .search-zone > .summary-card {
-  border-color: rgba(99, 102, 241, 0.08);
+  border-color: rgba(24, 95, 165, 0.08);
   box-shadow: none;
 }
 
 .ai-hotspot-section {
-  border-color: rgba(99, 102, 241, 0.1);
+  border-color: rgba(24, 95, 165, 0.1);
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
 }
 
@@ -2567,11 +1996,11 @@ tbody tr:last-child td {
   justify-content: center;
   min-height: 44px;
   padding: 8px 16px;
-  border: 1px solid #c7d2fe;
+  border: 1px solid #B5D4F4;
   border-radius: var(--radius-sm);
   background: var(--blue-soft);
   color: var(--blue);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .workspace {
@@ -2580,16 +2009,7 @@ tbody tr:last-child td {
 
 .results-panel,
 .methodology-section {
-  border-color: rgba(99, 102, 241, 0.1);
-}
-
-.result-focus-target {
-  scroll-margin-top: 104px;
-}
-
-.result-focus-target:focus-visible {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 4px;
+  border-color: rgba(24, 95, 165, 0.1);
 }
 
 .feedback-form input::placeholder,
@@ -2598,35 +2018,8 @@ tbody tr:last-child td {
   opacity: 1;
 }
 
-/* 让基金明细的触发区域成为一整个、可见焦点的操作目标。 */
-.fund-holdings-action {
-  display: block;
-  width: 100%;
-  padding: 5px 6px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-}
-
-.fund-holdings-action:hover {
-  background: var(--blue-soft);
-}
-
-.fund-holdings-action:focus-visible {
-  outline-offset: 2px;
-  background: var(--blue-soft);
-}
-
-.feedback-dialog,
-.fund-holdings-hover-card.mobile-panel {
+.feedback-dialog {
   overscroll-behavior: contain;
-}
-
-.fund-holdings-hover-card[role="dialog"] .hover-card-close {
-  display: inline-flex;
 }
 
 .table-wrap {
@@ -2654,31 +2047,7 @@ tbody tr:last-child td {
     padding: 14px;
   }
 
-  /* 仅小屏收起第 4 张及之后的 article；空状态 div 不参与该计数。 */
-  .ai-hotspot-section.is-collapsed .ai-hotspot-card:nth-of-type(n + 4) {
-    display: none;
-  }
-
-  .ai-hotspot-expand-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    width: 100%;
-    padding: 0 16px;
-    border: 1px solid rgba(79, 70, 229, 0.2);
-    border-radius: 8px;
-    background: var(--blue-soft);
-    color: var(--blue);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 800;
-  }
-
-  .ai-hotspot-expand-toggle:hover {
-    border-color: rgba(79, 70, 229, 0.36);
-    background: #e7ebff;
-  }
+  /* 收起/展开已由小屏轮播取代：热点卡全部横向滑动可见，展开按钮不再渲染（见上方 720px 块的 display:none） */
 
   .workspace {
     gap: 14px;
@@ -2733,12 +2102,12 @@ tbody tr:last-child td {
     min-height: 36px;
     margin: 8px 0 0;
     padding: 0 12px;
-    border: 1px solid rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(24, 95, 165, 0.1);
     border-radius: 8px;
-    background: linear-gradient(90deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
-    color: #475569;
-    font-size: 11px;
-    font-weight: 700;
+    background: linear-gradient(90deg, #f8fafc 0%, #E6F1FB 50%, #f8fafc 100%);
+    color: #5F5E5A;
+    font-size: 12px;
+    font-weight: 500;
     pointer-events: none;
   }
 
@@ -2796,33 +2165,17 @@ tbody tr:last-child td {
   :root[data-input-mode="keyboard"] .table-wrap tbody tr:focus-within td:nth-child(2) {
     box-shadow: 12px 0 14px -16px rgba(79, 70, 229, 0.82);
   }
-
-  .fund-holdings-action {
-    min-height: 44px;
-    padding: 6px;
-  }
-
-  .fund-holdings-hover-card.mobile-panel {
-    max-height: min(78dvh, 680px);
-    padding: 18px 16px;
-  }
 }
 
 @media (max-width: 720px), (pointer: coarse) {
   .recent-chips button,
   .market-shortcut,
-  .segmented button,
   .feedback-trigger,
   .feedback-close,
-  .hover-card-close,
   .app-shell .leverage-dashboard .leverage-segmented-control button,
   .app-shell .leverage-dashboard .leverage-period-toggle-group button,
   .app-shell .leverage-dashboard .leverage-index-toggle {
     min-height: 44px;
-  }
-
-  .segmented button {
-    height: auto;
   }
 
   .app-shell .leverage-dashboard .leverage-date-range input {
@@ -2833,6 +2186,36 @@ tbody tr:last-child td {
   :root[data-input-mode="keyboard"] .app-shell .leverage-dashboard .leverage-index-toggle:focus-within {
     outline: 3px solid var(--focus-ring);
     outline-offset: 3px;
+  }
+}
+
+/* 小屏 / 触屏专项补丁：把仍然小于 44px 的紧凑控件抬到达标尺寸。
+   说明：
+   1. 桌面端刻意保留紧凑密度——实测剩余的 36px 高按钮宽度均 ≥74px，
+      已满足 WCAG 2.2 AA 的 24×24 最小命中门槛；若一律放大到 44px，
+      45 行的基金结果表会再增高约 360px，得不偿失。
+   2. 条件里同时写上 max-width: 720px，因为单靠 (pointer: coarse) 在部分
+      移动端仿真/外接鼠标的机型上不成立，会漏掉真正需要放大的场景。
+   3. 行内 <a> 的 min-height 不生效，必须同时改成 inline-flex。 */
+@media (max-width: 720px), (pointer: coarse) {
+  .app-shell .research-intro a,
+  .app-shell .leverage-market-summary-link,
+  .app-shell .skip-link,
+  .app-shell .portfolio-detail-source {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .app-shell .market-shortcut,
+  .app-shell .recent-chips button,
+  .app-shell .feedback-trigger,
+  .app-shell .portfolio-more-actions > summary,
+  .app-shell .portfolio-row-actions button,
+  .app-shell .portfolio-actions button,
+  .app-shell .portfolio-editor button,
+  .app-shell .portfolio-detail-dialog button {
+    min-height: 44px;
   }
 }
 
@@ -2850,12 +2233,12 @@ tbody tr:last-child td {
     min-height: 36px;
     margin: 8px 0 0;
     padding: 0 12px;
-    border: 1px solid rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(24, 95, 165, 0.1);
     border-radius: 8px;
-    background: linear-gradient(90deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
-    color: #475569;
-    font-size: 11px;
-    font-weight: 700;
+    background: linear-gradient(90deg, #f8fafc 0%, #E6F1FB 50%, #f8fafc 100%);
+    color: #5F5E5A;
+    font-size: 12px;
+    font-weight: 500;
     pointer-events: none;
   }
 
@@ -2936,13 +2319,13 @@ tbody tr:last-child td {
 .research-search-zone .research-search-submit { grid-area: submit; border-radius: var(--radius-sm); background: var(--blue); box-shadow: none; }
 .research-search-zone .research-search-submit:hover { background: var(--blue-hover); box-shadow: none; transform: none; }
 .research-search-zone .search-box button:active { transform: none; }
-.research-primary-action { min-height: 44px; padding: 8px 14px; border: 1px solid var(--blue); border-radius: var(--radius-sm); background: var(--blue); color: #fff; font-size: 14px; font-weight: 700; }
-.research-search-empty button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--blue); border-radius: var(--radius-sm); background: #fff; color: var(--blue); font-size: 14px; font-weight: 700; }
-.research-search-empty { margin-top: 12px; padding: 12px; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); background: var(--surface-soft); }
+.research-primary-action { min-height: 44px; padding: 8px 14px; border: 1px solid var(--blue); border-radius: var(--radius-sm); background: var(--blue); color: #fff; font-size: 14px; font-weight: 500; }
+.research-search-empty button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--blue); border-radius: var(--radius-sm); background: #fff; color: var(--blue); font-size: 14px; font-weight: 500; }
+.research-search-empty { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-soft); }
 .research-search-empty p { margin: 0 0 8px; color: var(--ink); font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
 .research-current-context:not(.visually-hidden) { margin: 0 0 12px; color: var(--ink-strong); font-size: 14px; overflow-wrap: anywhere; }
-.research-discovery, .research-data-overview { margin-top: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
-.research-discovery > summary, .research-data-overview > summary, .research-market-details > summary { min-height: 48px; padding: 14px 18px; color: var(--ink-strong); font-size: 14px; font-weight: 700; cursor: pointer; }
+.research-discovery, .research-data-overview { margin-top: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 16px; }
+.research-discovery > summary, .research-data-overview > summary, .research-market-details > summary { min-height: 48px; padding: 14px 18px; color: var(--ink-strong); font-size: 14px; font-weight: 500; cursor: pointer; }
 .research-discovery-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .4fr); gap: 16px; padding: 0 16px 16px; }
 .research-discovery-body > .ai-hotspot-section, .research-discovery-body > .left-panel { grid-column: 1 / -1; margin: 0; }
 .research-discovery-body .candidate-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: 360px; overflow-y: auto; }
@@ -2971,7 +2354,7 @@ tbody tr:last-child td {
 .methodology-details summary, .compliance-disclaimer summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
 .methodology-details summary:focus-visible, .compliance-disclaimer summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
 .methodology-details dl { margin: 0; }
-.methodology-details dt { margin-top: 12px; color: var(--ink-strong); font-weight: 700; }
+.methodology-details dt { margin-top: 12px; color: var(--ink-strong); font-weight: 500; }
 .methodology-details dd { margin: 4px 0 14px; }
 @media (max-width: 920px) {
   .research-intro { align-items: flex-start; }
@@ -2984,14 +2367,179 @@ tbody tr:last-child td {
   .research-intro p { font-size: 13px; }
   .research-intro a { padding: 6px 0; }
   .research-discovery-body { grid-template-columns: minmax(0, 1fr); padding: 0 12px 12px; }
-  .research-discovery-body .ai-hotspot-grid, .research-discovery-body .candidate-list, .methodology-grid { grid-template-columns: minmax(0, 1fr); }
+  /* 注意：下面这一条只用于 candidate-list / methodology-grid。
+     热点网格不能在这里退化成单列——它要的是横向滑动轮播，
+     单独放在下方用更高特异性恢复（见 .research-discovery-body .ai-hotspot-grid）。 */
+  .research-discovery-body .candidate-list, .methodology-grid { grid-template-columns: minmax(0, 1fr); }
+  /* 修复：作用域规则 .research-discovery-body .ai-hotspot-grid（0,2,0）会压过这条 0,1,0 的
+     轮播规则，导致显式列与 grid-auto-flow: column 冲突：
+     minmax(0,1fr) 抢占首列后自由空间为负 → 首列塌成 0px（首张热点卡实测仅 2px 宽）。
+     这里以同等特异性重申轮播，确保小屏恢复横向滑动。 */
+  .research-discovery-body .ai-hotspot-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: min(78%, 300px);
+    gap: 10px;
+    /* 负边距抵消 .ai-hotspot-section 的 16px 内边距，让轮播卡片贴到面板边缘滑动 */
+    margin: 0 -16px;
+    padding: 2px 16px 10px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .research-discovery-body .ai-hotspot-card {
+    scroll-snap-align: start;
+    grid-template-rows: auto auto;
+  }
+  /* 轮播本身已展示全部热点，"折叠后隐藏第 4 张起"的规则不应对它生效，
+     否则小屏只剩 3 张可见而展开按钮又是隐藏的（.ai-hotspot-expand-toggle 小屏 display:none）。 */
+  .research-discovery-body .ai-hotspot-section.is-collapsed .ai-hotspot-card:nth-of-type(n + 4) {
+    display: grid;
+  }
+  .research-discovery-body .ai-hotspot-grid::-webkit-scrollbar {
+    display: none;
+  }
   .topbar-nav { gap: 0; }
-  .topbar-nav a { flex: 1 1 auto; padding: 0 8px; font-size: 13px; text-align: center; }
-  .topbar-nav a.active::after { left: 8px; right: 8px; }
+  .topbar-nav a { flex: 1 1 auto; padding: 6px 8px; font-size: 13px; text-align: center; }
   .search-zone { gap: 12px; padding-top: 12px; }
   .command-panel { padding: 14px; }
   .research-search-zone .search-box { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "input clear submit"; gap: 2px; padding: 4px; }
   .research-search-zone .search-box input { padding: 0 8px; border: 0; background: transparent; }
   .research-search-zone .research-search-submit { width: auto; min-width: 84px; padding: 0 10px; }
   .portfolio-workbench .portfolio-result-focus, #saved-portfolio-select { scroll-margin-top: 128px; }
+}
+
+/* ---------- 未选择标的时的引导空态 ---------- */
+
+.idle-guide {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 22px;
+  padding: 22px 24px;
+  border: 1px solid rgba(24, 95, 165, 0.14);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at top right, rgba(55, 138, 221, 0.08), transparent 42%),
+    linear-gradient(150deg, #ffffff 0%, #f7fafd 100%);
+}
+
+.idle-guide-copy h3 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.idle-guide-copy p {
+  margin: 6px 0 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.idle-guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: idle-step;
+}
+
+.idle-guide-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.idle-guide-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 99px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.idle-guide-steps strong {
+  display: block;
+  color: var(--ink-strong);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.idle-guide-steps small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.idle-guide-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.idle-guide-quick > span {
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.idle-guide-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.idle-guide-chips button {
+  min-height: 36px;
+  padding: 0 16px;
+  /* 控件边界走 --line-input：白色填充上 3.42:1，满足 WCAG 1.4.11 */
+  border: 1px solid var(--line-input);
+  border-radius: 99px;
+  background: #ffffff;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  transition: all 0.2s var(--ease);
+}
+
+.idle-guide-chips button:hover {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(24, 95, 165, 0.12);
+}
+
+@media (max-width: 720px) {
+  .idle-guide {
+    padding: 16px;
+  }
+
+  .idle-guide-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .idle-guide-chips button {
+    min-height: 44px;
+  }
 }

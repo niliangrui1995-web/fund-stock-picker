@@ -127,13 +127,13 @@ describe("研究入口与上下文", () => {
     expect(url.searchParams.get("identity")).toMatch(/^[a-f0-9]{12}$/);
   });
 
-  it("旧别名深链使用标准证券，工作台位于默认折叠的发现区之前", async () => {
+  it("旧别名深链使用标准证券，工作台位于发现区之前", async () => {
     await renderAt("/research?stock=NVDAUSEquity");
     expect(container.querySelector('[data-testid="accepted-research"]')?.textContent).toBe("NVDA");
     const workspace = container.querySelector(".workspace")!;
-    const discovery = container.querySelector<HTMLDetailsElement>(".research-discovery")!;
+    // 发现区已由折叠 details 改为常驻 section，仅保留顺序断言。
+    const discovery = container.querySelector<HTMLElement>(".research-discovery")!;
     expect(workspace.compareDocumentPosition(discovery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(discovery.open).toBe(false);
   });
 
   it.each(["/research?stock=ASML", "/research?q=ASML"])("歧义链接 %s 显示市场候选，不擅自选择其中一个", async (path) => {

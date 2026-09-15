@@ -11,8 +11,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import aiBattleHotspotsData from "../config/ai-battle-hotspots.json";
 import { fundQuarter } from "./fundQuarter";
 import { installInputModalityTracking } from "./inputModality";
@@ -145,15 +144,6 @@ type FundStockIndex = {
   stocks: StockRecord[];
 };
 
-type FundHoldingsPayload = {
-  meta: {
-    report: string;
-    generatedAt: string;
-    fundCount?: number;
-  };
-  fundHoldings: Record<string, HoldingRecord[]>;
-};
-
 const popularMarketFilters = [
   { key: "us", label: "美股" },
   { key: "jp", label: "日股" },
@@ -179,10 +169,8 @@ const valueFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
 const FUND_STOCK_DATA_URL = `${fundQuarter.dataUrl}&identity=${SECURITY_IDENTITY_REVISION}`;
-const FUND_HOLDINGS_URL = `${fundQuarter.holdingsUrl}&identity=${SECURITY_IDENTITY_REVISION}`;
 const QDII_HOLDINGS_URL = `${fundQuarter.qdiiHoldingsUrl}&identity=${SECURITY_IDENTITY_REVISION}`;
 const STOCK_SEARCH_LIST_ID = "stock-search-suggestions";
-let fundHoldingsCache: Promise<Record<string, HoldingRecord[]>> | null = null;
 
 function getDialogFocusableElements(container: HTMLElement | null) {
   if (!container) return [];
@@ -194,24 +182,6 @@ function getDialogFocusableElements(container: HTMLElement | null) {
   ).filter((element) => element.getAttribute("aria-hidden") !== "true" && element.getClientRects().length > 0);
 }
 
-function loadFundHoldings() {
-  if (!fundHoldingsCache) {
-    fundHoldingsCache = fetch(FUND_HOLDINGS_URL)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`基金持仓明细请求失败 (HTTP ${response.status})`);
-        }
-        return response.json() as Promise<FundHoldingsPayload>;
-      })
-      .then((payload) => payload.fundHoldings ?? {})
-      .catch((fetchError: Error) => {
-        fundHoldingsCache = null; // 允许下次悬浮时重试
-        console.warn("【FundTrace 持仓明细预取失败】:", fetchError.message);
-        return {} as Record<string, HoldingRecord[]>;
-      });
-  }
-  return fundHoldingsCache;
-}
 const aiBattleHotspots = aiBattleHotspotsData as AiBattleHotspot[];
 const homepageQuickHotspots = aiBattleHotspots.filter((hotspot) => hotspot.homepageQuickEntry);
 
@@ -288,75 +258,8 @@ function hasWanValue(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function formatWan(value: number | null | undefined) {
-  if (!hasWanValue(value)) {
-    return "未披露";
-  }
-  if (value >= 10000) {
-    return `${valueFormatter.format(value / 10000)} 亿`;
-  }
-  return `${valueFormatter.format(value)} 万`;
-}
-
-function formatPercent(value: number | null | undefined) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? `${valueFormatter.format(value)}%`
-    : "未估算";
-}
-
-function tradeStatusTone(status?: string) {
-  if (!status) return "neutral";
-  if (/暂停|停止|封闭|终止|不可|失败/.test(status)) return "blocked";
-  if (/限制|限大额/.test(status)) return "limited";
-  if (/开放/.test(status)) return "open";
-  return "neutral";
-}
-
-type HoldingRecord = {
-  rank?: number;
-  stockCode: string;
-  canonicalStockCode?: string;
-  stockName: string;
-  parseStatus?: "pending";
-  parseIssue?: string;
-  ratioPercent: number;
-  marketValueWan?: number | null;
-  sharesWan?: number;
-};
-
-type FundDetailsTarget = {
-  fundCode: string;
-  fundVariantCodes?: string[];
-  fundName: string;
-  x: number;
-  y: number;
-  isDialog?: boolean;
-};
-
 function normalizeStockCode(code: string) {
   return canonicalizeSecurityCode(code).replace(/[^0-9A-Za-z]/g, "").toUpperCase();
-}
-
-function uniqueFundCodes(fundCode: string, fundVariantCodes?: string[]) {
-  return Array.from(new Set([fundCode, ...(fundVariantCodes ?? [])].filter(Boolean)));
-}
-
-function displayFundName(fund: FundRecord) {
-  return fund.fundVariantCount && fund.fundVariantCount > 1 && fund.fundDisplayName
-    ? fund.fundDisplayName
-    : fund.fundName;
-}
-
-function supportsHoverPointer() {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return true;
-  }
-
-  if (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) {
-    return false;
-  }
-
-  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 function StockLogo({
@@ -422,229 +325,6 @@ function StockLogo({
   );
 }
 
-function FundHoldingsHoverCard({
-  fundCode,
-  fundVariantCodes,
-  fundName,
-  holdings,
-  holdingsReady,
-  currentSearchStockCode,
-  isDialogRequested,
-  x,
-  y,
-  onClose,
-}: {
-  fundCode: string;
-  fundVariantCodes?: string[];
-  fundName: string;
-  holdings: HoldingRecord[];
-  holdingsReady?: boolean;
-  currentSearchStockCode: string | null;
-  isDialogRequested?: boolean;
-  x: number;
-  y: number;
-  onClose: () => void;
-}) {
-  const maxRatio = useMemo(() => Math.max(...holdings.filter((h) => h.parseStatus !== "pending").map((h) => h.ratioPercent), 1), [holdings]);
-  const currentStockCode = useMemo(
-    () => (currentSearchStockCode ? normalizeStockCode(currentSearchStockCode) : ""),
-    [currentSearchStockCode],
-  );
-  const currentHolding = useMemo(() => {
-    if (!currentStockCode) return null;
-    return holdings.find((h) => h.parseStatus !== "pending" && normalizeStockCode(getSecurityIdentity(h.canonicalStockCode || h.stockCode, h.stockName).code) === currentStockCode) ?? null;
-  }, [currentStockCode, holdings]);
-  const fundCodes = useMemo(
-    () => uniqueFundCodes(fundCode, fundVariantCodes),
-    [fundCode, fundVariantCodes],
-  );
-  const topHolding = holdings.find((holding) => holding.parseStatus !== "pending") ?? null;
-  const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
-  const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
-  const isMobilePanel = viewportWidth <= 720;
-  const isDialog = isMobilePanel || isDialogRequested;
-  const cardRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
-  const cardWidth = Math.min(368, viewportWidth - 24);
-  const rowCount = Math.min(holdings.length, 10);
-  const estimatedHeight = 226 + rowCount * 40 + (currentHolding ? 48 : 0);
-  const visibleHeight = Math.min(estimatedHeight, viewportHeight - 24);
-  const cardLeft = Math.max(12, Math.min(x + 18, viewportWidth - cardWidth - 12));
-  const cardTop = Math.max(12, Math.min(y + 12, viewportHeight - visibleHeight - 12));
-  const cardStyle = isMobilePanel
-    ? {
-        position: "fixed" as const,
-        left: "12px",
-        right: "12px",
-        bottom: "12px",
-        zIndex: 10000,
-        pointerEvents: "auto" as const,
-      }
-    : {
-        position: "fixed" as const,
-        left: `${cardLeft}px`,
-        top: `${cardTop}px`,
-        zIndex: 9999,
-        pointerEvents: isDialog ? "auto" as const : "none" as const,
-      };
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!isDialog) return;
-
-    const focusFrame = window.requestAnimationFrame(() => {
-      (closeButtonRef.current ?? cardRef.current)?.focus();
-    });
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-
-      if (event.key !== "Tab") return;
-
-      const focusableElements = getDialogFocusableElements(cardRef.current);
-      if (!focusableElements.length) {
-        event.preventDefault();
-        cardRef.current?.focus();
-        return;
-      }
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-      if (event.shiftKey && document.activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-      } else if (!event.shiftKey && document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isDialog]);
-
-  return (
-    <>
-      {isDialog && (
-        <button
-          type="button"
-          className="fund-holdings-backdrop"
-          aria-label="关闭基金持仓卡片"
-          onClick={onClose}
-        />
-      )}
-      <div
-        ref={cardRef}
-        className={`fund-holdings-hover-card ${isMobilePanel ? "mobile-panel" : ""}`}
-        role={isDialog ? "dialog" : undefined}
-        aria-modal={isDialog ? true : undefined}
-        aria-labelledby={isDialog ? "fund-holdings-title" : undefined}
-        tabIndex={isDialog ? -1 : undefined}
-        style={cardStyle}
-      >
-      <div className="hover-card-header">
-        <div className="hover-card-fund-info">
-          <div id={isDialog ? "fund-holdings-title" : undefined} className="hover-card-fund-name" title={fundName}>
-            {fundName}
-          </div>
-          <div className="hover-card-meta-line">
-            <span>基金代码</span>
-            <strong className="hover-card-fund-codes">{fundCodes.join(" / ")}</strong>
-          </div>
-        </div>
-        {isDialog && (
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="hover-card-close"
-            aria-label="关闭基金持仓卡片"
-            onClick={onClose}
-          >
-            <X size={18} />
-          </button>
-        )}
-      </div>
-      
-      <div className="hover-card-body">
-        <div className="hover-card-summary">
-          <div>
-            <span>持仓股票</span>
-            <strong>{holdings.length ? `${holdings.length} 只` : "--"}</strong>
-          </div>
-          <div>
-            <span>最高占比</span>
-            <strong>{topHolding ? `${valueFormatter.format(topHolding.ratioPercent)}%` : "--"}</strong>
-          </div>
-        </div>
-
-        {currentHolding && (
-          <div className="hover-card-target-strip">
-            <span>当前查询</span>
-            <strong>{getSecurityIdentity(currentHolding.canonicalStockCode || currentHolding.stockCode, currentHolding.stockName).name}</strong>
-            <b>{valueFormatter.format(currentHolding.ratioPercent)}%</b>
-          </div>
-        )}
-
-        <div className="hover-card-title-row">
-          <span>前十大持仓股</span>
-          <span>占净值</span>
-        </div>
-        <div className="hover-card-holdings-list">
-          {holdings && holdings.length > 0 ? (
-            holdings.map((h, index) => {
-              const identity = getSecurityIdentity(h.canonicalStockCode || h.stockCode, h.stockName);
-              const isCurrentTarget =
-                !!currentStockCode && normalizeStockCode(identity.code) === currentStockCode;
-              const widthPercent = h.parseStatus === "pending" ? 0 : Math.min((h.ratioPercent / maxRatio) * 100, 100);
-              
-              return (
-                <div
-                  key={`${identity.code}-${h.rank ?? index}`}
-                  className={`hover-card-holding-row ${isCurrentTarget ? "row-highlight" : ""}`}
-                >
-                  <span className="holding-rank">{h.rank || index + 1}</span>
-                  <div className="holding-main">
-                    <div className="holding-name-line">
-                      <span className="holding-stock-name" title={h.parseIssue || `原披露：${h.stockName} · ${h.stockCode}`}>{identity.name}</span>
-                      <span className="holding-stock-code">{identity.marketLabel} · {identity.code}</span>
-                      {isCurrentTarget && <span className="target-badge">查询标的</span>}
-                    </div>
-                    <div className="holding-progress-bar">
-                      <div
-                        className="holding-progress-fill"
-                        style={{ width: `${widthPercent}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="holding-stock-ratio">
-                    {h.parseStatus === "pending" ? "待核对" : `${valueFormatter.format(h.ratioPercent)}%`}
-                  </span>
-                </div>
-              );
-            })
-          ) : !holdingsReady ? (
-            <p className="no-holdings-msg no-holdings-loading">持仓明细加载中…</p>
-          ) : (
-            <p className="no-holdings-msg">该基金暂无持仓记录</p>
-          )}
-        </div>
-      </div>
-      </div>
-    </>
-  );
-}
-
 function findMatches(stocks: StockRecord[], query: string) {
   const needle = normalize(query);
   const canonicalNeedle = normalize(canonicalizeSecurityCode(query));
@@ -669,370 +349,6 @@ function findMatches(stocks: StockRecord[], query: string) {
     .sort((a, b) => b.score - a.score || (b.stock.offExchangeFundCount ?? b.stock.activeFundCount) - (a.stock.offExchangeFundCount ?? a.stock.activeFundCount))
     .slice(0, 8)
     .map((item) => item.stock);
-}
-
-function MetricCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <section className="metric">
-      <div className="metric-icon">{icon}</div>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-      </div>
-    </section>
-  );
-}
-
-function AccessToggle({
-  accessMode,
-  onChange,
-}: {
-  accessMode: AccessMode;
-  onChange: (mode: AccessMode) => void;
-}) {
-  return (
-    <div className="segmented" aria-label="基金交易场景">
-      <button
-        className={accessMode === "offExchange" ? "active" : ""}
-        onClick={() => onChange("offExchange")}
-        type="button"
-      >
-        <SlidersHorizontal size={16} />
-        场外
-      </button>
-      <button
-        className={accessMode === "onExchange" ? "active" : ""}
-        onClick={() => onChange("onExchange")}
-        type="button"
-      >
-        <BarChart3 size={16} />
-        场内
-      </button>
-    </div>
-  );
-}
-
-function ResultTable({
-  funds,
-  accessMode,
-  onHoverFund,
-  onOpenFund,
-}: {
-  funds: FundRecord[];
-  accessMode: AccessMode;
-  onHoverFund: (fund: FundDetailsTarget | null) => void;
-  onOpenFund: (fund: FundDetailsTarget, trigger: HTMLButtonElement) => void;
-}) {
-  const maxVal = useMemo(() => Math.max(...funds.map((f) => f.marketValueWan ?? 0), 1), [funds]);
-  const maxRatio = useMemo(() => Math.max(...funds.map(f => f.ratioPercent), 1), [funds]);
-
-  if (!funds.length) {
-    return (
-      <div className="table-empty">
-        暂无{accessMode === "onExchange" ? "场内" : "场外"}基金持仓记录
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <p id="direct-holdings-scroll-hint" className="table-scroll-hint">
-        表格可左右滑动查看全部指标
-      </p>
-      <div className="table-wrap">
-      <table aria-describedby="direct-holdings-scroll-hint">
-        <thead>
-          <tr>
-            <th>排名</th>
-            <th>基金</th>
-            <th>类型</th>
-            <th>净值占比</th>
-            <th>持仓市值</th>
-            <th>持股数</th>
-            <th>交易状态</th>
-          </tr>
-        </thead>
-        <tbody>
-          {funds.map((fund, index) => {
-            const ratioWidth = Math.min((fund.ratioPercent / maxRatio) * 100, 100);
-            const valueWidth = hasWanValue(fund.marketValueWan)
-              ? Math.min((fund.marketValueWan / maxVal) * 100, 100)
-              : 0;
-            const fundCodes = uniqueFundCodes(fund.fundCode, fund.fundVariantCodes);
-            const fundName = displayFundName(fund);
-
-            return (
-              <tr key={`${fund.fundCode}-${fund.fundName}`}>
-                <td>
-                  <span className={`rank rank-${index + 1}`}>{index + 1}</span>
-                </td>
-                <td className="fund-holdings-cell">
-                  <button
-                    type="button"
-                    className="fund-holdings-action"
-                    onMouseEnter={(e) => {
-                    if (!supportsHoverPointer()) return;
-                    onHoverFund({
-                      fundCode: fund.fundCode,
-                      fundVariantCodes: fund.fundVariantCodes,
-                      fundName,
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }}
-                    onMouseMove={(e) => {
-                    if (!supportsHoverPointer()) return;
-                    onHoverFund({
-                      fundCode: fund.fundCode,
-                      fundVariantCodes: fund.fundVariantCodes,
-                      fundName,
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }}
-                    onMouseLeave={() => {
-                    if (!supportsHoverPointer()) return;
-                    onHoverFund(null);
-                    }}
-                    onClick={(e) => {
-                    onOpenFund({
-                      fundCode: fund.fundCode,
-                      fundVariantCodes: fund.fundVariantCodes,
-                      fundName,
-                      x: e.clientX,
-                      y: e.clientY,
-                    }, e.currentTarget);
-                    }}
-                    aria-label={`查看 ${fundName} 前十大持仓`}
-                  >
-                    <div className="fund-name" title={fund.fundName}>{fundName}</div>
-                    <div className="fund-code">
-                      <span className="fund-code-list">{fundCodes.join(" / ")}</span>
-                    </div>
-                    <div className="fund-trade-row">
-                      {fund.dailyPurchaseLimit ? (
-                        <span className="trade-limit">日限 {fund.dailyPurchaseLimit}</span>
-                      ) : null}
-                      {fund.minPurchase ? (
-                        <span className="trade-limit">起购 {fund.minPurchase}</span>
-                      ) : null}
-                    </div>
-                  </button>
-                </td>
-                <td>
-                  <span className="fund-type-badge">{fund.fundType || "未分类"}</span>
-                </td>
-                <td className="strong">
-                  <div className="table-metric-cell">
-                    <span className="metric-num">
-                      {valueFormatter.format(fund.ratioPercent)}%
-                    </span>
-                    <div className="table-progress-track">
-                      <div
-                        className="table-progress-fill"
-                        style={{ width: `${ratioWidth}%` }}
-                      />
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="table-metric-cell cell-passive">
-                    <span className="metric-num-passive">
-                      {formatWan(fund.marketValueWan)}
-                    </span>
-                    <div className="table-progress-track passive-track">
-                      <div
-                        className="table-progress-fill passive-fill"
-                        style={{ width: `${valueWidth}%` }}
-                      />
-                    </div>
-                  </div>
-                </td>
-                <td className="shares-cell">{valueFormatter.format(fund.sharesWan)} 万股</td>
-                <td>
-                  <div className="status-stack">
-                    <span className={`trade-pill ${tradeStatusTone(fund.purchaseStatus)}`}>
-                      {fund.purchaseStatus || "申购 --"}
-                    </span>
-                    <span className={`trade-pill ${tradeStatusTone(fund.redemptionStatus)}`}>
-                      {fund.redemptionStatus || "赎回 --"}
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      </div>
-    </>
-  );
-}
-
-function IndirectExposureTable({
-  exposures,
-  onHoverFund,
-  onOpenFund,
-}: {
-  exposures: IndirectExposureRecord[];
-  onHoverFund: (fund: FundDetailsTarget | null) => void;
-  onOpenFund: (fund: FundDetailsTarget, trigger: HTMLButtonElement) => void;
-}) {
-  const maxRawRatio = useMemo(() => Math.max(...exposures.map((f) => f.ratioPercent), 1), [exposures]);
-  const maxEstimatedRatio = useMemo(
-    () => Math.max(...exposures.map((f) => f.estimatedRatioPercent ?? f.ratioPercent), 1),
-    [exposures],
-  );
-
-  if (!exposures.length) {
-    return null;
-  }
-
-  return (
-    <div className="indirect-exposure-panel" aria-labelledby="indirect-exposure-title">
-      <div className="section-title section-title-spaced">
-        <h3 id="indirect-exposure-title">间接 / 杠杆 ETF 暴露</h3>
-        <span>
-          <ArrowUpDown size={15} />
-          不并入正股直接持仓，按估算经济暴露排序
-        </span>
-      </div>
-      <p className="indirect-note">
-        这里展示基金持有的海外个股杠杆 ETF / ETP / ETN 等产品。原占净值来自基金披露，估算暴露按产品杠杆倍数折算，仅作方向性穿透。
-      </p>
-      <p id="indirect-holdings-scroll-hint" className="table-scroll-hint">
-        表格可左右滑动查看全部指标
-      </p>
-      <div className="table-wrap indirect-table-wrap">
-        <table aria-describedby="indirect-holdings-scroll-hint">
-          <thead>
-            <tr>
-              <th>排名</th>
-              <th>基金</th>
-              <th>杠杆产品</th>
-              <th>原占净值</th>
-              <th>估算暴露</th>
-              <th>持仓市值</th>
-              <th>交易状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            {exposures.map((fund, index) => {
-              const rawWidth = Math.min((fund.ratioPercent / maxRawRatio) * 100, 100);
-              const estimatedRatio = fund.estimatedRatioPercent ?? null;
-              const estimatedWidth =
-                typeof estimatedRatio === "number"
-                  ? Math.min((estimatedRatio / maxEstimatedRatio) * 100, 100)
-                  : rawWidth;
-              const fundCodes = uniqueFundCodes(fund.fundCode, fund.fundVariantCodes);
-              const fundName = displayFundName(fund);
-
-              return (
-                <tr key={`${fund.fundCode}-${fund.sourceCode}-${fund.sourceName}`}>
-                  <td>
-                    <span className={`rank rank-${index + 1}`}>{index + 1}</span>
-                  </td>
-                  <td className="fund-holdings-cell">
-                    <button
-                      type="button"
-                      className="fund-holdings-action"
-                      onMouseEnter={(e) => {
-                    if (!supportsHoverPointer()) return;
-                    onHoverFund({
-                        fundCode: fund.fundCode,
-                        fundVariantCodes: fund.fundVariantCodes,
-                        fundName,
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }}
-                      onMouseMove={(e) => {
-                    if (!supportsHoverPointer()) return;
-                    onHoverFund({
-                        fundCode: fund.fundCode,
-                        fundVariantCodes: fund.fundVariantCodes,
-                        fundName,
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }}
-                      onMouseLeave={() => {
-                    if (!supportsHoverPointer()) return;
-                    onHoverFund(null);
-                      }}
-                      onClick={(e) => {
-                      onOpenFund({
-                        fundCode: fund.fundCode,
-                        fundVariantCodes: fund.fundVariantCodes,
-                        fundName,
-                        x: e.clientX,
-                        y: e.clientY,
-                      }, e.currentTarget);
-                      }}
-                      aria-label={`查看 ${fundName} 前十大持仓`}
-                    >
-                      <div className="fund-name" title={fund.fundName}>{fundName}</div>
-                      <div className="fund-code">
-                        <span className="fund-code-list">{fundCodes.join(" / ")}</span>
-                      </div>
-                    </button>
-                  </td>
-                  <td>
-                    <div className="indirect-product-name" title={fund.sourceName}>{fund.sourceName}</div>
-                    <div className="indirect-product-code">
-                      <span>{fund.sourceCode}</span>
-                      <span className="leverage-pill">
-                        {fund.leverageMultiple ? `${valueFormatter.format(fund.leverageMultiple)}x` : "杠杆"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="strong">
-                    <div className="table-metric-cell">
-                      <span className="metric-num">{valueFormatter.format(fund.ratioPercent)}%</span>
-                      <div className="table-progress-track">
-                        <div className="table-progress-fill" style={{ width: `${rawWidth}%` }} />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="strong">
-                    <div className="table-metric-cell">
-                      <span className="metric-num estimated-num">{formatPercent(estimatedRatio)}</span>
-                      <div className="table-progress-track">
-                        <div className="table-progress-fill estimated-fill" style={{ width: `${estimatedWidth}%` }} />
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="table-metric-cell cell-passive">
-                      <span className="metric-num-passive">{formatWan(fund.marketValueWan)}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="status-stack">
-                      <span className={`trade-pill ${tradeStatusTone(fund.purchaseStatus)}`}>
-                        {fund.purchaseStatus || "申购 --"}
-                      </span>
-                      <span className={`trade-pill ${tradeStatusTone(fund.redemptionStatus)}`}>
-                        {fund.redemptionStatus || "赎回 --"}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
 }
 
 function SkeletonCandidate() {
@@ -1168,6 +484,55 @@ function EmptyState({ loading, error, onRetry }: { loading: boolean; error: stri
       <Search size={28} />
       <h2>输入海外股票名称或代码</h2>
       <p>例如：英伟达、NVDA、台积电、TSM、腾讯控股、00700。</p>
+    </section>
+  );
+}
+
+// 未选择任何标的时，结果区此前只剩孤立工具栏，缺少"下一步做什么"的引导。
+// 这里提供一条最短使用路径，并把热门标的做成一步直达入口。
+function IdleGuide({ quickStocks, onSelect }: {
+  quickStocks: PopularStock[];
+  onSelect: (stock: PopularStock, trigger: HTMLElement) => void;
+}) {
+  const steps = [
+    { title: "搜索标的", detail: "输入美股、港股、日股、韩股名称或代码" },
+    { title: "对比穿透结果", detail: "按总估算经济暴露查看场外基金与场内 ETF" },
+    { title: "保存组合深挖", detail: "组合最多 10 只股票，仅保存在本浏览器" },
+  ];
+
+  return (
+    <section className="idle-guide" aria-label="开始使用指南">
+      <div className="idle-guide-copy">
+        <h3>从一次搜索开始</h3>
+        <p>查询单只海外股票被哪些公募基金重仓，或组合多只股票定位共同持有人。</p>
+      </div>
+      <ol className="idle-guide-steps">
+        {steps.map((step, index) => (
+          <li key={step.title}>
+            <span className="idle-guide-step-index">{index + 1}</span>
+            <span>
+              <strong>{step.title}</strong>
+              <small>{step.detail}</small>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {quickStocks.length > 0 && (
+        <div className="idle-guide-quick">
+          <span>试试热门标的</span>
+          <div className="idle-guide-chips">
+            {quickStocks.map((stock) => (
+              <button
+                key={stock.code}
+                type="button"
+                onClick={(event) => onSelect(stock, event.currentTarget)}
+              >
+                {stock.code}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -1565,16 +930,9 @@ export function App() {
   const researchLeaveGuardRef = useRef<((action: () => void, trigger: HTMLElement | null) => void) | null>(null);
   const temporarySelectionRequestIdRef = useRef(0);
   const initialQueryHandledRef = useRef(false);
-  const fundDetailsTriggerRef = useRef<HTMLElement | null>(null);
-  const pendingFundDetailsFocusRef = useRef<HTMLElement | null>(null);
   const feedbackTriggerRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fundHoldingsMap, setFundHoldingsMap] = useState<Record<string, HoldingRecord[]>>({});
-  const [fundHoldingsReady, setFundHoldingsReady] = useState(false);
-  
-  // Track hovered fund information for Hover Card portal display
-  const [hoveredFund, setHoveredFund] = useState<FundDetailsTarget | null>(null);
 
   useEffect(() => installInputModalityTracking(), []);
 
@@ -1730,7 +1088,6 @@ export function App() {
     setActiveSuggestionIndex(null);
     suppressNextSearchFocusRef.current = true;
     const commitSelection = () => {
-      setHoveredFund(null);
       setSelectedCode(stock.code);
       setQuery(stock.code);
       setPortfolioEditorOpen(false);
@@ -1813,24 +1170,10 @@ export function App() {
     }
   }
 
-  function openFundDetails(fund: FundDetailsTarget, trigger: HTMLButtonElement) {
-    fundDetailsTriggerRef.current = trigger;
-    setHoveredFund({ ...fund, isDialog: true });
-  }
-
-  function updateHoveredFund(fund: FundDetailsTarget | null) {
-    setHoveredFund((current) => (current?.isDialog && fund === null ? current : fund));
-  }
-
   function restoreDialogTrigger(trigger: HTMLElement | null) {
     window.requestAnimationFrame(() => {
       if (trigger?.isConnected) trigger.focus();
     });
-  }
-
-  function closeFundDetails() {
-    pendingFundDetailsFocusRef.current = fundDetailsTriggerRef.current;
-    setHoveredFund(null);
   }
 
   function closeFeedbackDialog() {
@@ -1850,40 +1193,6 @@ export function App() {
     leaveGuard(() => window.location.assign(destination), event.currentTarget);
   }
 
-
-
-  // 悬浮基金行时立即触发懒加载兜底：空闲预取尚未完成或失败时在此补拉。
-  useEffect(() => {
-    if (!hoveredFund) return;
-
-    loadFundHoldings().then((holdings) => {
-      setFundHoldingsMap(holdings);
-      setFundHoldingsReady(true);
-    });
-  }, [hoveredFund]);
-
-  useEffect(() => {
-    if (hoveredFund !== null) return;
-
-    const trigger = pendingFundDetailsFocusRef.current;
-    if (!trigger) return;
-
-    let secondFocusFrame: number | null = null;
-    const firstFocusFrame = window.requestAnimationFrame(() => {
-      secondFocusFrame = window.requestAnimationFrame(() => {
-        if (trigger.isConnected) trigger.focus();
-        if (pendingFundDetailsFocusRef.current === trigger) {
-          pendingFundDetailsFocusRef.current = null;
-        }
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(firstFocusFrame);
-      if (secondFocusFrame !== null) window.cancelAnimationFrame(secondFocusFrame);
-    };
-  }, [hoveredFund]);
-
   // 修复 UI 锁定 Bug：只有在真正处于 loading 且没有发生加载错误时，才显示骨架屏。
   // 如果加载失败，解除 isAppLoading，进入 EmptyState 显示红色的错误载入面板，方便用户排查。
   const isAppLoading = loading && !error;
@@ -1892,9 +1201,22 @@ export function App() {
       ? "仅供研究，不构成投资建议。"
       : "持仓非实时；仅供研究，不构成投资建议。";
 
+  // 跳转链接原本指向 #main-content —— 也就是它自己的祖先 <main>，
+  // 回车后焦点落到 main 上，紧接着再按 Tab 又回到跳转链接本身，形成自指循环，
+  // 而顶部导航仍在 <main> 内部，等于"跳过了但没跳过"。
+  // 改为指向各页紧随导航之后的正文标题（这些标题已加 tabIndex={-1} 可编程聚焦）。
+  const skipTarget =
+    page === "leverage"
+      ? "#leverage-dashboard-title"
+      : page === "concentration"
+        ? "#concentration-dashboard-title"
+        : page === "methodology"
+          ? "#methodology-title"
+          : "#research-title";
+
   return (
     <main className="app-shell" data-page={page} id="main-content" tabIndex={-1}>
-      <a className="skip-link" href="#main-content">
+      <a className="skip-link" href={skipTarget}>
         跳到主要内容
       </a>
       {/* 每个路由页面唯一 h1：页面此前缺少 h1 语义层级，影响 SEO 与读屏导航 */}
@@ -1910,7 +1232,6 @@ export function App() {
       <header className="topbar">
         <div className="brand-mark">
           <span>出海钱眼</span>
-          基金持仓穿透
         </div>
         <nav className="topbar-nav" aria-label="当前功能区">
           <a
@@ -1974,7 +1295,7 @@ export function App() {
       <>
       <section className="research-intro" aria-labelledby="research-title">
         <div>
-          <h2 id="research-title">{portfolioEditorOpen ? "组合找基金" : "股票找基金"}</h2>
+          <h2 id="research-title" tabIndex={-1}>{portfolioEditorOpen ? "组合找基金" : "股票找基金"}</h2>
           <p>{data?.meta.report ?? fundQuarter.report} · 持仓截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}</p>
         </div>
         <a href={appPagePath("methodology")} onClick={handleTopNavigation}>数据口径</a>
@@ -2007,7 +1328,6 @@ export function App() {
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                setHoveredFund(null);
                 setSuggestionsOpen(true);
                 setActiveSuggestionIndex(null);
               }}
@@ -2088,7 +1408,14 @@ export function App() {
           ) : error ? (
             <EmptyState loading={false} error={error} onRetry={() => setRetryToken((value) => value + 1)} />
           ) : (
-            <PortfolioWorkbench
+            <>
+              {(researchContext?.stockCodes.length ?? 0) === 0 && (
+                <IdleGuide
+                  quickStocks={quickStocks}
+                  onSelect={(stock, trigger) => chooseStock(stock, trigger)}
+                />
+              )}
+              <PortfolioWorkbench
               stocks={data?.stocks ?? []}
               report={data?.meta.report ?? fundQuarter.report}
               cutoffDate={data?.meta.cutoffDate ?? fundQuarter.cutoffDate}
@@ -2112,13 +1439,15 @@ export function App() {
                 </details>
               }
             />
+            </>
           )}
         </section>
       </section>
 
-      <details className="research-discovery">
-        <summary>热点与热门</summary>
+      <section className="research-discovery">
         <div className="research-discovery-body">
+        {/* 未选标的时空态引导已提供同样的热门入口，这里不再重复渲染同一排芯片 */}
+        {(researchContext?.stockCodes.length ?? 0) === 0 ? null : (
         <div className="recent-panel" aria-label="快速查询">
           <div className="panel-status">
             <span>AI 存储热点</span>
@@ -2135,13 +1464,14 @@ export function App() {
             )}
           </div>
         </div>
+        )}
 
         <div className="summary-card" aria-label="基金数据总览">
           <span>覆盖基金</span>
           <strong>{data ? numberFormatter.format(data.meta.fundCount ?? data.meta.sourceRows) : "--"} 只</strong>
         </div>
       <section
-        className={`ai-hotspot-section ${hotspotsExpanded ? "" : "is-collapsed"}`}
+        className={`ai-hotspot-section${hotspotsExpanded ? "" : " is-collapsed"}`}
         aria-labelledby="ai-hotspot-title"
       >
         <div className="ai-hotspot-head">
@@ -2245,9 +1575,8 @@ export function App() {
           </div>
         </aside>
         </div>
-      </details>
-      <details className="research-data-overview">
-        <summary>数据范围与覆盖</summary>
+      </section>
+      <section className="research-data-overview">
       <section className="selected-context" aria-label="数据范围与覆盖">
         <div>
           <span>数据期</span>
@@ -2269,7 +1598,7 @@ export function App() {
         </div>
       </section>
 
-      </details>
+      </section>
 
       </>
       )}
@@ -2293,7 +1622,7 @@ export function App() {
       {page === "methodology" && (
       <section className="methodology-section" aria-labelledby="methodology-title">
         <div className="methodology-head">
-          <h2 id="methodology-title">数据口径</h2>
+          <h2 id="methodology-title" tabIndex={-1}>数据口径</h2>
           <p>
             {data?.meta.report ?? fundQuarter.report} · 截至 {data?.meta.cutoffDate ?? fundQuarter.cutoffDate}。未披露不代表未持有。
           </p>
@@ -2342,21 +1671,6 @@ export function App() {
         <p>{disclaimerText}</p>
         {page === "research" || page === "methodology" ? <details><summary>使用须知</summary><p>持仓、申赎、费率及限额可能滞后，请以基金公司和监管最新披露为准。本页不构成基金推荐、销售邀约或收益承诺。</p></details> : null}
       </footer>
-
-      {hoveredFund && (
-        <FundHoldingsHoverCard
-          fundCode={hoveredFund.fundCode}
-          fundVariantCodes={hoveredFund.fundVariantCodes}
-          fundName={hoveredFund.fundName}
-          holdings={fundHoldingsMap[hoveredFund.fundCode] || []}
-          holdingsReady={fundHoldingsReady}
-          currentSearchStockCode={selectedStock?.code || null}
-          isDialogRequested={hoveredFund.isDialog}
-          x={hoveredFund.x}
-          y={hoveredFund.y}
-          onClose={closeFundDetails}
-        />
-      )}
 
       <button
         ref={feedbackTriggerRef}

@@ -2,10 +2,7 @@
   margin-top: 28px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 253, 0.96)),
-    var(--surface);
-  box-shadow: var(--shadow-card);
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -16,17 +13,15 @@
   gap: 24px;
   padding: 28px 30px 24px;
   border-bottom: 1px solid var(--line-soft);
-  background:
-    radial-gradient(circle at top right, rgba(71, 87, 200, 0.10), transparent 35%),
-    linear-gradient(135deg, rgba(244, 63, 94, 0.04), transparent 42%);
+  background: var(--surface);
 }
 
 .leverage-eyebrow {
   display: block;
   margin-bottom: 7px;
-  color: #5968ca;
-  font-size: 10px;
-  font-weight: 800;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.16em;
 }
 
@@ -48,13 +43,35 @@
   line-height: 1.75;
 }
 
+/* 原先的独立 KPI 卡网格（.dashboard-metrics/.metric-card）已移除：
+   其中「融资余额」「融资/市值比」与下方摘要卡重复，且把首屏拉长了整整一行。
+   仅剩的记录条数属元数据，收进页头第二行。 */
+.leverage-dashboard-header .leverage-data-meta {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 统一控件栏 */
+.dashboard-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 30px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+}
+
 .leverage-controls {
   display: grid;
   grid-template-columns: minmax(300px, 1.15fr) minmax(280px, 1fr) minmax(240px, 0.85fr);
   gap: 18px;
   padding: 20px 30px;
   border-bottom: 1px solid var(--line-soft);
-  background: rgba(255, 255, 255, 0.58);
+  background: var(--surface-soft);
 }
 
 .leverage-control-group {
@@ -65,15 +82,15 @@
   display: block;
   margin: 0 0 8px;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.08em;
 }
 
 .leverage-control-label em {
   margin-left: 5px;
-  color: #4c5bc8;
-  font-size: 10px;
+  color: #185FA5;
+  font-size: 12px;
   font-style: normal;
   letter-spacing: 0;
 }
@@ -89,12 +106,12 @@
 .leverage-segmented-control button,
 .leverage-period-toggle-group button {
   min-height: 44px;
-  border: 1px solid rgba(71, 85, 105, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.86);
   color: #526178;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
   transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
 }
@@ -110,12 +127,12 @@
   gap: 7px;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid rgba(71, 85, 105, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.86);
   color: #526178;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
   cursor: pointer;
   transition: border-color 0.18s var(--ease), background 0.18s var(--ease), color 0.18s var(--ease), transform 0.18s var(--ease);
@@ -133,8 +150,8 @@
 
 .leverage-index-toggle small {
   color: #a56334;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -144,20 +161,23 @@
 }
 
 .leverage-segmented-control button:hover:not(:disabled),
+.leverage-segmented-control button:focus-visible:not(:disabled),
 .leverage-index-toggle:hover,
-.leverage-period-toggle-group button:hover {
+.leverage-index-toggle:focus-visible,
+.leverage-period-toggle-group button:hover,
+.leverage-period-toggle-group button:focus-visible {
   border-color: rgba(71, 87, 200, 0.42);
-  color: #3645a8;
+  color: #0C447C;
   transform: translateY(-1px);
 }
 
 .leverage-segmented-control button.is-active,
 .leverage-index-toggle.is-active,
 .leverage-period-toggle-group button.is-active {
-  border-color: #4c5bc8;
-  background: #4c5bc8;
+  border-color: #185FA5;
+  background: #185FA5;
   color: #ffffff;
-  box-shadow: 0 6px 14px rgba(71, 87, 200, 0.18);
+  box-shadow: 0 6px 14px rgba(24, 95, 165, 0.12);
 }
 
 .leverage-segmented-control button:disabled {
@@ -191,8 +211,8 @@
 
 .leverage-control-hint {
   margin: 8px 0 0;
-  color: #aa6533;
-  font-size: 11px;
+  color: #5F5E5A;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -208,15 +228,15 @@
   gap: 4px;
   min-width: 0;
   color: #7b8799;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .leverage-date-range input {
   min-width: 0;
   height: 44px;
   padding: 0 7px;
-  border: 1px solid rgba(71, 85, 105, 0.16);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.88);
   color: #405065;
@@ -226,12 +246,13 @@
 .leverage-date-separator {
   padding-bottom: 8px;
   color: #94a3b8;
-  font-size: 11px;
+  font-size: 12px;
 }
 
+/* 5 张互不重复的指标卡：自动换行，宽屏一行、窄屏自动 3+2 / 2+3 */
 .leverage-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(184px, 1fr));
   gap: 12px;
   padding: 20px 30px;
 }
@@ -248,8 +269,8 @@
 
 .leverage-summary-card > span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.04em;
 }
 
@@ -269,23 +290,25 @@
   line-height: 1.6;
 }
 
+/* 主卡是"最大的那个数字"，不是风险告警：用品牌蓝而非 rose，
+   否则首屏最醒目的元素会被误读为"出事了"。 */
 .leverage-summary-primary {
   position: relative;
   overflow: hidden;
-  border-color: rgba(227, 93, 106, 0.24);
-  background: linear-gradient(135deg, #fff8f8, #ffffff);
+  border-color: rgba(24, 95, 165, 0.20);
+  background: linear-gradient(135deg, #f2f8ff, #ffffff);
 }
 
 .leverage-summary-primary::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
-  background: #e35d6a;
+  background: var(--blue);
   content: "";
 }
 
 .leverage-summary-primary strong {
-  color: #bc4050;
+  color: #0C447C;
 }
 
 .leverage-workspace {
@@ -321,7 +344,7 @@
 .leverage-chart-panel-head em {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   line-height: 1.5;
 }
@@ -338,7 +361,7 @@
   padding: 4px 7px;
   border-radius: 4px;
   background: #f3f5f9;
-  color: #56657d;
+  color: #5F5E5A;
   text-align: right;
   white-space: nowrap;
 }
@@ -392,7 +415,7 @@
 .leverage-chart-note {
   margin: -10px 18px 12px;
   color: #a56334;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -417,7 +440,7 @@
   padding: 0 16px;
   color: var(--ink-strong);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
   cursor: pointer;
   list-style: none;
 }

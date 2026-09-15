@@ -99,7 +99,7 @@ export function buildConcentrationChartOption(
   const comparison = buildChinextComparisonSeries(records);
   return {
     animation: false,
-    color: ["#cb5d32", "#3f6fbb", "#16836f"],
+    color: ["#185FA5", "#94a3b8", "#0f7a5a"],
     legend: {
       show: false,
       top: 10,
@@ -159,7 +159,7 @@ export function buildConcentrationChartOption(
         height: 16,
         bottom: 4,
         borderColor: "rgba(71, 85, 105, 0.18)",
-        fillerColor: "rgba(203, 93, 50, 0.16)",
+        fillerColor: "rgba(24, 95, 165, 0.16)",
       },
     ],
     series: [
@@ -172,7 +172,7 @@ export function buildConcentrationChartOption(
         connectNulls: false,
         sampling: "lttb",
         lineStyle: { width: 2.7 },
-        areaStyle: { color: "rgba(203, 93, 50, 0.08)" },
+        areaStyle: { color: "rgba(24, 95, 165, 0.08)" },
         emphasis: { focus: "series" },
         markLine: {
           symbol: "none",

@@ -207,11 +207,15 @@ export function TradingConcentrationDashboard() {
     <section className="concentration-dashboard" aria-labelledby="concentration-dashboard-title">
       <header className="concentration-dashboard-header">
         <div>
-          <h2 id="concentration-dashboard-title">交易集中度</h2>
+          <h2 id="concentration-dashboard-title" tabIndex={-1}>交易集中度</h2>
           <p>C5：成交额前 5% 的活跃 A 股占全 A 等权成交额的比例。</p>
         </div>
         <div className="concentration-header-status">
           <strong>最新交易日 {loaded.manifest.data_range.end}</strong>
+          {/* 记录条数/区间是元数据，不是 KPI：原先单独占 4 张指标卡中的一张，与摘要卡重复 */}
+          <span className="concentration-header-meta">
+            {visibleRecords.length.toLocaleString("zh-CN")} 条 · {visibleRecords[0]?.date} 起
+          </span>
         </div>
       </header>
 

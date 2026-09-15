@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出海钱眼 UI 重设计方案</title>
+<style>
+  :root {
+    --blue-900: #042C53;
+    --blue-800: #0C447C;
+    --blue-600: #185FA5;
+    --blue-400: #378ADD;
+    --blue-200: #85B7EB;
+    --blue-100: #B5D4F4;
+    --blue-50: #E6F1FB;
+
+    --gray-900: #2C2C2A;
+    --gray-800: #444441;
+    --gray-600: #5F5E5A;
+    --gray-400: #888880;
+    --gray-200: #B4B2A9;
+    --gray-100: #D3D1C7;
+    --gray-50: #F1EFE8;
+
+    --green-100: #EAF3DE;
+    --green-800: #27500A;
+    --amber-100: #FAEEDA;
+    --amber-800: #854F0B;
+    --red-100: #FCEBEB;
+    --red-800: #791F1F;
+
+    --surface: #FFFFFF;
+    --surface-alt: #F8F8F5;
+    --border: #E5E4E0;
+    --border-strong: #D3D1C7;
+    --text-primary: #1a1a1a;
+    --text-secondary: #5F5E5A;
+    --text-muted: #888880;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --font-sans: "PingFang SC", "Noto Sans SC", "Microsoft YaHei UI", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    background: #f5f5f2;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .doc-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+    background: var(--surface);
+    box-shadow: 0 0 40px rgba(0,0,0,0.06);
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--blue-800);
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .doc-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--blue-800);
+    margin-top: 48px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--blue-50);
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--gray-900);
+    margin-top: 32px;
+    margin-bottom: 12px;
+  }
+
+  h4 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-800);
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin-bottom: 12px;
+    color: var(--gray-800);
+  }
+
+  ul, ol {
+    margin-left: 20px;
+    margin-bottom: 16px;
+    color: var(--gray-800);
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  code {
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 13px;
+    background: var(--gray-50);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--blue-600);
+  }
+
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .design-principle {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+
+  .principle-card {
+    background: var(--surface-alt);
+    border-radius: var(--radius-md);
+    padding: 16px;
+  }
+
+  .principle-card h4 {
+    color: var(--blue-600);
+    margin-top: 0;
+  }
+
+  .color-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0;
+  }
+
+  .swatch {
+    width: 120px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .swatch-color {
+    height: 60px;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .swatch-label {
+    padding: 6px 8px;
+    background: var(--surface-alt);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .token-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+
+  .token-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--gray-50);
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .token-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--gray-800);
+  }
+
+  .token-table td:first-child {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .mockup-frame {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin: 20px 0;
+  }
+
+  .mockup-frame img {
+    width: 100%;
+    display: block;
+  }
+
+  .mockup-caption {
+    padding: 12px 16px;
+    background: var(--surface-alt);
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .improvement-list {
+    list-style: none;
+    margin-left: 0;
+  }
+
+  .improvement-list li {
+    padding: 8px 0 8px 24px;
+    position: relative;
+  }
+
+  .improvement-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--blue-400);
+  }
+
+  .improvement-list li strong {
+    color: var(--blue-600);
+  }
+
+  .responsive-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 16px 0;
+  }
+
+  .responsive-card {
+    background: var(--surface-alt);
+    border-radius: var(--radius-md);
+    padding: 16px;
+  }
+
+  .responsive-card h4 {
+    margin-top: 0;
+    color: var(--blue-600);
+  }
+
+  .callout {
+    background: var(--blue-50);
+    border-left: 3px solid var(--blue-400);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: var(--blue-800);
+  }
+
+  .callout strong {
+    color: var(--blue-800);
+  }
+
+  .disclaimer {
+    margin-top: 48px;
+    padding: 16px;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 768px) {
+    .doc-container { padding: 24px 16px 48px; }
+    .responsive-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-container">
+
+<h1>出海钱眼 — 全新 UI 重设计方案</h1>
+<p class="doc-subtitle">基金持仓穿透工具 · 2026年9月 · 版本 2.0</p>
+
+<!-- ===================== 设计理念 ===================== -->
+
+<h2>一、设计理念</h2>
+
+<p>当前"出海钱眼"已具备完善的基金持仓穿透功能，但界面信息密度高、视觉层次不够清晰。本次重设计聚焦三个核心目标：</p>
+
+<div class="design-principle">
+  <div class="principle-card">
+    <h4>信息清晰</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">通过统一的字体层级、间距节奏和色彩语义，让用户一眼识别关键数据——基金代码、占比、申赎状态。</p>
+  </div>
+  <div class="principle-card">
+    <h4>操作高效</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">搜索→选择→查看持仓 三步走，每步提供即时反馈；键盘可全程操作，移动端触控友好。</p>
+  </div>
+  <div class="principle-card">
+    <h4>视觉舒适</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">扁平化设计、白色为主背景、蓝色品牌色统一渗透；不使用渐变、阴影和装饰性效果。</p>
+  </div>
+</div>
+
+<!-- ===================== 设计令牌 ===================== -->
+
+<h2>二、设计令牌（Design Tokens）</h2>
+
+<h3>2.1 色彩系统</h3>
+<p>品牌主色采用 <strong>Indigo Blue</strong> 系列（#185FA5 为基色），语义色保持 9 级色阶，确保状态识别一致性。</p>
+
+<div class="color-swatches">
+  <div class="swatch">
+    <div class="swatch-color" style="background:#185FA5;color:#fff;">Indigo 600</div>
+    <div class="swatch-label">#185FA5 · 主色</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style="background:#378ADD;color:#fff;">Blue 400</div>
+    <div class="swatch-label">#378ADD · 强调</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style="background:#E6F1FB;color:#0C447C;">Blue 50</div>
+    <div class="swatch-label">#E6F1FB · 浅底</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style="background:#EAF3DE;color:#27500A;">Green 50</div>
+    <div class="swatch-label">#EAF3DE · 成功</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style="background:#FAEEDA;color:#854F0B;">Amber 50</div>
+    <div class="swatch-label">#FAEEDA · 警告</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-color" style="background:#FCEBEB;color:#791F1F;">Red 50</div>
+    <div class="swatch-label">#FCEBEB · 危险</div>
+  </div>
+</div>
+
+<table class="token-table">
+  <thead>
+    <tr><th>语义令牌</th><th>值</th><th>用途</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--blue-600</code></td><td>#185FA5</td><td>主按钮、链接、激活态</td></tr>
+    <tr><td><code>--blue-400</code></td><td>#378ADD</td><td>强调色、进度条、排名</td></tr>
+    <tr><td><code>--blue-50</code></td><td>#E6F1FB</td><td>浅色背景、卡片高亮</td></tr>
+    <tr><td><code>--gray-50</code></td><td>#F1EFE8</td><td>页面背景、表头</td></tr>
+    <tr><td><code>--gray-100</code></td><td>#D3D1C7</td><td>边框、分隔线</td></tr>
+    <tr><td><code>--text-primary</code></td><td>#1a1a1a</td><td>基金名称、主数据</td></tr>
+    <tr><td><code>--text-secondary</code></td><td>#5F5E5A</td><td>辅助数据、代码</td></tr>
+    <tr><td><code>--text-muted</code></td><td>#888880</td><td>标签、提示</td></tr>
+  </tbody>
+</table>
+
+<h3>2.2 字体层级</h3>
+<p>统一使用 5 级字体层级，严格限制 <strong>400 regular</strong> 和 <strong>500 medium</strong> 两个字重，不使用 600/700。</p>
+
+<table class="token-table">
+  <thead>
+    <tr><th>层级</th><th>字号 / 字重</th><th>用途</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>H1 页面标题</td><td>20px / 500</td><td>"股票找基金"、"两融数据看板"</td></tr>
+    <tr><td>H2 区块标题</td><td>16px / 500</td><td>"AI 热点"、"海外热门标的"</td></tr>
+    <tr><td>H3 卡片标题</td><td>14px / 500</td><td>基金名称、股票名称</td></tr>
+    <tr><td>Body 正文</td><td>13px / 400</td><td>持仓数据、描述文本</td></tr>
+    <tr><td>Caption 辅助</td><td>12px / 400</td><td>代码、标签、提示</td></tr>
+  </tbody>
+</table>
+
+<h3>2.3 间距与圆角</h3>
+<table class="token-table">
+  <thead>
+    <tr><th>令牌</th><th>值</th><th>用途</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--space-xs</code></td><td>4px</td><td>徽章内间距、紧凑元素</td></tr>
+    <tr><td><code>--space-sm</code></td><td>8px</td><td>行内间距、卡片内小间距</td></tr>
+    <tr><td><code>--space-md</code></td><td>16px</td><td>卡片内间距、区块间距</td></tr>
+    <tr><td><code>--space-lg</code></td><td>24px</td><td>区块间距、卡片组间距</td></tr>
+    <tr><td><code>--space-xl</code></td><td>32px</td><td>大区块间距</td></tr>
+    <tr><td><code>--radius-sm</code></td><td>6px</td><td>徽章、小标签</td></tr>
+    <tr><td><code>--radius-md</code></td><td>8px</td><td>按钮、输入框</td></tr>
+    <tr><td><code>--radius-lg</code></td><td>12px</td><td>卡片、弹窗</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>迁移说明：</strong> 当前 <code>styles.css</code> 已定义类似令牌（<code>--space-xs</code> 至 <code>--space-xl</code>、<code>--radius-sm</code> 至 <code>--radius-lg</code>）。本次重设计沿用现有结构，仅调整色值和字号到新标准。字重从 600/700/800 降为统一的 400/500。
+</div>
+
+<!-- ===================== 研究页布局 ===================== -->
+
+<h2>三、研究页（基金穿透）布局方案</h2>
+
+<h3>3.1 当前问题</h3>
+<ul class="improvement-list">
+  <li><strong>信息层级混乱</strong> — 搜索区、AI 热点、热门标的、持仓表四个区域平铺，缺少视觉优先级</li>
+  <li><strong>折叠隐藏关键入口</strong> — 热点和热门标的被包裹在 <code>&lt;details&gt;</code> 里，默认收起，用户不易发现</li>
+  <li><strong>基金表格密度过高</strong> — 列过多（基金名称、代码、类型、占比、市值、持股数、申购、赎回、起购、限购），桌面端拥挤</li>
+  <li><strong>场景切换不明确</strong> — "场外/场内/间接"切换器位置不突出</li>
+</ul>
+
+<h3>3.2 改进方案</h3>
+
+<h4>页面结构（自上而下）</h4>
+<ol>
+  <li><strong>顶部导航栏（48px 高）</strong> — 深蓝色背景，品牌名 + 四个页面切换 + 右侧季度和数据范围标签。导航项使用 Pill 样式，激活态填充蓝色背景</li>
+  <li><strong>标题区</strong> — "股票找基金" + 季度信息 + 右侧"数据口径"链接</li>
+  <li><strong>搜索框（44px 高）</strong> — 胶囊形搜索框，浅灰背景，内置图标 + 输入区 + 主按钮"查看基金"。搜索建议下拉含股票 logo + 代码 + 基金数 + 市场标签</li>
+  <li><strong>AI 热点卡片行</strong> — 水平排列 3-5 张卡片，每张含：股票 logo 圆 + 代码 + 产业链标签 + 基金数 + "查看 →"。活跃卡片浅蓝底，非活跃白底。超过 5 张时末尾显示"更多热点"入口</li>
+  <li><strong>选中标的标题 + 场景切换</strong> — "NVDA · 英伟达 · 美股·NASDAQ" + 三个 Pill 切换器（场外基金/场内基金/间接暴露）</li>
+  <li><strong>基金持仓表</strong> — 精简列为 7 列：# / 基金名称+代码 / 类型 / 占净值+进度条 / 市值 / 申购 / 赎回。斑马纹行，悬停高亮</li>
+  <li><strong>热门标的区</strong> — 横排卡片网格（4-6 张），每张含 logo + 名称+代码 + 市场+基金数 + 最大占比。上方有市场筛选 Pill（美股/港股/日股/韩股/其他）</li>
+  <li><strong>免责声明</strong> — 浅灰底横条</li>
+</ol>
+
+<h4>关键交互改进</h4>
+<ul class="improvement-list">
+  <li><strong>热点和热门默认展开</strong> — 不再使用 <code>&lt;details&gt;</code> 折叠，AI 热点和热门标的始终可见</li>
+  <li><strong>搜索即时反馈</strong> — 输入时显示下拉建议，每项含 logo 缩略、市场标签和基金数，键盘 ↑↓ 可选</li>
+  <li><strong>持仓表行点击</strong> — 点击基金行直接弹出持仓明细弹窗（hover 卡片在桌面端保留，移动端用弹窗替代）</li>
+  <li><strong>场景切换器视觉强化</strong> — 三个 Pill 并排，激活态浅蓝底+蓝边框，非激活白底灰边框</li>
+</ul>
+
+<div class="callout">
+  <strong>实现建议：</strong> 将 <code>research-discovery</code> 的 <code>&lt;details&gt;</code> 改为 <code>&lt;section&gt;</code>，<code>research-data-overview</code> 同理。AI 热点区的 <code>ai-hotspot-section.is-collapsed</code> 逻辑保留，但默认不折叠。搜索区从 <code>grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr)</code> 改为单列全宽。
+</div>
+
+<!-- ===================== 看板页布局 ===================== -->
+
+<h2>四、两融 / 交易集中度看板布局方案</h2>
+
+<h3>4.1 当前问题</h3>
+<ul class="improvement-list">
+  <li><strong>缺少关键指标卡</strong> — 用户进入页面后无法快速获取当前余额、变化等摘要数据</li>
+  <li><strong>控件分散</strong> — 视图切换（余额/比例）、日期选择、指数叠加分散在不同位置</li>
+  <li><strong>数据表与图表割裂</strong> — 图表和数据表之间缺少联动视觉提示</li>
+</ul>
+
+<h3>4.2 改进方案</h3>
+
+<h4>页面结构（自上而下）</h4>
+<ol>
+  <li><strong>顶部导航栏</strong> — 同研究页</li>
+  <li><strong>标题区</strong> — "两融数据看板" + 数据范围说明（"融资余额完整范围：2011-08-03 起 · 截至 XXXX"）</li>
+  <li><strong>指标卡网格（4 张）</strong> — 等宽排列：①融资余额（亿元 + 日变化）②融资/市值比（% + 口径标签）③上证指数（点 + 日变化）④数据记录数（条 + SHA-256 校验标签）。活跃指标卡浅蓝底</li>
+  <li><strong>控件栏</strong> — 左侧视图切换 Pill（余额/比例/数据说明）+ 右侧日期选择器和指数叠加下拉</li>
+  <li><strong>图表区</strong> — 占满宽度的 ECharts 图表，底部含 dataZoom 拖拽条，图表内有 hover 提示框</li>
+  <li><strong>逐日数据表</strong> — 图表下方紧凑表格，列：日期 / 融资余额 / 上证指数 / 融资市值比 / 分母来源。右侧有"导出 CSV"按钮</li>
+  <li><strong>免责声明</strong> — 浅灰底横条，说明数据口径和限制</li>
+</ol>
+
+<h4>交易集中度看板</h4>
+<p>布局结构与两融看板一致，指标卡替换为：①总成交额 ②集中度指标 ③标的数量 ④数据日期。图表区显示成交额集中度走势。</p>
+
+<!-- ===================== 组件库 ===================== -->
+
+<h2>五、组件库规范</h2>
+
+<h3>5.1 按钮</h3>
+<table class="token-table">
+  <thead><tr><th>类型</th><th>样式</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>Primary</td><td>蓝底白字 · #185FA5</td><td>"查看基金"、"导出 CSV"</td></tr>
+    <tr><td>Secondary</td><td>白底蓝边 · border #85B7EB</td><td>"数据口径"、"收起/展开"</td></tr>
+    <tr><td>Tertiary</td><td>浅蓝底 · #E6F1FB</td><td>Pill 切换器激活态</td></tr>
+    <tr><td>Disabled</td><td>白底灰边 · #D3D1C7</td><td>禁用状态</td></tr>
+    <tr><td>Danger</td><td>白底红边 · border #E24B4A</td><td>删除操作</td></tr>
+  </tbody>
+</table>
+<p><strong>圆角</strong>：8px（普通按钮）、22px（胶囊搜索框按钮）<br>
+<strong>高度</strong>：36px（标准）、28px（紧凑）<br>
+<strong>悬停</strong>：transform translateY(-1px)，过渡 0.2s ease</p>
+
+<h3>5.2 徽章（Pills & Badges）</h3>
+<table class="token-table">
+  <thead><tr><th>语义</th><th>背景 / 文字</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>success</td><td>#EAF3DE / #27500A</td><td>申购/赎回状态：开放</td></tr>
+    <tr><td>warning</td><td>#FAEEDA / #854F0B</td><td>限大额、限制</td></tr>
+    <tr><td>danger</td><td>#FCEBEB / #791F1F</td><td>暂停、封闭、终止</td></tr>
+    <tr><td>neutral</td><td>#F1EFE8 / #5F5E5A</td><td>未知状态</td></tr>
+    <tr><td>info</td><td>#E6F1FB / #0C447C</td><td>基金类型、市场标签</td></tr>
+  </tbody>
+</table>
+<p><strong>圆角</strong>：4px<br><strong>高度</strong>：20px<br><strong>字号</strong>：11px / 500</p>
+
+<h3>5.3 基金行卡片</h3>
+<p>每行基金持仓的卡片化呈现，替代当前纯表格行：</p>
+<ul>
+  <li><strong>左侧</strong>：排名圆形（浅蓝底 + 蓝字）+ 基金名称（14px/500）+ 代码/类型（12px/400）+ 申赎徽章</li>
+  <li><strong>右侧</strong>：占净值百分比（16px/500 蓝色）+ 进度条（6px 高浅蓝底 + 蓝色填充）+ 市值/股数（12px/400）</li>
+  <li><strong>整行</strong>：白色背景 + 0.5px 灰色边框 + 12px 圆角，悬停时边框变蓝</li>
+  <li><strong>点击</strong>：展开持仓明细弹窗</li>
+</ul>
+
+<h3>5.4 搜索框</h3>
+<ul>
+  <li><strong>形态</strong>：胶囊形（border-radius: 22px），浅灰背景</li>
+  <li><strong>组成</strong>：搜索图标 + 输入区 + 清除按钮 + 主按钮"查看基金"</li>
+  <li><strong>建议下拉</strong>：每项含股票 logo（28px 圆形）+ 名称 + 代码 + 市场标签 + 基金数</li>
+  <li><strong>键盘</strong>：↑↓ 选择建议项，Enter 确认，Esc 关闭下拉</li>
+</ul>
+
+<h3>5.5 弹窗（Modal）</h3>
+<ul>
+  <li><strong>触发</strong>：点击基金行 / 点击"查看持仓明细"</li>
+  <li><strong>尺寸</strong>：宽 min(880px, 100%)，高 max 88dvh</li>
+  <li><strong>头部</strong>：标题 + 基金代码/类型 + 关闭按钮</li>
+  <li><strong>内容</strong>：持仓列表，每行含排名 + 股票名称/代码 + 占比 + 进度条，查询标的行高亮</li>
+  <li><strong>背景</strong>：半透明遮罩 rgba(15,23,42,0.44)</li>
+  <li><strong>动画</strong>：opacity + scale 淡入，0.25s 过渡</li>
+  <li><strong>键盘</strong>：Esc 关闭，Tab 焦点循环</li>
+</ul>
+
+<!-- ===================== 顶部导航 ===================== -->
+
+<h2>六、顶部导航栏重设计</h2>
+
+<h3>当前问题</h3>
+<ul class="improvement-list">
+  <li><strong>高度偏高</strong> — 70px min-height 在信息密集的金融工具中偏浪费</li>
+  <li><strong>导航项间距过大</strong> — 30px padding 使导航项之间显得稀疏</li>
+  <li><strong>激活态指示器</strong> — 底部蓝色条 + 光晕效果偏重</li>
+  <li><strong>右侧 meta 标签</strong> — 带边框 + 背景，视觉噪音偏大</li>
+</ul>
+
+<h3>改进方案</h3>
+<ul class="improvement-list">
+  <li><strong>高度降至 48px</strong> — 更紧凑，为内容区留出更多空间</li>
+  <li><strong>导航项改为 Pill 样式</strong> — 激活态使用 4px 圆角的蓝色填充矩形，非激活态纯文字灰色</li>
+  <li><strong>品牌名简化</strong> — "出海钱眼" 白色 500 字重，副标题"基金持仓穿透" 浅灰色 400 字重</li>
+  <li><strong>右侧 meta 简化</strong> — 季度标签和数据范围标签使用半透明白色圆角矩形（无边框）</li>
+  <li><strong>导航项间距</strong> — 从 30px 降至 12px padding</li>
+  <li><strong>去掉光晕</strong> — 激活态指示器使用纯色背景，不使用 box-shadow</li>
+</ul>
+
+<div class="callout">
+  <strong>CSS 变更点：</strong> <code>.topbar</code> 的 <code>min-height</code> 从 70px 改为 48px；<code>.topbar-nav a</code> 的 <code>padding</code> 从 <code>0 30px</code> 改为 <code>6px 12px</code>，激活态用 <code>background: var(--blue-400)</code> + <code>border-radius: 4px</code> 替代底部条；<code>.topbar-meta span</code> 去掉 <code>border</code>，保留 <code>background: rgba(255,255,255,0.08)</code> + <code>border-radius: 4px</code>。
+</div>
+
+<!-- ===================== 响应式设计 ===================== -->
+
+<h2>七、响应式设计</h2>
+
+<div class="responsive-grid">
+  <div class="responsive-card">
+    <h4>桌面端 (≥1024px)</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">
+      12 列网格，搜索区全宽单列。AI 热点卡片 5 列横排。基金持仓表 7 列完整显示。热门标的 4-6 列网格。内容区 max-width: 1280px。
+    </p>
+  </div>
+  <div class="responsive-card">
+    <h4>平板端 (768-1023px)</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">
+      搜索区全宽。AI 热点卡片 3 列。基金持仓表隐藏"类型"和"市值"列，改为可展开行内详情。热门标的 3 列。导航项间距压缩。
+    </p>
+  </div>
+  <div class="responsive-card">
+    <h4>移动端 (≤767px)</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">
+      导航栏可横向滚动。搜索框全宽。AI 热点卡片 1.5 列（横向滚动）。基金持仓表改为卡片列表（基金行卡片）。热门标的单列。hover 弹窗改为底部 sheet。
+    </p>
+  </div>
+  <div class="responsive-card">
+    <h4>最小屏 (≤375px)</h4>
+    <p style="font-size:13px;color:var(--text-secondary)">
+      所有内容单列堆叠。导航横向滚动 + 触摸滑动。指标卡 2×2 网格。图表区全宽可缩放。
+    </p>
+  </div>
+</div>
+
+<!-- ===================== 实施路线 ===================== -->
+
+<h2>八、实施路线</h2>
+
+<h3>阶段一：设计令牌迁移</h3>
+<ul>
+  <li>更新 <code>:root</code> 中的 CSS 变量，统一色值到新色阶</li>
+  <li>将全局字重从 600/700/800 降为 400/500</li>
+  <li>调整间距令牌到新标准（保持变量名不变）</li>
+  <li>文件：<code>src/styles.css</code> 第 1-76 行</li>
+</ul>
+
+<h3>阶段二：顶部导航栏</h3>
+<ul>
+  <li>修改 <code>.topbar</code> 高度和导航项样式</li>
+  <li>简化品牌标识和 meta 标签</li>
+  <li>文件：<code>src/styles.css</code> 第 128-245 行、<code>src/App.tsx</code> 第 1910-1971 行</li>
+</ul>
+
+<h3>阶段三：研究页布局</h3>
+<ul>
+  <li>展开 <code>&lt;details&gt;</code> 为 <code>&lt;section&gt;</code></li>
+  <li>搜索区改为全宽单列</li>
+  <li>基金持仓表精简列数，添加进度条可视化</li>
+  <li>热点卡片样式优化</li>
+  <li>文件：<code>src/App.tsx</code> 第 1973-2274 行、<code>src/styles.css</code> 第 247-500 行</li>
+</ul>
+
+<h3>阶段四：看板页面</h3>
+<ul>
+  <li>新增指标卡网格组件</li>
+  <li>统一控件栏样式</li>
+  <li>文件：<code>src/leverage/leverage.css</code>、<code>src/concentration/concentration.css</code></li>
+</ul>
+
+<h3>阶段五：组件库统一</h3>
+<ul>
+  <li>提取按钮、徽章、卡片为通用样式类</li>
+  <li>统一弹窗动画和交互</li>
+  <li>文件：<code>src/styles.css</code>、<code>src/portfolio/portfolio.css</code></li>
+</ul>
+
+<h3>阶段六：响应式适配</h3>
+<ul>
+  <li>添加媒体查询断点（1024px / 768px / 375px）</li>
+  <li>移动端卡片列表模式</li>
+  <li>导航栏横向滚动</li>
+  <li>验证：复用现有 <code>qa:leverage</code> 和 <code>qa:research</code> 浏览器验收流程</li>
+</ul>
+
+<!-- ===================== 质量保障 ===================== -->
+
+<h2>九、质量保障</h2>
+
+<ul>
+  <li><strong>无障碍</strong> — 保持现有 ARIA 标签和键盘导航；确保新组件有正确的 <code>role</code> 和 <code>aria-label</code></li>
+  <li><strong>性能</strong> — 保持懒加载策略（两融/集中度看板按需加载）；CSS 不使用渐变和阴影，减少渲染开销</li>
+  <li><strong>测试</strong> — 复用现有 <code>vitest</code> 和 <code>node --test</code> 测试套件；新增组件视觉回归测试</li>
+  <li><strong>浏览器验收</strong> — 使用 Playwright 桌面端 1440×1024 和移动端 390×844 截图对比</li>
+  <li><strong>构建检查</strong> — <code>npx tsc --noEmit</code> + <code>npx vite build</code> 通过</li>
+</ul>
+
+<div class="disclaimer">
+  本设计方案基于"出海钱眼"项目现有功能（React 19 + TypeScript + Vite 6 + ECharts + lucide-react），
+  不引入新的前端框架或设计系统库。所有设计令牌、组件和布局均可通过修改现有 CSS 变量和组件实现。
+  方案中的 mockup 为概念性可视化，实际数据标签以 <code>config/fund-quarter.json</code> 派生的当前季度数据为准。
+</div>
+
+</div>
+
+</body>
+</html>
