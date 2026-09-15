@@ -29,6 +29,19 @@ afterEach(async () => {
 });
 
 describe("两融摘要和恢复流程", () => {
+  it("打开页面默认选中近 1 年", async () => {
+    vi.mocked(loadLeveragePackage).mockResolvedValueOnce(success);
+    await act(async () => root.render(<LeverageDashboard />));
+
+    const activeButtons = container.querySelectorAll<HTMLButtonElement>(
+      ".leverage-period-toggle-group button.is-active",
+    );
+    expect(activeButtons).toHaveLength(1);
+    expect(activeButtons[0].textContent).toBe("近 1 年");
+    expect(activeButtons[0].getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".leverage-control-period")?.textContent).not.toContain("自定义");
+  });
+
   it("校验失败先阻断，用户重新加载后校验成功才展示图表", async () => {
     vi.mocked(loadLeveragePackage).mockResolvedValueOnce({ ok: false, reason: "发布包 SHA-256 校验失败。" }).mockResolvedValueOnce(success);
     await act(async () => root.render(<LeverageDashboard />));

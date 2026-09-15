@@ -135,7 +135,7 @@ textarea:focus-visible, summary:focus-visible, a:focus-visible,
 | 检查 | 结果 |
 | --- | --- |
 | `tsc --noEmit` | **退出码 0**，0 错误 |
-| `vitest run` | **31 个测试文件 / 222 个用例全部通过**（34.1s） |
+| `vitest run` | **31 个测试文件 / 224 个用例全部通过**（37.2s） |
 | 首屏 `loadMs`（全场景） | 167–269ms（修复前 >180000ms） |
 | 移动端 `smallTargets(<44px)` | **0** |
 | `wcagViolations(<24px)` | **0**（除被 44px 标签包裹的复选框 / 输入框） |
@@ -146,3 +146,46 @@ textarea:focus-visible, summary:focus-visible, a:focus-visible,
 审计脚本：`scripts/_uiaudit_capture.mjs`（主审计，含小命中区聚合、<24px 违规检测、`loadMs` 计时、跳转链接验证）、`scripts/_uiaudit_dev_timing.mjs`（首屏分阶段计时）、`scripts/_uiaudit_grid_rules.mjs`（热点网格生效规则诊断）、`scripts/_uiaudit_probe_mobile.mjs`（移动端布局探针）、`scripts/_uiaudit_skiplink.mjs`（跳转落点验证）。均为一次性工具，不参与发布流程。
 
 > 发布前的生产构建因沙箱拦截 `rm -rf dist` 未能完整跑通，故以 `tsc --noEmit` + 全量 vitest + 真实浏览器实测三者代替；三者均已通过，与本次界面改动无关。
+
+---
+
+## 六、第三轮补充：两页默认时间范围收敛为「近 1 年」
+
+### 6.1 问题
+
+两融页与交易集中度页打开时的默认观察区间不一致，且都不是「当下水位」：
+
+| 页面 | 修改前默认 | 后果 |
+| --- | --- | --- |
+| 两融 | `10y`（近 10 年） | 3672 条记录全量铺开，近一年的杠杆变化被压成右端一小段，看不出趋势拐点 |
+| 交易集中度 | `all`（全部） | 3323 条记录（2013-01-04 起）全量铺开，C5 当前水位与近期抬升同样被稀释 |
+
+两页的区间按钮文案也不统一：两融是「近 1 年／近 3 年…」，集中度是「1 年／3 年…」，同一类控件在两页各说各话。
+
+### 6.2 改动
+
+| 文件 | 改动 |
+| --- | --- |
+| `src/leverage/LeverageDashboard.tsx` | 默认 `period` 由 `"10y"` → `"1y"` |
+| `src/concentration/TradingConcentrationDashboard.tsx` | 默认 `period` 由 `"all"` → `"1y"`；抽出 `DEFAULT_PERIOD` 常量；区间按钮文案统一为「近 1 年 / 近 3 年 / 近 5 年 / 近 10 年 / 全部」，与两融页对齐 |
+
+其余交互不变：用户仍可随时切到 3/5/10 年或「全部」，两融页的手动日期区间仍会正确置为「自定义」。
+
+按现有发布包实测，`近 1 年`窗口的落点为：
+
+- 两融：`2025-09-15 → 2026-09-14`
+- 交易集中度：`2025-09-15 → 2026-09-14`，可见 **242 条**（全量 3323 条）
+
+### 6.3 回归测试（新增 2 例）
+
+- `src/leverage/__tests__/leverageDashboardUx.test.tsx`：断言打开后唯一 `is-active` 的区间按钮为「近 1 年」、`aria-pressed="true"`，且未误入「自定义」态。
+- `src/concentration/__tests__/TradingConcentrationDashboard.test.tsx`：断言默认选中「近 1 年」、页头元信息条数与「末日往前推一年」的应有条数一致（不硬编码具体日期，避免数据包更新后测试失效），并验证点「全部」能切回全量。
+
+### 6.4 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `tsc --noEmit` | 退出码 0，0 错误 |
+| `vitest run` | 31 个文件 / **224 个用例全部通过**（较上轮 +2） |
+| `vite build` | ✅ 通过，产物与线上一致 |
+

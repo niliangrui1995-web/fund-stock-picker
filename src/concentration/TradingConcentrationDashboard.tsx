@@ -20,13 +20,16 @@ type DashboardFailure =
   | { kind: "load"; reason: string }
   | { kind: "validation"; reason: string };
 
+// 标签与两融页统一为「近 N 年」，两页的同类控件不再各说各话
 const PERIODS: Array<{ value: Period; label: string }> = [
-  { value: "1y", label: "1 年" },
-  { value: "3y", label: "3 年" },
-  { value: "5y", label: "5 年" },
-  { value: "10y", label: "10 年" },
+  { value: "1y", label: "近 1 年" },
+  { value: "3y", label: "近 3 年" },
+  { value: "5y", label: "近 5 年" },
+  { value: "10y", label: "近 10 年" },
   { value: "all", label: "全部" },
 ];
+
+const DEFAULT_PERIOD: Period = "1y";
 
 function recordsForPeriod(records: ConcentrationRecord[], period: Period): ConcentrationRecord[] {
   if (period === "all") {
@@ -139,7 +142,8 @@ function Disclosure({ payload, manifest }: { payload: ConcentrationDashboardPayl
 }
 
 export function TradingConcentrationDashboard() {
-  const [period, setPeriod] = useState<Period>("all");
+  // 默认展示近 1 年：打开即聚焦当前集中度水位，长历史留给主动切换的「全部」
+  const [period, setPeriod] = useState<Period>(DEFAULT_PERIOD);
   const [loaded, setLoaded] = useState<{
     payload: ConcentrationDashboardPayload;
     manifest: ConcentrationManifest;

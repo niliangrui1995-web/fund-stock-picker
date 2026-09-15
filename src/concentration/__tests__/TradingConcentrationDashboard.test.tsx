@@ -40,6 +40,39 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
+describe("TradingConcentrationDashboard 默认时间范围", () => {
+  it("打开页面默认按近 1 年展示，且仍可切回全部", async () => {
+    const payload = JSON.parse(await readFile("public/data/trading-concentration-dashboard.json", "utf8"));
+    const manifest = JSON.parse(await readFile("public/data/trading-concentration-dashboard.manifest.json", "utf8"));
+    vi.mocked(loadConcentrationPackage).mockResolvedValueOnce({ ok: true, payload, manifest });
+    await renderDashboard();
+
+    const buttons = container.querySelectorAll<HTMLButtonElement>(".concentration-period-toggle button");
+    const active = container.querySelector<HTMLButtonElement>(".concentration-period-toggle button.is-active");
+    expect(active?.textContent).toBe("近 1 年");
+    expect(active?.getAttribute("aria-pressed")).toBe("true");
+
+    const allRecords = payload.records as Array<{ date: string }>;
+    const lastDate = allRecords[allRecords.length - 1].date;
+    const cutoff = new Date(`${lastDate}T00:00:00Z`);
+    cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
+    const expectedCount = allRecords.filter(
+      (record) => record.date >= cutoff.toISOString().slice(0, 10),
+    ).length;
+
+    expect(expectedCount).toBeGreaterThan(0);
+    expect(expectedCount).toBeLessThan(allRecords.length);
+    expect(container.querySelector(".concentration-header-meta")?.textContent).toContain(
+      `${expectedCount.toLocaleString("zh-CN")} 条`,
+    );
+
+    await act(async () => buttons[buttons.length - 1].click());
+    expect(container.querySelector(".concentration-header-meta")?.textContent).toContain(
+      `${allRecords.length.toLocaleString("zh-CN")} 条`,
+    );
+  });
+});
+
 describe("TradingConcentrationDashboard 错误语义", () => {
   it("英文网络错误提供中文原因与重试，重新校验成功后显示图表", async () => {
     const payload = JSON.parse(await readFile("public/data/trading-concentration-dashboard.json", "utf8"));

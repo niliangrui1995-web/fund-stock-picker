@@ -62,7 +62,8 @@ export function LeverageDashboard() {
   const [loadedPackage, setLoadedPackage] = useState<LoadedLeveragePackage | null>(null);
   const [metric, setMetric] = useState<LeverageMetric>("margin");
   const [indexCodes, setIndexCodes] = useState<LeverageIndexCode[]>(DEFAULT_INDEX_CODES);
-  const [period, setPeriod] = useState<LeveragePeriod>("10y");
+  // 默认展示近 1 年：打开即聚焦当前杠杆水位，避免长历史把当下变化压成一条平线
+  const [period, setPeriod] = useState<LeveragePeriod>("1y");
   const [customRange, setCustomRange] = useState<LeverageDateRange | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const lifecycleRef = useRef<LeverageLoadLifecycle | null>(null);
