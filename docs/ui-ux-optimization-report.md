@@ -187,5 +187,16 @@ textarea:focus-visible, summary:focus-visible, a:focus-visible,
 | --- | --- |
 | `tsc --noEmit` | 退出码 0，0 错误 |
 | `vitest run` | 31 个文件 / **224 个用例全部通过**（较上轮 +2） |
-| `vite build` | ✅ 通过，产物与线上一致 |
+| `vite build` | ✅ 通过（2210 模块，6m45s） |
+| 线上分包一致性 | 入口 4 个资产与本地 `dist` 指纹一致；`LeverageDashboard-C6ftCBwN.js` 与线上**逐字节相同**（21,255 B） |
+
+**线上真实浏览器实测**（Playwright，1440×1024，`https://fund.niliangrui.cloud`）：
+
+| 页面 | 默认选中 | `aria-pressed` | 图表区间 |
+| --- | --- | --- | --- |
+| 两融 | **近 1 年**（唯一 `is-active`） | `true` | `2025-09-15 至 2026-09-14` |
+| 交易集中度 | **近 1 年**（唯一 `is-active`） | `true` | `2025-09-15 至 2026-09-14`，页头 `242 条 · 2025-09-15 起` |
+
+区间切换仍可用：点「全部」→ `3,323 条 · 2013-01-04 起`，点回「近 1 年」→ `242 条 · 2025-09-15 起`。
+
 
