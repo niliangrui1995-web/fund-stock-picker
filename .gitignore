@@ -21,3 +21,4 @@ data-check.tmp.json
 dist-verify/
 dist-buildcheck/
 dist-verify-build/
+dist-*/
