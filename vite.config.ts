@@ -17,6 +17,12 @@ const WARMUP_CLIENT_FILES = [
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // 必须项：确保 react / react-dom 在所有 importer 下解析到同一份实例。
+    // 与下面 manualChunks 的精确匹配配套使用，缺一都可能让产物里出现两份
+    // React（表现为 Cannot read properties of null (reading 'useState')、整页白屏）。
+    dedupe: ["react", "react-dom", "react-dom/client"],
+  },
   optimizeDeps: {
     // 显式声明入口依赖，避免 dev 期间"边加载边发现新依赖"触发的二次预打包 + 整页 reload
     // （这正是冷启动偶发长时间卡住的主因之一）。
@@ -63,7 +69,17 @@ export default defineConfig({
             if (id.includes("lucide-react")) {
               return "icons";
             }
-            if (id.includes("react") || id.includes("scheduler")) {
+            // react / react-dom 必须用「包目录」精确匹配，不能用 id.includes("react")。
+            // 曾经用宽松包含匹配，结果产物里出现两份 React 实例（chunk 内
+            // ReactSharedInternals 被实例化两次）：react-dom 只给其中一份设置 hooks
+            // dispatcher，组件从另一份取 useState 时 dispatcher 为 null，线上整页白屏。
+            // 精确匹配 + resolve.dedupe 才能保证单实例。
+            const normalized = id.replace(/\\/g, "/");
+            if (
+              normalized.includes("/node_modules/react/") ||
+              normalized.includes("/node_modules/react-dom/") ||
+              normalized.includes("/node_modules/scheduler/")
+            ) {
               return "react-vendor";
             }
           }
