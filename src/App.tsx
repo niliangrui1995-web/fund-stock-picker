@@ -1215,10 +1215,11 @@ export function App() {
           : "#research-title";
 
   return (
+    <>
+    <a className="skip-link" href={skipTarget}>
+      跳到主要内容
+    </a>
     <main className="app-shell" data-page={page} id="main-content" tabIndex={-1}>
-      <a className="skip-link" href={skipTarget}>
-        跳到主要内容
-      </a>
       {/* 每个路由页面唯一 h1：页面此前缺少 h1 语义层级，影响 SEO 与读屏导航 */}
       <h1 className="visually-hidden">
         {page === "leverage"
@@ -1444,7 +1445,11 @@ export function App() {
         </section>
       </section>
 
-      <section className="research-discovery">
+      <details className="research-discovery">
+        <summary className="research-discovery-summary">
+          <span>发现与快捷入口</span>
+          <span className="research-discovery-meta">AI 热点 · 海外热门 · 最近查询</span>
+        </summary>
         <div className="research-discovery-body">
         {/* 未选标的时空态引导已提供同样的热门入口，这里不再重复渲染同一排芯片 */}
         {(researchContext?.stockCodes.length ?? 0) === 0 ? null : (
@@ -1575,8 +1580,13 @@ export function App() {
           </div>
         </aside>
         </div>
-      </section>
-      <section className="research-data-overview">
+      </details>
+      <details className="research-data-overview">
+      <summary className="research-overview-summary">
+        <span>数据范围与覆盖</span>
+        <span className="research-discovery-meta">数据期、覆盖规模与披露范围</span>
+      </summary>
+      <div className="research-data-overview-body">
       <section className="selected-context" aria-label="数据范围与覆盖">
         <div>
           <span>数据期</span>
@@ -1597,8 +1607,8 @@ export function App() {
           <strong>{data ? numberFormatter.format(data.meta.holdingRows ?? data.meta.sourceRows) : "--"} 条</strong>
         </div>
       </section>
-
-      </section>
+      </div>
+      </details>
 
       </>
       )}
@@ -1684,5 +1694,6 @@ export function App() {
       </button>
       <FeedbackDialog open={feedbackOpen} onClose={closeFeedbackDialog} />
     </main>
+    </>
   );
 }
